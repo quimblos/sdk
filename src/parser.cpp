@@ -70,6 +70,16 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                         std::cout << "+IF_GT"; break;
                     case qb::CmdCode::IF_GTEQ:
                         std::cout << "+IF_GTEQ"; break;
+                    case qb::CmdCode::ADD:
+                        std::cout << "+ADD"; break;
+                    case qb::CmdCode::SUB:
+                        std::cout << "+SUB"; break;
+                    case qb::CmdCode::MULT:
+                        std::cout << "+MULT"; break;
+                    case qb::CmdCode::DIV:
+                        std::cout << "+DIV"; break;
+                    case qb::CmdCode::MOD:
+                        std::cout << "+MOD"; break;
                     case qb::CmdCode::LOG:
                         std::cout << "+LOG"; break;
                     case qb::CmdCode::SLEEP:
@@ -178,7 +188,55 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     #endif
                 }
                 break;
-            case qb::CmdCode::LOG:
+            case qb::CmdCode::ADD:
+                {
+                    ASSERT_N_BYTES(3);
+                    device_i = bytes[i];
+                    reg_i = bytes[i+1];
+                    type = (qb::DataType) bytes[i+2];
+                    i += 3;
+                    #ifdef QB_LOG_DEBUG
+                        std::cout << "[parser] " << "ADD (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
+                    #endif
+                }
+                break;
+            case qb::CmdCode::SUB:
+                {
+                    ASSERT_N_BYTES(3);
+                    device_i = bytes[i];
+                    reg_i = bytes[i+1];
+                    type = (qb::DataType) bytes[i+2];
+                    i += 3;
+                    #ifdef QB_LOG_DEBUG
+                        std::cout << "[parser] " << "SUB (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
+                    #endif
+                }
+                break;
+            case qb::CmdCode::MULT:
+                {
+                    ASSERT_N_BYTES(3);
+                    device_i = bytes[i];
+                    reg_i = bytes[i+1];
+                    type = (qb::DataType) bytes[i+2];
+                    i += 3;
+                    #ifdef QB_LOG_DEBUG
+                        std::cout << "[parser] " << "MULT (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
+                    #endif
+                }
+                break;
+            case qb::CmdCode::DIV:
+                {
+                    ASSERT_N_BYTES(3);
+                    device_i = bytes[i];
+                    reg_i = bytes[i+1];
+                    type = (qb::DataType) bytes[i+2];
+                    i += 3;
+                    #ifdef QB_LOG_DEBUG
+                        std::cout << "[parser] " << "DIV (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
+                    #endif
+                }
+                break;
+            case qb::CmdCode::MOD:
                 {
                     ASSERT_N_BYTES(2);
                     device_i = bytes[i];
@@ -186,7 +244,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     type = qb::DataType::STRING;
                     i += 2;
                     #ifdef QB_LOG_DEBUG
-                        std::cout << "[parser] " << "LOG (dev:" << ((uint16_t) device_i) << ", type:" << ((uint16_t) type) << ") ";
+                        std::cout << "[parser] " << "MOD (dev:" << ((uint16_t) device_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
                 break;
@@ -366,6 +424,14 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     std::cout << "{i8_xyzw:" << +(value->as_i8xyzw()[0]) << "," << +(value->as_i8xyzw()[1]) << "," << +(value->as_i8xyzw()[2]) << "," << +(value->as_i8xyzw()[3]) << "};" << std::endl;
                 #endif
                 break;
+            case qb::DataType::FLOAT32:
+                ASSERT_N_BYTES(2);
+                value = qb::Data::f32((bytes[i] << 24) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]).ref();
+                i += 2;
+                #ifdef QB_LOG_DEBUG
+                    std::cout << "{f32:" << +(value->as_f32()[0]) << std::endl;
+                #endif
+                break;
             case qb::DataType::STRING:
                 {
                     ASSERT_N_BYTES(2);
@@ -417,6 +483,11 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::CmdCode::IF_EQ:
             case qb::CmdCode::IF_GT:
             case qb::CmdCode::IF_GTEQ:
+            case qb::CmdCode::ADD:
+            case qb::CmdCode::SUB:
+            case qb::CmdCode::MULT:
+            case qb::CmdCode::DIV:
+            case qb::CmdCode::MOD:
                 {
                     // TODO: check if exists
                     device = devices.at(device_i);

@@ -45,7 +45,8 @@ bool qb::Runner::tick() {
             #ifdef QB_LOG_DEBUG
                 std::cout << "SET" << std::endl;
             #endif
-            cmd.device->set(cmd.reg_i, *cmd.value);
+            cmd.device->get(cmd.reg_i).set(*cmd.value);
+            cmd.device->tick();
             break;
         case qb::CmdCode::GOTO:
             #ifdef QB_LOG_DEBUG
@@ -70,6 +71,34 @@ bool qb::Runner::tick() {
                 std::cout << "IF_GTEQ" << std::endl;
             #endif
             
+            break;
+        case qb::CmdCode::ADD:
+            #ifdef QB_LOG_DEBUG
+                std::cout << "ADD" << std::endl;
+            #endif
+            cmd.device->get(cmd.reg_i).add(*cmd.value);
+            cmd.device->tick();
+            break;
+        case qb::CmdCode::SUB:
+            #ifdef QB_LOG_DEBUG
+                std::cout << "SUB" << std::endl;
+            #endif
+            cmd.device->get(cmd.reg_i).sub(*cmd.value);
+            cmd.device->tick();
+            break;
+        case qb::CmdCode::MULT:
+            #ifdef QB_LOG_DEBUG
+                std::cout << "MULT" << std::endl;
+            #endif
+            cmd.device->get(cmd.reg_i).mult(*cmd.value);
+            cmd.device->tick();
+            break;
+        case qb::CmdCode::DIV:
+            #ifdef QB_LOG_DEBUG
+                std::cout << "DIV" << std::endl;
+            #endif
+            cmd.device->get(cmd.reg_i).div(*cmd.value);
+            cmd.device->tick();
             break;
         case qb::CmdCode::LOG:
             #ifdef QB_LOG_DEBUG

@@ -39,20 +39,13 @@ namespace qb {
         INT32 = 0x4A,
         INT16_XY = 0x4B,
         INT8_XYZW = 0x4C,
+        FLOAT32 = 0x4F,
         
         // n bytes
         STRING = 0xF0,
         CONST = 0xFF
     };
     
-    // Stores data on:
-    // - Devices: registers
-    // - Scripts: cmds
-    //
-    // This object should not be copied, since it's
-    // destructor destroys the value, and copies would
-    // do so when destroyed.
-    //
     struct Data {
         DataType type;
         data_t* value = nullptr;
@@ -67,7 +60,7 @@ namespace qb {
         void purge() {
             // std::cout << "[delete]" << std::endl;
             if (this->value == nullptr) return;
-            switch (type) {
+            switch (this->type) {
                 case DataType::VOID:
                     break;
                 case DataType::UINT8:
@@ -89,6 +82,9 @@ namespace qb {
                 case DataType::INT8_XYZW:
                     delete (uint32_t*) this->value;
                     break;
+                case DataType::FLOAT32:
+                    delete (float*) this->value;
+                    break;
                 case DataType::STRING:
                     delete (std::string*) this->value;
                     break;
@@ -99,7 +95,7 @@ namespace qb {
         }
 
         void set(qb::Data& other) {
-            switch (type) {
+            switch (this->type) {
                 case DataType::VOID:
                     break;
                 case DataType::UINT8:
@@ -147,6 +143,9 @@ namespace qb {
                     ((int8_t*) this->value)[2] = ((int8_t*) other.value)[2];
                     ((int8_t*) this->value)[3] = ((int8_t*) other.value)[3];
                     break;
+                case DataType::FLOAT32:
+                    ((float*) this->value)[0] = ((float*) other.value)[0];
+                    break;
                 case DataType::STRING:
                     *((std::string*) this->value) = std::string(*((std::string*) other.value));
                     break;
@@ -156,6 +155,241 @@ namespace qb {
             }
         }
 
+        void add(qb::Data& other) {
+            switch (this->type) {
+                case DataType::VOID:
+                    break;
+                case DataType::UINT8:
+                case DataType::INT8:
+                case DataType::BITMASK8:
+                    ((uint8_t*) this->value)[0] += ((uint8_t*) other.value)[0];
+                    break;
+                case DataType::UINT16:
+                    ((uint16_t*) this->value)[0] += ((uint16_t*) other.value)[0];
+                    break;
+                case DataType::UINT8_XY:
+                    ((uint8_t*) this->value)[0] += ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] += ((uint8_t*) other.value)[1];
+                    break;
+                case DataType::INT16:
+                    ((int16_t*) this->value)[0] += ((int16_t*) other.value)[0];
+                    break;
+                case DataType::INT8_XY:
+                    ((int8_t*) this->value)[0] += ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] += ((int8_t*) other.value)[1];
+                    break;
+                case DataType::UINT32:
+                    ((uint32_t*) this->value)[0] += ((uint32_t*) other.value)[0];
+                    break;
+                case DataType::UINT16_XY:
+                    ((uint16_t*) this->value)[0] += ((uint16_t*) other.value)[0];
+                    ((uint16_t*) this->value)[1] += ((uint16_t*) other.value)[1];
+                    break;
+                case DataType::UINT8_XYZW:
+                    ((uint8_t*) this->value)[0] += ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] += ((uint8_t*) other.value)[1];
+                    ((uint8_t*) this->value)[2] += ((uint8_t*) other.value)[2];
+                    ((uint8_t*) this->value)[3] += ((uint8_t*) other.value)[3];
+                    break;
+                case DataType::INT32:
+                    ((int32_t*) this->value)[0] += ((int32_t*) other.value)[0];
+                    break;
+                case DataType::INT16_XY:
+                    ((int16_t*) this->value)[0] += ((int16_t*) other.value)[0];
+                    ((int16_t*) this->value)[1] += ((int16_t*) other.value)[1];
+                    break;
+                case DataType::INT8_XYZW:
+                    ((int8_t*) this->value)[0] += ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] += ((int8_t*) other.value)[1];
+                    ((int8_t*) this->value)[2] += ((int8_t*) other.value)[2];
+                    ((int8_t*) this->value)[3] += ((int8_t*) other.value)[3];
+                    break;
+                case DataType::FLOAT32:
+                    ((float*) this->value)[0] += ((float*) other.value)[0];
+                    break;
+                case DataType::STRING:
+                    break;
+                case DataType::CONST:
+                    break;
+            }
+        }
+
+        void sub(qb::Data& other) {
+            switch (this->type) {
+                case DataType::VOID:
+                    break;
+                case DataType::UINT8:
+                case DataType::INT8:
+                case DataType::BITMASK8:
+                    ((uint8_t*) this->value)[0] -= ((uint8_t*) other.value)[0];
+                    break;
+                case DataType::UINT16:
+                    ((uint16_t*) this->value)[0] -= ((uint16_t*) other.value)[0];
+                    break;
+                case DataType::UINT8_XY:
+                    ((uint8_t*) this->value)[0] -= ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] -= ((uint8_t*) other.value)[1];
+                    break;
+                case DataType::INT16:
+                    ((int16_t*) this->value)[0] -= ((int16_t*) other.value)[0];
+                    break;
+                case DataType::INT8_XY:
+                    ((int8_t*) this->value)[0] -= ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] -= ((int8_t*) other.value)[1];
+                    break;
+                case DataType::UINT32:
+                    ((uint32_t*) this->value)[0] -= ((uint32_t*) other.value)[0];
+                    break;
+                case DataType::UINT16_XY:
+                    ((uint16_t*) this->value)[0] -= ((uint16_t*) other.value)[0];
+                    ((uint16_t*) this->value)[1] -= ((uint16_t*) other.value)[1];
+                    break;
+                case DataType::UINT8_XYZW:
+                    ((uint8_t*) this->value)[0] -= ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] -= ((uint8_t*) other.value)[1];
+                    ((uint8_t*) this->value)[2] -= ((uint8_t*) other.value)[2];
+                    ((uint8_t*) this->value)[3] -= ((uint8_t*) other.value)[3];
+                    break;
+                case DataType::INT32:
+                    ((int32_t*) this->value)[0] -= ((int32_t*) other.value)[0];
+                    break;
+                case DataType::INT16_XY:
+                    ((int16_t*) this->value)[0] -= ((int16_t*) other.value)[0];
+                    ((int16_t*) this->value)[1] -= ((int16_t*) other.value)[1];
+                    break;
+                case DataType::INT8_XYZW:
+                    ((int8_t*) this->value)[0] -= ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] -= ((int8_t*) other.value)[1];
+                    ((int8_t*) this->value)[2] -= ((int8_t*) other.value)[2];
+                    ((int8_t*) this->value)[3] -= ((int8_t*) other.value)[3];
+                    break;
+                case DataType::FLOAT32:
+                    ((float*) this->value)[0] -= ((float*) other.value)[0];
+                    break;
+                case DataType::STRING:
+                    break;
+                case DataType::CONST:
+                    break;
+            }
+        }
+
+        void mult(qb::Data& other) {
+            switch (this->type) {
+                case DataType::VOID:
+                    break;
+                case DataType::UINT8:
+                case DataType::INT8:
+                case DataType::BITMASK8:
+                    ((uint8_t*) this->value)[0] *= ((uint8_t*) other.value)[0];
+                    break;
+                case DataType::UINT16:
+                    ((uint16_t*) this->value)[0] *= ((uint16_t*) other.value)[0];
+                    break;
+                case DataType::UINT8_XY:
+                    ((uint8_t*) this->value)[0] *= ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] *= ((uint8_t*) other.value)[1];
+                    break;
+                case DataType::INT16:
+                    ((int16_t*) this->value)[0] *= ((int16_t*) other.value)[0];
+                    break;
+                case DataType::INT8_XY:
+                    ((int8_t*) this->value)[0] *= ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] *= ((int8_t*) other.value)[1];
+                    break;
+                case DataType::UINT32:
+                    ((uint32_t*) this->value)[0] *= ((uint32_t*) other.value)[0];
+                    break;
+                case DataType::UINT16_XY:
+                    ((uint16_t*) this->value)[0] *= ((uint16_t*) other.value)[0];
+                    ((uint16_t*) this->value)[1] *= ((uint16_t*) other.value)[1];
+                    break;
+                case DataType::UINT8_XYZW:
+                    ((uint8_t*) this->value)[0] *= ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] *= ((uint8_t*) other.value)[1];
+                    ((uint8_t*) this->value)[2] *= ((uint8_t*) other.value)[2];
+                    ((uint8_t*) this->value)[3] *= ((uint8_t*) other.value)[3];
+                    break;
+                case DataType::INT32:
+                    ((int32_t*) this->value)[0] *= ((int32_t*) other.value)[0];
+                    break;
+                case DataType::INT16_XY:
+                    ((int16_t*) this->value)[0] *= ((int16_t*) other.value)[0];
+                    ((int16_t*) this->value)[1] *= ((int16_t*) other.value)[1];
+                    break;
+                case DataType::INT8_XYZW:
+                    ((int8_t*) this->value)[0] *= ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] *= ((int8_t*) other.value)[1];
+                    ((int8_t*) this->value)[2] *= ((int8_t*) other.value)[2];
+                    ((int8_t*) this->value)[3] *= ((int8_t*) other.value)[3];
+                    break;
+                case DataType::FLOAT32:
+                    ((float*) this->value)[0] *= ((float*) other.value)[0];
+                    break;
+                case DataType::STRING:
+                    break;
+                case DataType::CONST:
+                    break;
+            }
+        }
+
+        void div(qb::Data& other) {
+            switch (this->type) {
+                case DataType::VOID:
+                    break;
+                case DataType::UINT8:
+                case DataType::INT8:
+                case DataType::BITMASK8:
+                    ((uint8_t*) this->value)[0] /= ((uint8_t*) other.value)[0];
+                    break;
+                case DataType::UINT16:
+                    ((uint16_t*) this->value)[0] /= ((uint16_t*) other.value)[0];
+                    break;
+                case DataType::UINT8_XY:
+                    ((uint8_t*) this->value)[0] /= ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] /= ((uint8_t*) other.value)[1];
+                    break;
+                case DataType::INT16:
+                    ((int16_t*) this->value)[0] /= ((int16_t*) other.value)[0];
+                    break;
+                case DataType::INT8_XY:
+                    ((int8_t*) this->value)[0] /= ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] /= ((int8_t*) other.value)[1];
+                    break;
+                case DataType::UINT32:
+                    ((uint32_t*) this->value)[0] /= ((uint32_t*) other.value)[0];
+                    break;
+                case DataType::UINT16_XY:
+                    ((uint16_t*) this->value)[0] /= ((uint16_t*) other.value)[0];
+                    ((uint16_t*) this->value)[1] /= ((uint16_t*) other.value)[1];
+                    break;
+                case DataType::UINT8_XYZW:
+                    ((uint8_t*) this->value)[0] /= ((uint8_t*) other.value)[0];
+                    ((uint8_t*) this->value)[1] /= ((uint8_t*) other.value)[1];
+                    ((uint8_t*) this->value)[2] /= ((uint8_t*) other.value)[2];
+                    ((uint8_t*) this->value)[3] /= ((uint8_t*) other.value)[3];
+                    break;
+                case DataType::INT32:
+                    ((int32_t*) this->value)[0] /= ((int32_t*) other.value)[0];
+                    break;
+                case DataType::INT16_XY:
+                    ((int16_t*) this->value)[0] /= ((int16_t*) other.value)[0];
+                    ((int16_t*) this->value)[1] /= ((int16_t*) other.value)[1];
+                    break;
+                case DataType::INT8_XYZW:
+                    ((int8_t*) this->value)[0] /= ((int8_t*) other.value)[0];
+                    ((int8_t*) this->value)[1] /= ((int8_t*) other.value)[1];
+                    ((int8_t*) this->value)[2] /= ((int8_t*) other.value)[2];
+                    ((int8_t*) this->value)[3] /= ((int8_t*) other.value)[3];
+                    break;
+                case DataType::FLOAT32:
+                    ((float*) this->value)[0] /= ((float*) other.value)[0];
+                    break;
+                case DataType::STRING:
+                    break;
+                case DataType::CONST:
+                    break;
+            }
+        }
 
         static qb::Data _void() {
             return qb::Data({ .type = qb::DataType::VOID, .value = nullptr });
@@ -249,6 +483,12 @@ namespace qb {
             return qb::Data({ .type = qb::DataType::INT8_XYZW, .value = mem });
         }
 
+        static qb::Data f32(float x = 0x0) {
+            float* mem = new float;
+            mem[0] = x;
+            return qb::Data({ .type = qb::DataType::FLOAT32, .value = mem });
+        }
+
         static qb::Data string(uint16_t length, const char* bytes) {
             std::string* mem = new std::string(bytes, length);
             return qb::Data({ .type = qb::DataType::STRING, .value = mem });
@@ -283,6 +523,9 @@ namespace qb {
         }
         uint8_t* as_u8xyzw() {
             return (uint8_t*) this->value;
+        }
+        float* as_f32() {
+            return (float*) this->value;
         }
         int32_t as_i32() {
             return *((int32_t*) this->value);

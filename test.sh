@@ -6,7 +6,7 @@ cmake ..
 make
 
 cd ..
-valgrind --leak-check=full build/blink
+valgrind --leak-check=full build/sandbox
 
 # valgrind --tool=massif --stacks=yes build/blink
 # ms_print massif.out.

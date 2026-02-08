@@ -30,9 +30,11 @@ namespace qb {
                 return this->name;
             }
 
-            virtual void set(uint8_t reg_i, qb::Data& value) {
-                this->registers.at(reg_i).set(value);
+            qb::Data& get(uint8_t reg_i) {
+                return this->registers.at(reg_i);
             }
+
+            virtual void tick() {}
         
         protected:
 

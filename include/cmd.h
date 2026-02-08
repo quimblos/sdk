@@ -14,23 +14,29 @@ namespace qb {
     
     enum CmdCode {
         // 0x0* -> Parser commands
-        USE_DEVICE = 0x01,           // (...name: const) Sets a value
+        USE_DEVICE = 0x01,
         // 0x1* -> Register manipulation commands
-        SET = 0x11,                // (dev: i8, reg: i8, ...data:i8[]) Sets a value
+        SET = 0x11,
         // 0x2* -> Flow control commands 
-        GOTO = 0x20,               // (goto: i16)
-        IF_EQ = 0x21,              // (dev: i8, reg: i8, goto_true: i16, goto_false: i16, ...data: i8[]) Go to a position of the script if the value if equal, or other position if not
-        IF_GT = 0x22,              // (dev: i8, reg: i8, goto_true: i16, goto_false: i16, ...data: i8[]) Go to a position of the script if the value if greater than, or other position if not
-        IF_GTEQ = 0x23,            // (dev: i8, reg: i8, goto_true: i16, goto_false: i16, ...data: i8[]) Go to a position of the script if the value if equal, or other position if not
+        GOTO = 0x20,
+        IF_EQ = 0x21,
+        IF_GT = 0x22,
+        IF_GTEQ = 0x23,
+        // 0x3* -> Arithmetic commands 
+        ADD = 0x30,
+        SUB = 0x31,
+        MULT = 0x32,
+        DIV = 0x33,
+        MOD = 0x34,
         // 0xD* -> Log commands
-        LOG = 0xD0,                // (dev: i8, code: i8, ...data: str) Logs something
+        LOG = 0xD0,
         // 0xE* -> Runner commands
-        SLEEP = 0xE0,               // (data: i32) Waits a specified amount of time (in ms)
-        STOP = 0xEE,                // (...data: str) Stops the runner with an ok message
-        ERROR = 0xEF,               // (code: i8, ...data: str) Stops the runner with an error
+        SLEEP = 0xE0,
+        STOP = 0xEE,
+        ERROR = 0xEF,
         // 0xF* -> Engine commands
-        RESET = 0xF0,              // () Clears the interpreter and resets the peripherals
-        REBOOT = 0xFF,             // () Reboots the device
+        RESET = 0xF0,
+        REBOOT = 0xFF,
     };
     
     struct Cmd { 

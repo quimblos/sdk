@@ -9,12 +9,12 @@ set(SOURCES
     src/parser.cpp
     src/runner.cpp
     src/engine.cpp
-    examples/blink.cpp
+    examples/clock.cpp
 )
 
-add_executable(blink ${SOURCES})
+add_executable(sandbox ${SOURCES})
 
-target_include_directories(blink
+target_include_directories(sandbox
     PRIVATE 
         ${PROJECT_SOURCE_DIR}/include
 )

@@ -1,4 +1,4 @@
-# Quimblos
+# Quimblos SDK
 
 ![A C++ automation framework for embedded systems.](docs/banner.png)
 
@@ -9,15 +9,16 @@
 	* 1.1. [Devices](#Devices)
 	* 1.2. [Constants](#Constants)
 	* 1.3. [Runners](#Runners)
-* 2. [Bytecode](#Bytecode)
+* 2. [Script](#Script)
 	* 2.1. [Types](#Types)
 	* 2.2. [Commands](#Commands)
 		* 2.2.1. [[0x0*] Parser commands](#0x0Parsercommands)
 		* 2.2.2. [[0x1*] Register manipulation commands](#0x1Registermanipulationcommands)
 		* 2.2.3. [[0x2*] Flow control commands](#0x2Flowcontrolcommands)
-		* 2.2.4. [[0xD*] Log commands](#0xDLogcommands)
-		* 2.2.5. [[0xE*] Runner commands](#0xERunnercommands)
-		* 2.2.6. [[0xF*] Engine commands](#0xFEnginecommands)
+		* 2.2.4. [[0x3*] Arithmetic commands](#0x3Arithmeticcommands)
+		* 2.2.5. [[0xD*] Log commands](#0xDLogcommands)
+		* 2.2.6. [[0xE*] Runner commands](#0xERunnercommands)
+		* 2.2.7. [[0xF*] Engine commands](#0xFEnginecommands)
 
 <!-- vscode-markdown-toc-config
 	numbering=true
@@ -106,7 +107,7 @@ qb::Runner* runner = runner_out.runner;
 ```
 
 
-##  2. <a name='Bytecode'></a>Script
+##  2. <a name='Script'></a>Script
 
 A `Script` is what defines the behavior of a _runner_.
 
@@ -170,7 +171,7 @@ REBOOT
 
 ####  2.2.1. <a name='0x0Parsercommands'></a>[0x0*] Parser commands
 
-#####  2.1.1. <a name='0x01USE_DEVICE'></a>[0x01] USE_DEVICE
+##### [0x01] USE_DEVICE
 
 Marks a device to be used by this script.
 The device will be assigned an increasing index (starting at 0), which can be used on the script to reference a device register.
@@ -187,7 +188,7 @@ USE_DEVICE {CONST}
 
 ####  2.2.2. <a name='0x1Registermanipulationcommands'></a>[0x1*] Register manipulation commands
 
-#####  2.2.1. <a name='0x11SET'></a>[0x11] SET
+##### [0x11] SET
 
 Sets the value of a register on a device.
 
@@ -201,7 +202,7 @@ SET device_i reg_i type {*}
 
 ####  2.2.3. <a name='0x2Flowcontrolcommands'></a>[0x2*] Flow control commands 
 
-#####  2.3.1. <a name='0x20GOTO'></a>[0x20] GOTO
+##### [0x20] GOTO
 
 Jumps to a specific address of the script.
 
@@ -215,7 +216,7 @@ GOTO addr[2]
 */
 ```
 
-#####  2.3.2. <a name='0x21IF_EQ'></a>[0x21] IF_EQ
+##### [0x21] IF_EQ
 
 If a given value is equal to a register value, jumps to a specific address (starting at 1) of the script.
 
@@ -229,7 +230,7 @@ IF_EQ device_i reg_i addr_true[2] addr_false[2] type {*}
 */
 ```
 
-#####  2.3.3. <a name='0x22IF_GT'></a>[0x22] IF_GT
+##### [0x22] IF_GT
 
 If a given value if greater than a register value, jumps to a specific address (starting at 1) of the script.
 
@@ -243,7 +244,7 @@ IF_GT device_i reg_i addr_true[2] addr_false[2] type {*}
 */
 ```
 
-#####  2.3.4. <a name='0x23IF_GTEQ'></a>[0x23] IF_GTEQ
+##### [0x23] IF_GTEQ
 
 If a given value is greater than or equal to a register value, jumps to a specific address (starting at 1) of the script.
 
@@ -257,9 +258,66 @@ IF_GTEQ device_i reg_i addr_true[2] addr_false[2] type {*}
 */
 ```
 
-####  2.2.4. <a name='0xDLogcommands'></a>[0xD*] Log commands
+####  2.2.4. <a name='0x3Arithmeticcommands'></a>[0x3*] Arithmetic commands
+  ADD
 
-#####  2.4.1. <a name='0xD0LOG'></a>[0xD0] LOG
+Adds a value to a register on a device.
+
+```c
+ADD device_i reg_i type {*}
+
+/*
+    ADD 0x00 0x00 UINT8 0x01
+*/
+```
+  SUB
+
+Subtracts a value to a register on a device.
+
+```c
+SUB device_i reg_i type {*}
+
+/*
+    SUB 0x00 0x00 UINT8 0x01
+*/
+```
+  MULT
+
+Multiplies a value to a register on a device.
+
+```c
+MULT device_i reg_i type {*}
+
+/*
+    MULT 0x00 0x00 UINT8 0x01
+*/
+```
+  DIV
+
+Divides a register on a device by a value.
+
+```c
+DIV device_i reg_i type {*}
+
+/*
+    DIV 0x00 0x00 UINT8 0x01
+*/
+```
+  MOD
+
+Takes the modulo operation of a register on a device and a value.
+
+```c
+MOD device_i reg_i type {*}
+
+/*
+    MOD 0x00 0x00 UINT8 0x01
+*/
+```
+
+####  2.2.5. <a name='0xDLogcommands'></a>[0xD*] Log commands
+
+##### [0xD0] LOG
 
 Outputs a log message to the runner.
 
@@ -271,9 +329,9 @@ LOG device_i log_code {STRING}
 */
 ```
 
-####  2.2.5. <a name='0xERunnercommands'></a>[0xE*] Runner commands
+####  2.2.6. <a name='0xERunnercommands'></a>[0xE*] Runner commands
 
-#####  2.5.1. <a name='0xE0SLEEP'></a>[0xE0] SLEEP
+##### [0xE0] SLEEP
 
 Holds the runner for a given time (in milliseconds).
 
@@ -285,7 +343,7 @@ SLEEP {UINT32}
 */
 ```
 
-#####  2.5.2. <a name='0xEESTOP'></a>[0xEE] STOP
+##### [0xEE] STOP
 
 Stops the runner with an OK state and a message.
 
@@ -297,7 +355,7 @@ STOP log_code {STRING}
 */
 ```
 
-#####  2.5.3. <a name='0xEFERROR'></a>[0xEF] ERROR
+##### [0xEF] ERROR
 
 Stops the runner with an ERROR state and a message.
 
@@ -309,9 +367,9 @@ ERROR log_code {STRING}
 */
 ```
 
-####  2.2.6. <a name='0xFEnginecommands'></a>[0xF*] Engine commands
+####  2.2.7. <a name='0xFEnginecommands'></a>[0xF*] Engine commands
 
-#####  2.6.1. <a name='0xF0RESET'></a>[0xF0] RESET
+##### [0xF0] RESET
 
 Resets the engine.
 
@@ -323,7 +381,7 @@ RESET
 */
 ```
 
-#####  2.6.2. <a name='0xFFREBOOT'></a>[0xFF] REBOOT
+##### [0xFF] REBOOT
 
 Reboots the engine.
 
