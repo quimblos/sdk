@@ -151,6 +151,7 @@ CONST = 0xFF
 
 ```c
 USE_DEVICE "led_strip"
+USE_REG UINT8
 
 SET 0x00 0x00 UINT8 0x01
 
@@ -158,6 +159,12 @@ GOTO 0x0001
 IF_EQ 0x00 0x00 0x0001 0x0000 STRING "red"
 IF_GT 0x00 0x00 0x0001 0x0000 STRING "red"
 IF_GTEQ 0x00 0x00 0x0001 0x0000 STRING "red"
+
+ADD 0x00 0x00 UINT8 0x01
+SUB 0x00 0x00 UINT8 0x01
+MULT 0x00 0x00 UINT8 0x01
+DIV 0x00 0x00 UINT8 0x01
+MOD 0x00 0x00 UINT8 0x01
 
 LOG 0x00 0x10 "Things are going fine"
 
@@ -182,7 +189,22 @@ The device will be assigned an increasing index (starting at 0), which can be us
 USE_DEVICE {CONST}
 
 /*
-    USE_DEVICE "led_strip"
+    USE_REG "led_strip"
+*/
+```
+
+##### [0x02] USE_REG
+
+Creates a register on the runner.
+This register can be references through the _0xFF_ device.
+
+> This command is not included on the final bytecode, thus doesn't count on jump indexes. It's recommended to be at the top of the script.
+
+```c
+USE_REG type
+
+/*
+    USE_REG UINT8
 */
 ```
 
@@ -206,7 +228,7 @@ SET device_i reg_i type {*}
 
 Jumps to a specific address of the script.
 
-> If the address 0x0000 is specified, it jumps to the next address. Thus, the first command is at index 1.
+> If the address 0xFFFF is specified, it jumps to the next address.
 
 ```c
 GOTO addr[2]
@@ -220,7 +242,7 @@ GOTO addr[2]
 
 If a given value is equal to a register value, jumps to a specific address (starting at 1) of the script.
 
-> If the address 0x0000 is specified, it jumps to the next address. Thus, the first command is at index 1.
+> If the address 0xFFFF is specified, it jumps to the next address.
 
 ```c
 IF_EQ device_i reg_i addr_true[2] addr_false[2] type {*}
@@ -234,7 +256,7 @@ IF_EQ device_i reg_i addr_true[2] addr_false[2] type {*}
 
 If a given value if greater than a register value, jumps to a specific address (starting at 1) of the script.
 
-> If the address 0x0000 is specified, it jumps to the next address. Thus, the first command is at index 1.
+> If the address 0xFFFF is specified, it jumps to the next address.
 
 ```c
 IF_GT device_i reg_i addr_true[2] addr_false[2] type {*}
@@ -248,7 +270,7 @@ IF_GT device_i reg_i addr_true[2] addr_false[2] type {*}
 
 If a given value is greater than or equal to a register value, jumps to a specific address (starting at 1) of the script.
 
-> If the address 0x0000 is specified, it jumps to the next address. Thus, the first command is at index 1.
+> If the address 0xFFFF is specified, it jumps to the next address.
 
 ```c
 IF_GTEQ device_i reg_i addr_true[2] addr_false[2] type {*}

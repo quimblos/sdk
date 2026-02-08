@@ -27,6 +27,7 @@ namespace qb {
             qb::Engine& engine;
             std::string name;
             const qb::Script* script;
+            std::vector<qb::Data> registers;
 
             qb::code_addr_t length = 0;
             qb::code_addr_t cursor = 0;
@@ -36,6 +37,7 @@ namespace qb {
             uint32_t sleep = 0;
     
             void start();
+            void reset();
             void wakeup();
             bool tick();
             
@@ -43,9 +45,16 @@ namespace qb {
             Runner(qb::Engine& engine, std::string name, const qb::Script* script);
             ~Runner() {
                 delete this->script;
+                for (qb::Data& data : this->registers) {
+                    data.purge();
+                }
             }           
 
+            virtual void update();
             virtual void destroy() {}
+
+        private:
+            qb::Data& get(qb::Cmd& cmd);
     };
 }
 

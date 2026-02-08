@@ -12,6 +12,7 @@ namespace qb {
     struct Script {
         std::string name;
         std::vector<qb::Device*> devices;
+        std::vector<qb::DataType> registers;
         std::vector<qb::Cmd> cmds;
 
         ~Script() {

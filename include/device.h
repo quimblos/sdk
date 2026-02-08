@@ -30,11 +30,15 @@ namespace qb {
                 return this->name;
             }
 
+            bool has_i(uint8_t reg_i) {
+                return reg_i < this->registers.size();
+            }
+
             qb::Data& get(uint8_t reg_i) {
                 return this->registers.at(reg_i);
             }
 
-            virtual void tick() {}
+            virtual void update() {}
         
         protected:
 

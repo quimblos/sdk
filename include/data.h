@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <memory>
+#include <bitset>
 #include <iostream>
 
 #define HEADER_QUIMBLOS 'q', 'b', 0x00, 0x00
@@ -94,6 +95,46 @@ namespace qb {
             // this->value = nullptr;
         }
 
+        void log() {
+            switch (this->type) {
+                case DataType::VOID:
+                    std::cout << "{void};"; break;
+                case DataType::UINT8:
+                    std::cout << "{u8:" << +(this->as_u8()) << "};"; break;
+                case DataType::INT8:
+                    std::cout << "{i8:" << +(this->as_i8()) << "};"; break;
+                case DataType::BITMASK8:
+                    std::cout << "{b8:" << std::bitset<8>(+*(this->as_b8())) << "};"; break;
+                case DataType::UINT16:
+                    std::cout << "{u16:" << +(this->as_u16()) << "};"; break;
+                case DataType::UINT8_XY:
+                    std::cout << "{u8_xy:" << +(this->as_u8xy()[0]) << "," << +(this->as_u8xy()[1]) << "};"; break;
+                case DataType::INT16:
+                    std::cout << "{i16:" << +(this->as_i16()) << "};"; break;
+                case DataType::INT8_XY:
+                    std::cout << "{i8_xy:" << +(this->as_i8xy()[0]) << "," << +(this->as_i8xy()[1]) << "};"; break;
+                case DataType::UINT32:
+                    std::cout << "{u32:" << +(this->as_u32()) << "};"; break;
+                case DataType::UINT16_XY:
+                    std::cout << "{u16_xy:" << +(this->as_u16xy()[0]) << "," << +(this->as_u16xy()[1]) << "};"; break;
+                case DataType::UINT8_XYZW:
+                    std::cout << "{u8_xyzw:" << +(this->as_u8xyzw()[0]) << "," << +(this->as_u8xyzw()[1]) << "," << +(this->as_u8xyzw()[2]) << "," << +(this->as_u8xyzw()[3]) << "};"; break;
+                case DataType::INT32:
+                    std::cout << "{i32:" << +(this->as_i32()) << "};"; break;
+                case DataType::INT16_XY:
+                    std::cout << "{i16_xy:" << +(this->as_i16xy()[0]) << "," << +(this->as_i16xy()[1]) << "};"; break;
+                case DataType::INT8_XYZW:
+                    std::cout << "{i8_xyzw:" << +(this->as_i8xyzw()[0]) << "," << +(this->as_i8xyzw()[1]) << "," << +(this->as_i8xyzw()[2]) << "," << +(this->as_i8xyzw()[3]) << "};"; break;
+                case DataType::FLOAT32:
+                    std::cout << "{f32:" << +(this->as_f32()[0]); break;
+                case DataType::STRING:
+                    std::cout << "{str:" << this->as_string() << "};"; break;
+                case DataType::CONST:
+                    std::cout << "{const:" << this->as_string() << "};"; break;
+            }
+            // this->value = nullptr;
+        }
+
         void set(qb::Data& other) {
             switch (this->type) {
                 case DataType::VOID:
@@ -153,6 +194,151 @@ namespace qb {
                     *((std::string*) this->value) = std::string(*((std::string*) other.value));
                     break;
             }
+        }
+
+        void reset() {
+            switch (this->type) {
+                case DataType::VOID:
+                    break;
+                case DataType::UINT8:
+                case DataType::INT8:
+                case DataType::BITMASK8:
+                    ((uint8_t*) this->value)[0] = 0x00;
+                    break;
+                case DataType::UINT16:
+                    ((uint16_t*) this->value)[0] = 0x00;
+                    break;
+                case DataType::UINT8_XY:
+                    ((uint8_t*) this->value)[0] = 0x00;
+                    ((uint8_t*) this->value)[1] = 0x00;
+                    break;
+                case DataType::INT16:
+                    ((int16_t*) this->value)[0] = 0x00;
+                    break;
+                case DataType::INT8_XY:
+                    ((int8_t*) this->value)[0] = 0x00;
+                    ((int8_t*) this->value)[1] = 0x00;
+                    break;
+                case DataType::UINT32:
+                    ((uint32_t*) this->value)[0] = 0x00;
+                    break;
+                case DataType::UINT16_XY:
+                    ((uint16_t*) this->value)[0] = 0x00;
+                    ((uint16_t*) this->value)[1] = 0x00;
+                    break;
+                case DataType::UINT8_XYZW:
+                    ((uint8_t*) this->value)[0] = 0x00;
+                    ((uint8_t*) this->value)[1] = 0x00;
+                    ((uint8_t*) this->value)[2] = 0x00;
+                    ((uint8_t*) this->value)[3] = 0x00;
+                    break;
+                case DataType::INT32:
+                    ((int32_t*) this->value)[0] = 0x00;
+                    break;
+                case DataType::INT16_XY:
+                    ((int16_t*) this->value)[0] = 0x00;
+                    ((int16_t*) this->value)[1] = 0x00;
+                    break;
+                case DataType::INT8_XYZW:
+                    ((int8_t*) this->value)[0] = 0x00;
+                    ((int8_t*) this->value)[1] = 0x00;
+                    ((int8_t*) this->value)[2] = 0x00;
+                    ((int8_t*) this->value)[3] = 0x00;
+                    break;
+                case DataType::FLOAT32:
+                    ((float*) this->value)[0] = 0x00;
+                    break;
+                case DataType::STRING:
+                    *((std::string*) this->value) = std::string("");
+                    break;
+                case DataType::CONST:
+                    *((std::string*) this->value) = std::string("");
+                    break;
+            }
+        }
+
+        uint8_t compare(qb::Data& other) {
+            switch (this->type) {
+                case DataType::VOID:
+                    return 0;
+                case DataType::UINT8:
+                case DataType::INT8:
+                case DataType::BITMASK8:
+                    {
+                        uint8_t diff = ((uint8_t*) other.value)[0] - ((uint8_t*) this->value)[0];
+                        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+                    }
+                case DataType::UINT16:
+                    {
+                        uint16_t diff = ((uint16_t*) other.value)[0] - ((uint16_t*) this->value)[0];
+                        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+                    }
+                case DataType::UINT8_XY:
+                    {
+                        uint8_t diff0 = ((uint8_t*) other.value)[0] - ((uint8_t*) this->value)[0];
+                        uint8_t diff1 = ((uint8_t*) other.value)[1] - ((uint8_t*) this->value)[1];
+                        return (diff0 > 0 && diff1 > 0) ? 1 : ((diff0 < 0 && diff1 < 0) ? -1 : 0);
+                    }
+                case DataType::INT16:
+                    {
+                        int16_t diff = ((int16_t*) other.value)[0] - ((int16_t*) this->value)[0];
+                        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+                    }
+                case DataType::INT8_XY:
+                    {
+                        int8_t diff0 = ((int8_t*) other.value)[0] - ((int8_t*) this->value)[0];
+                        int8_t diff1 = ((int8_t*) other.value)[1] - ((int8_t*) this->value)[1];
+                        return (diff0 > 0 && diff1 > 0) ? 1 : ((diff0 < 0 && diff1 < 0) ? -1 : 0);
+                    }
+                case DataType::UINT32:
+                    {
+                        uint32_t diff = ((uint32_t*) other.value)[0] - ((uint32_t*) this->value)[0];
+                        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+                    }
+                case DataType::UINT16_XY:
+                    {
+                        uint16_t diff0 = ((uint16_t*) other.value)[0] - ((uint16_t*) this->value)[0];
+                        uint16_t diff1 = ((uint16_t*) other.value)[1] - ((uint16_t*) this->value)[1];
+                        return (diff0 > 0 && diff1 > 0) ? 1 : ((diff0 < 0 && diff1 < 0) ? -1 : 0);
+                    }
+                case DataType::UINT8_XYZW:
+                    {
+                        uint8_t diff0 = ((uint8_t*) other.value)[0] - ((uint8_t*) this->value)[0];
+                        uint8_t diff1 = ((uint8_t*) other.value)[1] - ((uint8_t*) this->value)[1];
+                        uint8_t diff2 = ((uint8_t*) other.value)[2] - ((uint8_t*) this->value)[2];
+                        uint8_t diff3 = ((uint8_t*) other.value)[3] - ((uint8_t*) this->value)[3];
+                        return (diff0 > 0 && diff1 > 0 && diff2 > 0 && diff3 > 0) ? 1 : ((diff0 < 0 && diff1 < 0 && diff2 < 0 && diff3 < 0) ? -1 : 0);
+                    }
+                case DataType::INT32:
+                    {
+                        int32_t diff = ((int32_t*) other.value)[0] - ((int32_t*) this->value)[0];
+                        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+                    }
+                case DataType::INT16_XY:
+                    {
+                        int16_t diff0 = ((int16_t*) other.value)[0] - ((int16_t*) this->value)[0];
+                        int16_t diff1 = ((int16_t*) other.value)[1] - ((int16_t*) this->value)[1];
+                        return (diff0 > 0 && diff1 > 0) ? 1 : ((diff0 < 0 && diff1 < 0) ? -1 : 0);
+                    }
+                case DataType::INT8_XYZW:
+                    {
+                        int8_t diff0 = ((int8_t*) other.value)[0] - ((int8_t*) this->value)[0];
+                        int8_t diff1 = ((int8_t*) other.value)[1] - ((int8_t*) this->value)[1];
+                        int8_t diff2 = ((int8_t*) other.value)[2] - ((int8_t*) this->value)[2];
+                        int8_t diff3 = ((int8_t*) other.value)[3] - ((int8_t*) this->value)[3];
+                        return (diff0 > 0 && diff1 > 0 && diff2 > 0 && diff3 > 0) ? 1 : ((diff0 < 0 && diff1 < 0 && diff2 < 0 && diff3 < 0) ? -1 : 0);
+                    }
+                case DataType::FLOAT32:
+                    {
+                        float diff = ((float*) other.value)[0] - ((float*) this->value)[0];
+                        return (diff > 0) ? 1 : ((diff < 0) ? -1 : 0);
+                    }
+                case DataType::STRING:
+                    return 0;
+                case DataType::CONST:
+                    return 0;
+            }
+            return 0;
         }
 
         void add(qb::Data& other) {
@@ -391,6 +577,29 @@ namespace qb {
             }
         }
 
+        static qb::Data of_type(DataType type) {
+            switch (type) {
+                case DataType::VOID: return Data::_void();
+                case DataType::UINT8: return Data::u8();
+                case DataType::INT8: return Data::i8();
+                case DataType::BITMASK8:return Data::b8();
+                case DataType::UINT16: return Data::u16();
+                case DataType::UINT8_XY: return Data::u8xy();
+                case DataType::INT16: return Data::i16();
+                case DataType::INT8_XY: return Data::i8xy();
+                case DataType::UINT32: return Data::u32();
+                case DataType::UINT16_XY: return Data::u16xy();
+                case DataType::UINT8_XYZW: return Data::u8xyzw();
+                case DataType::INT32: return Data::i32();
+                case DataType::INT16_XY: return Data::i16xy();
+                case DataType::INT8_XYZW: return Data::i8xyzw();
+                case DataType::FLOAT32: return Data::f32();
+                case DataType::STRING: return Data::string();
+                case DataType::CONST: return Data::string();
+            }
+            return Data::_void();
+        }
+
         static qb::Data _void() {
             return qb::Data({ .type = qb::DataType::VOID, .value = nullptr });
         }
@@ -489,7 +698,7 @@ namespace qb {
             return qb::Data({ .type = qb::DataType::FLOAT32, .value = mem });
         }
 
-        static qb::Data string(uint16_t length, const char* bytes) {
+        static qb::Data string(uint16_t length= 0, const char* bytes = nullptr) {
             std::string* mem = new std::string(bytes, length);
             return qb::Data({ .type = qb::DataType::STRING, .value = mem });
         }

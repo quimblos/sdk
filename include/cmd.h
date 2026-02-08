@@ -15,6 +15,7 @@ namespace qb {
     enum CmdCode {
         // 0x0* -> Parser commands
         USE_DEVICE = 0x01,
+        USE_REG = 0x02,
         // 0x1* -> Register manipulation commands
         SET = 0x11,
         // 0x2* -> Flow control commands 

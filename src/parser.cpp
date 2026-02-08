@@ -2,7 +2,6 @@
 #include <iomanip>
 #include <string>
 #include <vector>
-#include <bitset>
 #include "parser.h"
 
 #define QB_LOG_DEBUG
@@ -113,6 +112,16 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     type = qb::DataType::CONST;
                     #ifdef QB_LOG_DEBUG
                         std::cout << "[parser] " << "USE DEVICE ";
+                    #endif
+                }
+                break;
+            case qb::CmdCode::USE_REG:
+                {
+                    ASSERT_N_BYTES(1);
+                    type = (qb::DataType) bytes[i];
+                    i += 1;
+                    #ifdef QB_LOG_DEBUG
+                        std::cout << "[parser] " << "USE REG ";
                     #endif
                 }
                 break;
@@ -301,6 +310,14 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 };
         }
 
+        // Script register
+
+        if (current_code == qb::CmdCode::USE_REG) {
+            script->registers.emplace_back(type);
+            current_code = 0;
+            continue;
+        }
+
         // Value
 
         if (type == qb::DataType::UNKNOWN) {
@@ -316,7 +333,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::DataType::VOID:
                 value = qb::Data::_void().ref();
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{void};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::UINT8:
@@ -324,7 +341,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u8(bytes[i]).ref();
                 i += 1;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{u8:" << +(value->as_u8()) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::INT8:
@@ -332,7 +349,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::i8(bytes[i]).ref();
                 i += 1;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{i8:" << +(value->as_i8()) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::BITMASK8:
@@ -341,7 +358,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value->type = qb::DataType::BITMASK8;
                 i += 1;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{b8:" << std::bitset<8>(+*(value->as_b8())) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::UINT16:
@@ -349,7 +366,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u16((bytes[i] << 8) + bytes[i+1]).ref();
                 i += 2;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{u16:" << +(value->as_u16()) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::UINT8_XY:
@@ -357,7 +374,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u8xy(bytes[i], bytes[i+1]).ref();
                 i += 2;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{u8_xy:" << +(value->as_u8xy()[0]) << "," << +(value->as_u8xy()[1]) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::INT16:
@@ -365,7 +382,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::i16((bytes[i] << 8) + bytes[i+1]).ref();
                 i += 2;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{i16:" << +(value->as_i16()) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::INT8_XY:
@@ -373,7 +390,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::i8xy(bytes[i], bytes[i+1]).ref();
                 i += 2;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{i8_xy:" << +(value->as_i8xy()[0]) << "," << +(value->as_i8xy()[1]) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::UINT32:
@@ -381,7 +398,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u32((bytes[i] << 24) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{u32:" << +(value->as_u32()) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::UINT16_XY:
@@ -389,7 +406,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u16xy((bytes[i] << 24) + (bytes[i+1] << 16), (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{u16_xy:" << +(value->as_u16xy()[0]) << "," << +(value->as_u16xy()[1]) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::UINT8_XYZW:
@@ -397,7 +414,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u8xyzw(bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]).ref();
                 i += 4;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{u8_xyzw:" << +(value->as_u8xyzw()[0]) << "," << +(value->as_u8xyzw()[1]) << "," << +(value->as_u8xyzw()[2]) << "," << +(value->as_u8xyzw()[3]) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::INT32:
@@ -405,7 +422,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::i32((bytes[i] << 24) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{i32:" << +(value->as_i32()) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::INT16_XY:
@@ -413,7 +430,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::i16xy((bytes[i] << 24) + (bytes[i+1] << 16), (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{i16_xy:" << +(value->as_i16xy()[0]) << "," << +(value->as_i16xy()[1]) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::INT8_XYZW:
@@ -421,7 +438,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u8xyzw(bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]).ref();
                 i += 4;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{i8_xyzw:" << +(value->as_i8xyzw()[0]) << "," << +(value->as_i8xyzw()[1]) << "," << +(value->as_i8xyzw()[2]) << "," << +(value->as_i8xyzw()[3]) << "};" << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::FLOAT32:
@@ -429,7 +446,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::f32((bytes[i] << 24) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 2;
                 #ifdef QB_LOG_DEBUG
-                    std::cout << "{f32:" << +(value->as_f32()[0]) << std::endl;
+                    value->log();
                 #endif
                 break;
             case qb::DataType::STRING:
@@ -441,7 +458,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     value = qb::Data::string(length, (const char*) bytes+i).ref();
                     i += length;
                     #ifdef QB_LOG_DEBUG
-                        std::cout << "{str:" << value->as_string() << "};" << std::endl;
+                        value->log();
                     #endif
                 }
                 break;
@@ -454,11 +471,12 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     value = qb::Data::string(length, (const char*) bytes+i).ref();
                     i += length;
                     #ifdef QB_LOG_DEBUG
-                        std::cout << "{const:" << value->as_string() << "};" << std::endl;
+                        value->log();
                     #endif
                 }
                 break;
         }
+        std::cout << std::endl;
         
         // Use Device / Get Registers
 
@@ -489,13 +507,28 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::CmdCode::DIV:
             case qb::CmdCode::MOD:
                 {
-                    // TODO: check if exists
-                    device = devices.at(device_i);
-                    if (device == nullptr) {
-                        return {
-                            .ok = false,
-                            .message = "Device out of range"
-                        };
+                    if (device_i == 0xFF) {
+                        if (reg_i >= script->registers.size()) {
+                            return {
+                                .ok = false,
+                                .message = "Register out of range"
+                            };
+                        }
+                    }
+                    else {
+                        if (device_i >= devices.size()) {
+                            return {
+                                .ok = false,
+                                .message = "Device out of range"
+                            };
+                        }
+                        device = devices.at(device_i);
+                        if (!device->has_i(reg_i)) {
+                            return {
+                                .ok = false,
+                                .message = "Register out of range"
+                            };
+                        }
                     }
                 }
                 break;
@@ -535,38 +568,42 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
         qb::Cmd& cmd = script->cmds.at(i);
         if (gotos_true.contains(i)) {
             const qb::code_addr_t to = gotos_true.at(i);
-            if (to >= n_cmds) {
-                return {
-                    .ok = false,
-                    .message = "Invalid GOTO",
-                    .script = nullptr
-                };
+            if (to == 0xFFFF) {
+                if (i == n_cmds-1) cmd.next = 0xFFFF;
+                else cmd.next = i+1;
             }
-            if (to == 0) {
-                if (i == n_cmds-1) cmd.next = 0;
-                else cmd.next = i+2;
+            else {
+                if (to >= n_cmds) {
+                    return {
+                        .ok = false,
+                        .message = "Invalid GOTO",
+                        .script = nullptr
+                    };
+                }
+                cmd.next = to;
             }
-            else cmd.next = to;
         }
         else {
-            if (i == n_cmds-1) cmd.next = 0;
-            else cmd.next = i+2;
+            if (i == n_cmds-1) cmd.next = 0xFFFF;
+            else cmd.next = i+1;
         }
 
         if (gotos_false.contains(i)) {
             const qb::code_addr_t to = gotos_false.at(i);
-            if (to >= n_cmds) {
-                return {
-                    .ok = false,
-                    .message = "Invalid GOTO",
-                    .script = nullptr
-                };
+            if (to == 0xFFFF) {
+                if (i == n_cmds-1) cmd.next_false = 0xFFFF;
+                else cmd.next_false = i+1;
             }
-            if (to == 0) {
-                if (i == n_cmds-1) cmd.next_false = 0;
-                else cmd.next_false = i+2;
+            else {
+                if (to >= n_cmds) {
+                    return {
+                        .ok = false,
+                        .message = "Invalid GOTO",
+                        .script = nullptr
+                    };
+                }
+                cmd.next_false = to;
             }
-            cmd.next_false = to;
         }
     }
     

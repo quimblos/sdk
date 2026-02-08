@@ -9,7 +9,7 @@ set(SOURCES
     src/parser.cpp
     src/runner.cpp
     src/engine.cpp
-    examples/clock.cpp
+    examples/2-accumulator.cpp
 )
 
 add_executable(sandbox ${SOURCES})
