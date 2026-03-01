@@ -69,8 +69,8 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                         std::cout << "+IF_GT"; break;
                     case qb::CmdCode::IF_GTEQ:
                         std::cout << "+IF_GTEQ"; break;
-                    case qb::CmdCode::ADD:
-                        std::cout << "+ADD"; break;
+                    case qb::CmdCode::SUM:
+                        std::cout << "+SUM"; break;
                     case qb::CmdCode::SUB:
                         std::cout << "+SUB"; break;
                     case qb::CmdCode::MULT:
@@ -197,7 +197,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     #endif
                 }
                 break;
-            case qb::CmdCode::ADD:
+            case qb::CmdCode::SUM:
                 {
                     ASSERT_N_BYTES(3);
                     device_i = bytes[i];
@@ -205,7 +205,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     type = (qb::DataType) bytes[i+2];
                     i += 3;
                     #ifdef QB_LOG_DEBUG
-                        std::cout << "[parser] " << "ADD (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
+                        std::cout << "[parser] " << "SUM (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
                 break;
@@ -313,7 +313,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
         // Script register
 
         if (current_code == qb::CmdCode::USE_REG) {
-            script->registers.emplace_back(type);
+            script->variable_types.emplace_back(type);
             current_code = 0;
             continue;
         }
@@ -501,14 +501,14 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::CmdCode::IF_EQ:
             case qb::CmdCode::IF_GT:
             case qb::CmdCode::IF_GTEQ:
-            case qb::CmdCode::ADD:
+            case qb::CmdCode::SUM:
             case qb::CmdCode::SUB:
             case qb::CmdCode::MULT:
             case qb::CmdCode::DIV:
             case qb::CmdCode::MOD:
                 {
                     if (device_i == 0xFF) {
-                        if (reg_i >= script->registers.size()) {
+                        if (reg_i >= script->variable_types.size()) {
                             return {
                                 .ok = false,
                                 .message = "Register out of range"

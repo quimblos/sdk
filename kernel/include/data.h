@@ -341,7 +341,7 @@ namespace qb {
             return 0;
         }
 
-        void add(qb::Data& other) {
+        void sum(qb::Data& other) {
             switch (this->type) {
                 case DataType::VOID:
                     break;

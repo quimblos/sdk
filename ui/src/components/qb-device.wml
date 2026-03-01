@@ -1,0 +1,12 @@
+<template>
+    <div class="qb-device">
+        DEVICE
+        <qb-device-water-tank/>
+    </div>
+</template>
+
+<style>
+.qb-device {
+    background-color: #0f0;
+}
+</style>

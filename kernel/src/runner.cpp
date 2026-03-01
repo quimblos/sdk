@@ -9,9 +9,9 @@ qb::Runner::Runner(
     name(name),
     script(script)
 {
-    for (const qb::DataType type : this->script->registers) {
+    for (const qb::DataType type : this->script->variable_types) {
         qb::Data reg = qb::Data::of_type(type);
-        this->registers.emplace_back(
+        this->variables.emplace_back(
             reg.type,
             reg.value
         );
@@ -25,7 +25,7 @@ void qb::Runner::start() {
 }
 
 void qb::Runner::reset() {
-    for (qb::Data& reg : this->registers) {
+    for (qb::Data& reg : this->variables) {
         reg.reset();
     }
     this->wakeup();
@@ -93,11 +93,11 @@ bool qb::Runner::tick() {
                 if (d < 0) next = cmd.next_false;
             }
             break;
-        case qb::CmdCode::ADD:
+        case qb::CmdCode::SUM:
             #ifdef QB_LOG_DEBUG
-                std::cout << "ADD" << std::endl;
+                std::cout << "SUM" << std::endl;
             #endif
-            this->get(cmd).add(*cmd.value);
+            this->get(cmd).sum(*cmd.value);
             if (cmd.device) cmd.device->update();
             else this->update();
             break;
@@ -163,16 +163,16 @@ bool qb::Runner::tick() {
 }
 
 void qb::Runner::update() {
-    for (uint8_t i = 0; i < this->registers.size(); i++) {
+    for (uint8_t i = 0; i < this->variables.size(); i++) {
         std::cout << "r" << +i << " ";
-        this->registers.at(i).log();
+        this->variables.at(i).log();
         std::cout << std::endl;
     }
 }
 
 qb::Data& qb::Runner::get(qb::Cmd& cmd) {
     if (cmd.device == nullptr) {
-        return this->registers.at(cmd.reg_i);
+        return this->variables.at(cmd.reg_i);
     }
     else {
         return cmd.device->get(cmd.reg_i);

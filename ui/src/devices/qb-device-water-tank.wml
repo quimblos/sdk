@@ -1,0 +1,16 @@
+<template>
+    <div>
+        Water Tank!
+    </div>
+</template>
+
+<script>
+import { WaterTankDevice } from './water-tank'
+const device = new WaterTank()
+</script>
+
+<style>
+.qb-device {
+    background-color: #0f0;
+}
+</style>

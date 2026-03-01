@@ -24,7 +24,7 @@ namespace qb {
         IF_GT = 0x22,
         IF_GTEQ = 0x23,
         // 0x3* -> Arithmetic commands 
-        ADD = 0x30,
+        SUM = 0x30,
         SUB = 0x31,
         MULT = 0x32,
         DIV = 0x33,

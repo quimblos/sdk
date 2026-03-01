@@ -27,7 +27,7 @@ namespace qb {
             qb::Engine& engine;
             std::string name;
             const qb::Script* script;
-            std::vector<qb::Data> registers;
+            std::vector<qb::Data> variables;
 
             qb::code_addr_t length = 0;
             qb::code_addr_t cursor = 0;
@@ -45,7 +45,7 @@ namespace qb {
             Runner(qb::Engine& engine, std::string name, const qb::Script* script);
             ~Runner() {
                 delete this->script;
-                for (qb::Data& data : this->registers) {
+                for (qb::Data& data : this->variables) {
                     data.purge();
                 }
             }           
