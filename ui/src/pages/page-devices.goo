@@ -1,0 +1,12 @@
+<template>
+    <div class="col ga" id="list"></div>
+</template>
+
+<script>
+public setup() {
+    const devices = qb.getDevices();
+    for (const device of devices) {
+        device.makeWebc(this.$list);
+    }
+}
+</script>

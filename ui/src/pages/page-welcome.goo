@@ -1,0 +1,21 @@
+<template>
+    <div class="page">
+        <goo-card color="#122">
+            <div class="ma">
+                Welcome to <i>Goo!</i>
+            </div>
+            <div class="h-divider mb"/>
+            <a>
+                Goo is a micro-framework for frontend development, designed as an abstraction layer on top of WebComponents.
+                <br>
+                It allows building simple browser UIs which are served on a single, very small, HTML file. No external requests by default, no dead code bundled with the app, just a minimal JS library which allows a vue-like syntax.
+            </a>
+        </goo-card>
+    </div>
+</template>
+
+<style>
+.banana {
+    background: #FF0;
+}
+</style>

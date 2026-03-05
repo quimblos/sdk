@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Calculator Test</title>
+  </head>
+  <body>
+    <script type="module">
+      import Module from "./quimblos.js"
+      const module = await Module();
+      console.log(module)
+      // const add = module.cwrap('add', 'number', ['number', 'number']);
+      console.log(module.run('accumulator','7162000001086c656473747269700210e0000003e830ff00100121ff00ffff00061005300000100111ff001000200000200000'));
+    </script>
+  </body>
+</html>

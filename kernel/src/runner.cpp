@@ -1,5 +1,7 @@
 #include "runner.h"
 
+// #define QB_RUNNER_DEBUG
+
 qb::Runner::Runner(
     qb::Engine& engine,
     std::string name,
@@ -19,12 +21,18 @@ qb::Runner::Runner(
 }
 
 void qb::Runner::start() {
+    #ifdef QB_RUNNER_DEBUG
+        std::cout << "[start]" << std::endl;
+    #endif
     this->length = this->script->cmds.size();
     this->cursor = 0;
     this->reset();
 }
 
 void qb::Runner::reset() {
+    #ifdef QB_RUNNER_DEBUG
+        std::cout << "[reset]" << std::endl;
+    #endif
     for (qb::Data& reg : this->variables) {
         reg.reset();
     }
@@ -32,6 +40,9 @@ void qb::Runner::reset() {
 }
 
 void qb::Runner::wakeup() {
+    #ifdef QB_RUNNER_DEBUG
+        std::cout << "[wakeup]" << std::endl;
+    #endif
     this->state = qb::runner::State::RUNNING;
     this->output = "";
     this->sleep = 0;
@@ -39,14 +50,16 @@ void qb::Runner::wakeup() {
 
 bool qb::Runner::tick() {
     if (this->state != qb::runner::State::RUNNING) {
+        std::cout << "Not running (" << this->state << ")" << std::endl;
         return false;
     }
     if (this->cursor >= this->length) {
+        std::cout << "OK" << std::endl;
         this->state = qb::runner::State::OK;
         return false;
     }
     qb::Cmd cmd = this->script->cmds.at(this->cursor);
-    #ifdef QB_LOG_DEBUG
+    #ifdef QB_RUNNER_DEBUG
         std::cout << "[tick] " << this->cursor << " -> " << cmd.next << " | ";
     #endif
     
@@ -54,7 +67,7 @@ bool qb::Runner::tick() {
 
     switch (cmd.code) {
         case qb::CmdCode::SET:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "SET" << std::endl;
             #endif
             this->get(cmd).set(*cmd.value);
@@ -62,12 +75,12 @@ bool qb::Runner::tick() {
             else this->update();
             break;
         case qb::CmdCode::GOTO:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "GOTO" << std::endl;
             #endif
             break;
         case qb::CmdCode::IF_EQ:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "IF_EQ" << std::endl;
             #endif
             {
@@ -76,7 +89,7 @@ bool qb::Runner::tick() {
             }
             break;
         case qb::CmdCode::IF_GT:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "IF_GT" << std::endl;
             #endif
             {
@@ -85,7 +98,7 @@ bool qb::Runner::tick() {
             }
             break;
         case qb::CmdCode::IF_GTEQ:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "IF_GTEQ" << std::endl;
             #endif
             {
@@ -94,7 +107,7 @@ bool qb::Runner::tick() {
             }
             break;
         case qb::CmdCode::SUM:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "SUM" << std::endl;
             #endif
             this->get(cmd).sum(*cmd.value);
@@ -102,7 +115,7 @@ bool qb::Runner::tick() {
             else this->update();
             break;
         case qb::CmdCode::SUB:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "SUB" << std::endl;
             #endif
             this->get(cmd).sub(*cmd.value);
@@ -110,7 +123,7 @@ bool qb::Runner::tick() {
             else this->update();
             break;
         case qb::CmdCode::MULT:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "MULT" << std::endl;
             #endif
             this->get(cmd).mult(*cmd.value);
@@ -118,7 +131,7 @@ bool qb::Runner::tick() {
             else this->update();
             break;
         case qb::CmdCode::DIV:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "DIV" << std::endl;
             #endif
             this->get(cmd).div(*cmd.value);
@@ -126,26 +139,26 @@ bool qb::Runner::tick() {
             else this->update();
             break;
         case qb::CmdCode::LOG:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "LOG" << std::endl;
             #endif
             this->output = cmd.value->as_string();
             break;
         case qb::CmdCode::SLEEP:
-            #ifdef QB_LOG_DEBUG
-                std::cout << "SLEEP" << std::endl;
+            #ifdef QB_RUNNER_DEBUG
+                std::cout << "SLEEP " << cmd.value->as_u32() << std::endl;
             #endif
             this->state = qb::runner::State::SLEEPING;
             this->sleep = cmd.value->as_u32();
             break;
         case qb::CmdCode::STOP:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "STOP" << std::endl;
             #endif
             this->state = qb::runner::State::OK;
             return true;
         case qb::CmdCode::ERROR:
-            #ifdef QB_LOG_DEBUG
+            #ifdef QB_RUNNER_DEBUG
                 std::cout << "ERROR" << std::endl;
             #endif
             this->state = qb::runner::State::ERROR;

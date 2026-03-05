@@ -1,0 +1,61 @@
+declare global {
+    
+    namespace wasm {
+        class VectorString {
+            public push_back(val: string): void;    
+        }
+
+        type res_Engine = {
+            ok: boolean
+            message: string
+            runner?: any
+        }
+        class Engine {
+            public constructor();
+            public putDevice(device: Device): res_Engine;
+            public makeRunner(name: string, hex: string): number;
+            public getRunner(name: string): Runner;
+            public _log(...args: string[]): void;
+        }
+
+        enum RunnerState {
+            IDLE = 0x00,
+            RUNNING = 0x01,
+            SLEEPING = 0x10,
+            OK = 0xF0,
+            ERROR = 0xFF
+        }
+
+        class Runner {
+            public getState(): { value: number };
+            public getSleep(): number;
+            public start(): void
+            public tick(): boolean
+            public reset(): void
+            public wakeup(): void
+        }
+
+        class Device {
+            public constructor(name: string, regs: VectorString);
+            public bind(device: any): void;
+            public has_i(reg_i: number): boolean;
+        }
+
+    }
+
+    const qb: wasm.Engine;
+}
+
+type Kernel = {
+    VectorString: typeof wasm.VectorString,
+    Engine: typeof wasm.Engine,
+    Device: typeof wasm.Device,
+}
+
+declare function quimblos (opts: {
+    print: (...args: any[]) => void,
+    printErr: (...args: any[]) => void,
+}): Promise<Kernel>
+
+export { Kernel }
+export default quimblos

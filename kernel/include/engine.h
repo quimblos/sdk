@@ -24,7 +24,7 @@ namespace qb {
     }
         
     class Engine {
-        private:
+        protected:
             std::unordered_map<std::string, qb::Device*> devices;
             std::unordered_map<std::string, qb::Data> constants;
             std::unordered_map<std::string, qb::Runner*> runners;

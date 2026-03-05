@@ -4,7 +4,7 @@
 #include <vector>
 #include "parser.h"
 
-#define QB_LOG_DEBUG
+#define QB_PARSER_DEBUG
 
 using namespace qb;
 
@@ -110,7 +110,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::CmdCode::USE_DEVICE:
                 {
                     type = qb::DataType::CONST;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "USE DEVICE ";
                     #endif
                 }
@@ -120,7 +120,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     ASSERT_N_BYTES(1);
                     type = (qb::DataType) bytes[i];
                     i += 1;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "USE REG ";
                     #endif
                 }
@@ -132,7 +132,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     reg_i = bytes[i+1];
                     type = (qb::DataType) bytes[i+2];
                     i += 3;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "SET (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -144,7 +144,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     gotos_true.emplace(addr, goto_true);
                     type = qb::DataType::VOID;
                     i += 2;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "GOTO (addr:" << ((uint16_t) goto_true) << ") ";
                     #endif
                 }
@@ -160,7 +160,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     gotos_false.emplace(addr, goto_false);
                     type = (qb::DataType) bytes[i+6];
                     i += 7;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "IF_EQ (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -176,7 +176,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     gotos_false.emplace(addr, goto_false);
                     type = (qb::DataType) bytes[i+6];
                     i += 7;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "IF_GT (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -192,7 +192,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     gotos_false.emplace(addr, goto_false);
                     type = (qb::DataType) bytes[i+6];
                     i += 7;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "IF_GTEQ (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -204,7 +204,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     reg_i = bytes[i+1];
                     type = (qb::DataType) bytes[i+2];
                     i += 3;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "SUM (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -216,7 +216,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     reg_i = bytes[i+1];
                     type = (qb::DataType) bytes[i+2];
                     i += 3;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "SUB (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -228,7 +228,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     reg_i = bytes[i+1];
                     type = (qb::DataType) bytes[i+2];
                     i += 3;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "MULT (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -240,7 +240,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     reg_i = bytes[i+1];
                     type = (qb::DataType) bytes[i+2];
                     i += 3;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "DIV (dev:" << ((uint16_t) device_i) << ", reg:" << ((uint16_t) reg_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -252,7 +252,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     log_code = bytes[i+1];
                     type = qb::DataType::STRING;
                     i += 2;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "MOD (dev:" << ((uint16_t) device_i) << ", type:" << ((uint16_t) type) << ") ";
                     #endif
                 }
@@ -260,7 +260,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::CmdCode::SLEEP:
                 {
                     type = qb::DataType::UINT32;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "SLEEP ";
                     #endif
                 }
@@ -271,7 +271,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     log_code = bytes[i];
                     type = qb::DataType::STRING;
                     i += 1;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "STOP ";
                     #endif
                 }
@@ -282,7 +282,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     log_code = bytes[i];
                     type = qb::DataType::STRING;
                     i += 1;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "ERROR (code:" << log_code << ") ";
                     #endif
                 }
@@ -290,7 +290,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::CmdCode::RESET:
                 {
                     type = qb::DataType::VOID;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "RESET ";
                     #endif
                 }
@@ -298,7 +298,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
             case qb::CmdCode::REBOOT:
                 {
                     type = qb::DataType::VOID;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         std::cout << "[parser] " << "REBOOT ";
                     #endif
                 }
@@ -332,7 +332,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
         switch (type) {
             case qb::DataType::VOID:
                 value = qb::Data::_void().ref();
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -340,7 +340,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(1);
                 value = qb::Data::u8(bytes[i]).ref();
                 i += 1;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -348,7 +348,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(1);
                 value = qb::Data::i8(bytes[i]).ref();
                 i += 1;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -357,7 +357,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 value = qb::Data::u8(bytes[i]).ref();
                 value->type = qb::DataType::BITMASK8;
                 i += 1;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -365,7 +365,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(2);
                 value = qb::Data::u16((bytes[i] << 8) + bytes[i+1]).ref();
                 i += 2;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -373,7 +373,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(2);
                 value = qb::Data::u8xy(bytes[i], bytes[i+1]).ref();
                 i += 2;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -381,7 +381,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(2);
                 value = qb::Data::i16((bytes[i] << 8) + bytes[i+1]).ref();
                 i += 2;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -389,7 +389,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(2);
                 value = qb::Data::i8xy(bytes[i], bytes[i+1]).ref();
                 i += 2;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -397,7 +397,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(4);
                 value = qb::Data::u32((bytes[i] << 24) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -405,7 +405,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(4);
                 value = qb::Data::u16xy((bytes[i] << 24) + (bytes[i+1] << 16), (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -413,7 +413,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(4);
                 value = qb::Data::u8xyzw(bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]).ref();
                 i += 4;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -421,7 +421,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(4);
                 value = qb::Data::i32((bytes[i] << 24) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -429,7 +429,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(4);
                 value = qb::Data::i16xy((bytes[i] << 24) + (bytes[i+1] << 16), (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 4;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -437,7 +437,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(4);
                 value = qb::Data::u8xyzw(bytes[i], bytes[i+1], bytes[i+2], bytes[i+3]).ref();
                 i += 4;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -445,7 +445,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                 ASSERT_N_BYTES(2);
                 value = qb::Data::f32((bytes[i] << 24) + (bytes[i+1] << 16) + (bytes[i+2] << 8) + bytes[i+3]).ref();
                 i += 2;
-                #ifdef QB_LOG_DEBUG
+                #ifdef QB_PARSER_DEBUG
                     value->log();
                 #endif
                 break;
@@ -457,7 +457,7 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     ASSERT_N_BYTES(length);
                     value = qb::Data::string(length, (const char*) bytes+i).ref();
                     i += length;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         value->log();
                     #endif
                 }
@@ -470,10 +470,12 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
                     ASSERT_N_BYTES(length);
                     value = qb::Data::string(length, (const char*) bytes+i).ref();
                     i += length;
-                    #ifdef QB_LOG_DEBUG
+                    #ifdef QB_PARSER_DEBUG
                         value->log();
                     #endif
                 }
+                break;
+            case qb::DataType::UNKNOWN:
                 break;
         }
         std::cout << std::endl;

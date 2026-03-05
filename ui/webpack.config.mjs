@@ -10,7 +10,7 @@ const BUILD = false;
 
 export default {
   entry: "./src/index.ts",
-  mode: "development",
+  mode: BUILD ? "production" : "development",
   module: {
     rules: [
       {
@@ -19,18 +19,21 @@ export default {
         exclude: /node_modules/,
       },
       {
-        test: /\.wml$/,
+        test: /\.goo$/,
         exclude: /node_modules/,
         use: [
           { loader: 'ts-loader', options: { transpileOnly: true } },
-          { loader: path.resolve(__dirname, "wml", "loader.mjs") },
+          { loader: '@quimblos/goo-loader' },
         ]
       },
     ],
   },
   resolve: {
-    extensions: [".tsx", ".ts", ".js", ".wml"],
+    extensions: [".tsx", ".ts", ".js", ".goo"],
     // fallback: { path: false }
+    alias: {
+      '@quimblos/goo': path.resolve(__dirname, "node_modules/@quimblos/goo"),
+    },
   },
   output: {
     filename: "main.js",
@@ -59,7 +62,7 @@ export default {
   plugins: 
   BUILD ? [
     new HtmlWebpackPlugin({
-      title: "My Web App",
+      title: "Quimblos",
       template: "index.html",
       // this is a workaround for the injection of the code from the output file into the .html
       // the injection will be handled in the template file
@@ -68,7 +71,7 @@ export default {
     })
   ] : [
     new HtmlWebpackPlugin({
-      title: "My Web App",
+      title: "Quimblos",
     })
   ],
 };

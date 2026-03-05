@@ -52,10 +52,10 @@ namespace qb {
         data_t* value = nullptr;
 
         Data* ref() {
-            return new Data(
-                this->type,
-                this->value
-            );
+            return new Data({
+                .type = this->type,
+                .value = this->value
+            });
         }
 
         void purge() {
@@ -90,6 +90,8 @@ namespace qb {
                     delete (std::string*) this->value;
                     break;
                 case DataType::CONST:
+                    break;
+                case DataType::UNKNOWN:
                     break;
             }
             // this->value = nullptr;
@@ -131,6 +133,8 @@ namespace qb {
                     std::cout << "{str:" << this->as_string() << "};"; break;
                 case DataType::CONST:
                     std::cout << "{const:" << this->as_string() << "};"; break;
+                case DataType::UNKNOWN:
+                    break;
             }
             // this->value = nullptr;
         }
@@ -193,6 +197,8 @@ namespace qb {
                 case DataType::CONST:
                     *((std::string*) this->value) = std::string(*((std::string*) other.value));
                     break;
+                case DataType::UNKNOWN:
+                    break;
             }
         }
 
@@ -253,6 +259,8 @@ namespace qb {
                     break;
                 case DataType::CONST:
                     *((std::string*) this->value) = std::string("");
+                    break;
+                case DataType::UNKNOWN:
                     break;
             }
         }
@@ -337,6 +345,8 @@ namespace qb {
                     return 0;
                 case DataType::CONST:
                     return 0;
+                case DataType::UNKNOWN:
+                    break;
             }
             return 0;
         }
@@ -397,6 +407,8 @@ namespace qb {
                     break;
                 case DataType::CONST:
                     break;
+                case DataType::UNKNOWN:
+                    break;
             }
         }
 
@@ -455,6 +467,8 @@ namespace qb {
                 case DataType::STRING:
                     break;
                 case DataType::CONST:
+                    break;
+                case DataType::UNKNOWN:
                     break;
             }
         }
@@ -515,6 +529,8 @@ namespace qb {
                     break;
                 case DataType::CONST:
                     break;
+                case DataType::UNKNOWN:
+                    break;
             }
         }
 
@@ -574,6 +590,8 @@ namespace qb {
                     break;
                 case DataType::CONST:
                     break;
+                case DataType::UNKNOWN:
+                    break;
             }
         }
 
@@ -596,6 +614,8 @@ namespace qb {
                 case DataType::FLOAT32: return Data::f32();
                 case DataType::STRING: return Data::string();
                 case DataType::CONST: return Data::string();
+                case DataType::UNKNOWN:
+                    break;
             }
             return Data::_void();
         }
@@ -703,46 +723,46 @@ namespace qb {
             return qb::Data({ .type = qb::DataType::STRING, .value = mem });
         }
 
-        uint8_t as_u8() {
+        uint8_t as_u8() const {
             return *((uint8_t*) this->value);
         }
-        int8_t as_i8() {
+        int8_t as_i8() const {
             return *((int8_t*) this->value);
         }
-        bool* as_b8() {
+        bool* as_b8() const {
             return (bool*) this->value;
         }
-        uint16_t as_u16() {
+        uint16_t as_u16() const {
             return *((uint16_t*) this->value);
         }
-        uint8_t* as_u8xy() {
+        uint8_t* as_u8xy() const {
             return (uint8_t*) this->value;
         }
-        int16_t as_i16() {
+        int16_t as_i16() const {
             return *((int16_t*) this->value);
         }
-        int8_t* as_i8xy() {
+        int8_t* as_i8xy() const {
             return (int8_t*) this->value;
         }
-        uint32_t as_u32() {
+        uint32_t as_u32() const {
             return *((uint32_t*) this->value);
         }
-        uint16_t* as_u16xy() {
+        uint16_t* as_u16xy() const {
             return (uint16_t*) this->value;
         }
-        uint8_t* as_u8xyzw() {
+        uint8_t* as_u8xyzw() const {
             return (uint8_t*) this->value;
         }
-        float* as_f32() {
+        float* as_f32() const {
             return (float*) this->value;
         }
-        int32_t as_i32() {
+        int32_t as_i32() const {
             return *((int32_t*) this->value);
         }
-        int16_t* as_i16xy() {
+        int16_t* as_i16xy() const {
             return (int16_t*) this->value;
         }
-        int8_t* as_i8xyzw() {
+        int8_t* as_i8xyzw() const {
             return (int8_t*) this->value;
         }
         const std::string& as_string() {
