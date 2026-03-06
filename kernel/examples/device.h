@@ -1,11 +1,11 @@
 #include <iostream>
 #include "sdk.h"
 
-class LedStrip : public qb::Device {
+class LedBar : public qb::Device {
     public:    
 
-    LedStrip(): qb::Device("ledstrip") {
-        /* LEDS 0x00 */ this->addRegister(qb::Data::b8());
+    LedBar(): qb::Device("LEDBAR") {
+        /* LEDS 0x00 */ this->addRegister(qb::Data::u8());
     }
     
     void update() {

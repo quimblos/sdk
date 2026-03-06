@@ -5,6 +5,11 @@
 #include <emscripten/bind.h>
 #include "sdk.h"
 
+struct WASMDeviceRegister {
+    std::string type;
+    uint16_t length;
+};
+
 class WASMDevice : public qb::Device {
     private:
         emscripten::val jsDevice;
@@ -13,11 +18,11 @@ class WASMDevice : public qb::Device {
 
     WASMDevice(
         std::string name,
-        std::vector<std::string> registers
+        std::vector<WASMDeviceRegister> registers
     ): qb::Device(name) {
         for (const auto& it : registers) {
-            if (it == "b8") {
-                this->addRegister(qb::Data::b8());
+            if (it.type == "u8") {
+                if (it.length == 0) this->addRegister(qb::Data::u8());
             }
         }
     }
@@ -26,16 +31,16 @@ class WASMDevice : public qb::Device {
         this->jsDevice = jsDevice;
     }
 
-    bool has_i(uint8_t reg_i) {
-        return reg_i < this->registers.size();
+    bool has_i(uint8_t port) {
+        return port < this->registers.size();
     }
     
     void update() {
         auto val = emscripten::val::object();
         for (size_t i = 0; i < this->registers.size(); i++) {
-            const auto reg = this->registers.at(i);
-            if (reg.type == qb::DataType::BITMASK8) {
-                val.set(i, emscripten::val(reg.as_u8()));
+            const auto port = this->registers.at(i);
+            if (port.type == qb::DataType::UINT8) {
+                val.set(i, emscripten::val(port.as_u8()));
             }
         }
         this->jsDevice.call<void>("update", val);
@@ -102,8 +107,8 @@ using namespace emscripten;
 //     std::cout << "- Creating Engine..." << std::endl;
 //     qb::Engine engine;
 
-//     std::cout << "- Adding LedStrip device..." << std::endl;
-//     LedStrip device;
+//     std::cout << "- Adding LedBar device..." << std::endl;
+//     LedBar device;
 //     engine.putDevice(device);
 
 //     std::cout << "- Parsing hexcode: " << hex << std::endl;
@@ -130,19 +135,16 @@ using namespace emscripten;
 EMSCRIPTEN_BINDINGS(my_module) {
     // STL
     register_vector<std::string>("VectorString");
+    register_vector<WASMDeviceRegister>("VectorDeviceRegister");
 
     // Structs
     value_object<qb::engine::res_t<void>>("res_Engine")
         .field("ok", &qb::engine::res_t<void>::ok)
         .field("message", &qb::engine::res_t<void>::message);
 
-    // value_object<qb::parser::res_t>("res_Parser")
-    //     .field("ok", &qb::parser::res_t::ok)
-    //     .field("message", &qb::parser::res_t::message)
-    //     .field("script", &qb::parser::res_t::script);
-
-    // value_object<qb::Script>("Script")
-    //     .field("name", &qb::Script::name);
+    value_object<WASMDeviceRegister>("DeviceRegister")
+        .field("type", &WASMDeviceRegister::type)
+        .field("length", &WASMDeviceRegister::length);
 
     enum_<qb::runner::State>("RunnerState")
         .value("IDLE", qb::runner::State::IDLE)
@@ -169,7 +171,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 
     // Device
     class_<WASMDevice>("Device")
-        .constructor<std::string, std::vector<std::string>>()
+        .constructor<std::string, std::vector<WASMDeviceRegister>>()
         .function("has_i", &WASMDevice::has_i)
         .function("bind", &WASMDevice::bind);
 }

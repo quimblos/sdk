@@ -40,7 +40,7 @@ else()
 
     # Sandbox
 
-    add_executable(sandbox examples/2-accumulator.cpp)
+    add_executable(sandbox examples/3-ledstrip.cpp)
 
     target_include_directories(sandbox
         PRIVATE ${PROJECT_SOURCE_DIR}/include

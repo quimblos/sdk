@@ -4,11 +4,18 @@ declare global {
         class VectorString {
             public push_back(val: string): void;    
         }
+        class VectorDeviceRegister {
+            public push_back(val: DeviceRegister): void;    
+        }
 
         type res_Engine = {
             ok: boolean
             message: string
             runner?: any
+        }
+        type DeviceRegister = {
+            type: string
+            length: number
         }
         class Engine {
             public constructor();
@@ -36,9 +43,9 @@ declare global {
         }
 
         class Device {
-            public constructor(name: string, regs: VectorString);
+            public constructor(name: string, regs: VectorDeviceRegister);
             public bind(device: any): void;
-            public has_i(reg_i: number): boolean;
+            public has_i(port: number): boolean;
         }
 
     }

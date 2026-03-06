@@ -9,8 +9,8 @@ int run(std::string name, std::string hex) {
     std::cout << "- Creating Engine..." << std::endl;
     qb::Engine engine;
 
-    std::cout << "- Adding LedStrip device..." << std::endl;
-    LedStrip device;
+    std::cout << "- Adding LedBar device..." << std::endl;
+    LedBar device;
     engine.putDevice(device);
 
     std::cout << "- Parsing hexcode: " << hex << std::endl;

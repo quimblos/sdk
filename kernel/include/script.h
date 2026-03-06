@@ -1,7 +1,7 @@
 #pragma once
 #include <sstream>
 #include "data.h"
-#include "cmd.h"
+#include "code.h"
 #include "device.h"
 
 /**
@@ -9,18 +9,17 @@
  */
 
 namespace qb {
+
     struct Script {
         std::string name;
         std::vector<qb::Device*> devices;
-        std::vector<qb::DataType> variable_types;
-        std::vector<qb::Cmd> cmds;
+        std::vector<qb::DataType> variables;
+        std::vector<qb::Instruction*> instructions;
 
         ~Script() {
-            for (qb::Cmd cmd : this->cmds) {
-                if (cmd.value != nullptr) {
-                    cmd.value->purge();
-                    delete cmd.value;
-                }
+            for (qb::Instruction* cmd : this->instructions) {
+                cmd->purge();
+                delete cmd;
             }
         }
     };

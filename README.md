@@ -151,7 +151,7 @@ CONST = 0xFF
 
 ```c
 USE_DEVICE "led_strip"
-USE_REG UINT8
+USE_PORT UINT8
 
 SET 0x00 0x00 UINT8 0x01
 
@@ -189,11 +189,11 @@ The device will be assigned an increasing index (starting at 0), which can be us
 USE_DEVICE {CONST}
 
 /*
-    USE_REG "led_strip"
+    USE_PORT "led_strip"
 */
 ```
 
-##### [0x02] USE_REG
+##### [0x02] USE_PORT
 
 Creates a register on the runner.
 This register can be references through the _0xFF_ device.
@@ -201,10 +201,10 @@ This register can be references through the _0xFF_ device.
 > This command is not included on the final bytecode, thus doesn't count on jump indexes. It's recommended to be at the top of the script.
 
 ```c
-USE_REG type
+USE_PORT type
 
 /*
-    USE_REG UINT8
+    USE_PORT UINT8
 */
 ```
 
@@ -215,7 +215,7 @@ USE_REG type
 Sets the value of a register on a device.
 
 ```c
-SET device_i reg_i type {*}
+SET device_i port type {*}
 
 /*
     SET 0x00 0x00 UINT8 0x01
@@ -245,7 +245,7 @@ If a given value is equal to a register value, jumps to a specific address (star
 > If the address 0xFFFF is specified, it jumps to the next address.
 
 ```c
-IF_EQ device_i reg_i addr_true[2] addr_false[2] type {*}
+IF_EQ device_i port addr_true[2] addr_false[2] type {*}
 
 /*
     IF_EQ 0x00 0x00 0x0001 0x0000 STRING "red"
@@ -259,7 +259,7 @@ If a given value if greater than a register value, jumps to a specific address (
 > If the address 0xFFFF is specified, it jumps to the next address.
 
 ```c
-IF_GT device_i reg_i addr_true[2] addr_false[2] type {*}
+IF_GT device_i port addr_true[2] addr_false[2] type {*}
 
 /*
     IF_GT 0x00 0x00 0x0001 0x0000 STRING "red"
@@ -273,7 +273,7 @@ If a given value is greater than or equal to a register value, jumps to a specif
 > If the address 0xFFFF is specified, it jumps to the next address.
 
 ```c
-IF_GTEQ device_i reg_i addr_true[2] addr_false[2] type {*}
+IF_GTEQ device_i port addr_true[2] addr_false[2] type {*}
 
 /*
     IF_GTEQ 0x00 0x00 0x0001 0x0000 STRING "red"
@@ -286,7 +286,7 @@ IF_GTEQ device_i reg_i addr_true[2] addr_false[2] type {*}
 Adds a value to a register on a device.
 
 ```c
-SUM device_i reg_i type {*}
+SUM device_i port type {*}
 
 /*
     SUM 0x00 0x00 UINT8 0x01
@@ -297,7 +297,7 @@ SUM device_i reg_i type {*}
 Subtracts a value to a register on a device.
 
 ```c
-SUB device_i reg_i type {*}
+SUB device_i port type {*}
 
 /*
     SUB 0x00 0x00 UINT8 0x01
@@ -308,7 +308,7 @@ SUB device_i reg_i type {*}
 Multiplies a value to a register on a device.
 
 ```c
-MULT device_i reg_i type {*}
+MULT device_i port type {*}
 
 /*
     MULT 0x00 0x00 UINT8 0x01
@@ -319,7 +319,7 @@ MULT device_i reg_i type {*}
 Divides a register on a device by a value.
 
 ```c
-DIV device_i reg_i type {*}
+DIV device_i port type {*}
 
 /*
     DIV 0x00 0x00 UINT8 0x01
@@ -330,7 +330,7 @@ DIV device_i reg_i type {*}
 Takes the modulo operation of a register on a device and a value.
 
 ```c
-MOD device_i reg_i type {*}
+MOD device_i port type {*}
 
 /*
     MOD 0x00 0x00 UINT8 0x01

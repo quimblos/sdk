@@ -1,5 +1,6 @@
 import { Engine } from '../lib/kernel';
 import { LedBarDevice } from './devices/ledbar.device'
+import { LedStripDevice } from './devices/ledstrip.device'
 
 import Goo from '@quimblos/goo';
 import { GooRouter } from '@quimblos/goo/src/router'
@@ -27,7 +28,8 @@ async function setup() {
   // Quimblos Engine
 
   const engine = await Engine.init();
-  engine.putDevice(new LedBarDevice('ledstrip'));
+  engine.putDevice(new LedBarDevice());
+  engine.putDevice(new LedStripDevice());
   
   // Goo Routes
 

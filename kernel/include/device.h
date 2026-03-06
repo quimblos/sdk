@@ -14,6 +14,7 @@ namespace qb {
         protected:
             std::string name;
             std::vector<qb::Data> registers;
+            bool held = false;
         
         public:
             Device(std::string name):
@@ -21,8 +22,8 @@ namespace qb {
             {};
 
             ~Device() {
-                for (qb::Data reg : this->registers) {
-                    reg.purge();
+                for (qb::Data port : this->registers) {
+                    port.purge();
                 }
             }
             
@@ -30,12 +31,20 @@ namespace qb {
                 return this->name;
             }
 
-            bool has_i(uint8_t reg_i) {
-                return reg_i < this->registers.size();
+            bool has_i(uint8_t port) {
+                return port < this->registers.size();
             }
 
-            qb::Data& get(uint8_t reg_i) {
-                return this->registers.at(reg_i);
+            qb::Data& get(uint8_t port) {
+                return this->registers.at(port);
+            }
+
+            void hold() {
+                this->held = true;
+            }
+
+            void release() {
+                this->held = false;
             }
 
             virtual void update() {}

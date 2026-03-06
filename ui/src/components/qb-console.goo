@@ -8,7 +8,7 @@
             >
                 ${this.output}
             </textarea>
-            <textarea class="hex-editor" rows="2" id="cmd">7162000001086c656473747269700210e0000003e830ff00100121ff00ffff00061005300000100111ff001000200000200000</textarea>
+            <textarea class="hex-editor" rows="2" id="cmd">7162000001064c45444241521000001055e0000003e810000010aae0000003e8200000</textarea>
             <div class="row h-end">
                 <goo-btn
                     if:_="!this.runner?.running"

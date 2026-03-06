@@ -1,6 +1,6 @@
 #pragma once
 #include "data.h"
-#include "cmd.h"
+#include "code.h"
 #include "device.h"
 #include "script.h"
 #include "engine.h"
@@ -28,7 +28,7 @@ namespace qb {
 
         res_t dump(qb::Script& script);
         res_t parse(qb::Engine& engine, std::string name, std::string hex);
-
+        
         qb::Bytecode hexToBytecode(std::string hex);
         std::string bytecodeToHex(qb::Bytecode hex);
 

@@ -6,7 +6,9 @@ export class LedBarDevice extends Device<{
     leds: boolean[]
 }> {
     constructor(name = 'LEDBAR') {
-        super(name, 'ledbar-device', ['b8']);
+        super(name, 'ledbar-device', [
+            { type: 'u8', length: 0 }
+        ]);
     }
 
     public setup() {

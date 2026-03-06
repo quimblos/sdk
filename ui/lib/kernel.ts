@@ -123,11 +123,11 @@ export abstract class Device<T = {}> {
     protected constructor(
         public name: string,
         public webc_name: string,
-        public registers: DataType[]
+        public registers: wasm.DeviceRegister[]
     ) {
-        const regs = new wasm.VectorString();
-        for (const reg of registers) {
-            regs.push_back(reg);
+        const regs = new wasm.VectorDeviceRegister();
+        for (const port of registers) {
+            regs.push_back(port);
         }
         this.__qb = new wasm.Device(name, regs);
         this.__qb.bind(this);

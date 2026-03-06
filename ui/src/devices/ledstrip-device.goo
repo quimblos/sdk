@@ -1,0 +1,38 @@
+<template>
+    <goo-card>
+        <a class="h-at-center chip">${this.name}</a>
+        <div class="row h-center">
+            <div
+                class="led"
+                for:led="of this.leds"
+                set:style="`background: rgb(${led[0]*255},${led[1]*255},${led[2]*255});`"
+            ></div>
+        </div>
+    </goo-card>
+</template>
+
+<script>
+public name = 'LEDSTRIP';
+public bytes = [];
+
+public get leds() {
+    const leds: [number, number, number][] = [];
+    for (let i = 0; i < this.bytes.length; i += 3) {
+        leds.push([...this.bytes.slice(i, i+3)]);
+    }
+    return leds;
+}
+
+</script>
+
+<style>
+.led {
+    background-color: #222;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.5rem;
+    position: relative;
+    margin: 1rem 0.1rem 1rem 0.1rem;
+}
+
+</style>

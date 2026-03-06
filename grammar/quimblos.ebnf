@@ -135,7 +135,7 @@ comparison ::= variable ws op_compare ws primitive
 /*
     Special Primitives
 
-    - var | device.reg
+    - var | device.port
     - word
 */
 

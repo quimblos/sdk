@@ -4,7 +4,7 @@ import { QbError } from "../error";
 
 export class Assignment extends ASTNode<'Assignment'> {
     public device?: string
-    public reg!: string
+    public port!: string
     public op!: '=' | '+=' | '-=' | '*=' | '/=' | '%=';
     public value!: string;
     constructor(
@@ -23,10 +23,10 @@ export class Assignment extends ASTNode<'Assignment'> {
 
         if (variable.length === 2) {
             this.device = variable[0];
-            this.reg = variable[1];
+            this.port = variable[1];
         }
         else {
-            this.reg = variable[0];
+            this.port = variable[0];
         }
 
         const opArtNode = cst.children.find(c => c.type === 'op_art');
