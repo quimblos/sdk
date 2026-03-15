@@ -1,19 +1,19 @@
 #include "engine.h"
 #include "parser.h"
 
-const std::unordered_map<std::string, qb::Device*>& qb::Engine::getDevices() const {
+const std::unordered_map<std::string, qb::Device*>& qb::Engine::get_devices() const {
     return this->devices;
 }
-const std::unordered_map<std::string, qb::Data>& qb::Engine::getConstants() const {
+const std::unordered_map<std::string, qb::Node*>& qb::Engine::get_constants() const {
     return this->constants;
 }
-const std::unordered_map<std::string, qb::Runner*>& qb::Engine::getRunners() const {
+const std::unordered_map<std::string, qb::Runner*>& qb::Engine::get_runners() const {
     return this->runners;
 }
 
 /* Device */
 
-qb::Device* qb::Engine::getDevice(std::string name) {
+qb::Device* qb::Engine::get_device(std::string name) const {
     if (this->devices.contains(name))
     {
         return this->devices.at(name);
@@ -21,8 +21,8 @@ qb::Device* qb::Engine::getDevice(std::string name) {
     return nullptr;
 }
 
-qb::engine::res_t<void> qb::Engine::putDevice(qb::Device& device) {
-    auto name = device.getName();
+qb::engine::res_t<void> qb::Engine::put_device(qb::Device& device) {
+    auto name = device.get_name();
     this->devices.emplace(name, &device);
     return {
         .ok = true,
@@ -30,8 +30,14 @@ qb::engine::res_t<void> qb::Engine::putDevice(qb::Device& device) {
         .runner = nullptr
     };
 }
-qb::engine::res_t<void> qb::Engine::deleteDevice(std::string name) {
-    // TODO: check if it exists first
+qb::engine::res_t<void> qb::Engine::delete_device(std::string name) {
+    if (!this->devices.contains(name)) {
+        return {
+            .ok = false,
+            .message = "Device doesn't exist",
+            .runner = nullptr
+        };
+    }
     this->devices.erase(name);
     return {
         .ok = true,
@@ -42,15 +48,15 @@ qb::engine::res_t<void> qb::Engine::deleteDevice(std::string name) {
 
 /* Constant */
 
-const qb::Data* qb::Engine::getConstant(std::string name) const {
+const qb::Node* qb::Engine::get_constant(std::string name) const {
     if (this->constants.contains(name))
     {
-        return &this->constants.at(name);
+        return this->constants.at(name);
     }
     return nullptr;
 }
 
-qb::engine::res_t<void> qb::Engine::putConstant(std::string name, const qb::Data& data) {
+qb::engine::res_t<void> qb::Engine::put_constant(std::string name, qb::Node* data) {
     if (this->constants.contains(name)) {
         return {
             .ok = false,
@@ -61,10 +67,7 @@ qb::engine::res_t<void> qb::Engine::putConstant(std::string name, const qb::Data
     this->constants.emplace(
         std::piecewise_construct,
         std::forward_as_tuple(name),
-        std::forward_as_tuple(
-            data.type,
-            data.value
-        )
+        std::forward_as_tuple(data)
     );
     return {
         .ok = true,
@@ -73,7 +76,7 @@ qb::engine::res_t<void> qb::Engine::putConstant(std::string name, const qb::Data
     };
 }
 
-qb::engine::res_t<void> qb::Engine::deleteConstant(std::string name) {
+qb::engine::res_t<void> qb::Engine::delete_constant(std::string name) {
     if (!this->constants.contains(name)) {
         return {
             .ok = false,
@@ -91,8 +94,8 @@ qb::engine::res_t<void> qb::Engine::deleteConstant(std::string name) {
 
 /* Runner */
 
-qb::engine::res_t<qb::Runner> qb::Engine::getRunner(std::string name) {
-    if (!this->constants.contains(name)) {
+qb::engine::res_t<qb::Runner> qb::Engine::get_runner(std::string name) {
+    if (!this->runners.contains(name)) {
         return {
             .ok = false,
             .message = "Runner doesn't exist",
@@ -103,5 +106,21 @@ qb::engine::res_t<qb::Runner> qb::Engine::getRunner(std::string name) {
     return {
         .ok = true,
         .runner = runner
+    };
+}
+
+qb::engine::res_t<void> qb::Engine::delete_runner(std::string name) {
+    if (!this->runners.contains(name)) {
+        return {
+            .ok = false,
+            .message = "Runner doesn't exist",
+            .runner = nullptr
+        };
+    }
+    this->runners.erase(name);
+    return {
+        .ok = true,
+        .message = "Runner deleted",
+        .runner = nullptr
     };
 }

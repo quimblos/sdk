@@ -1,204 +1,143 @@
-#include <sstream>
-#include <iomanip>
-#include <string>
-#include <vector>
+#include <iostream>
 #include "parser.h"
+#include "hex.h"
 
-#define QB_PARSER_DEBUG
+// #define QB_PARSER_DEBUG
 
 using namespace qb;
 
 const std::string E_UNEXPECTED_EOF = "Unexpected end of file";
 
-#define ASSERT_N_BYTES(N) if (i > n-N) return { .ok = false, .message = E_UNEXPECTED_EOF }
-#define ASSERT_N_BYTES_DATA(N) if (i > n-N) return { .ok = false, .message = E_UNEXPECTED_EOF }
+#define ASSERT_N_BYTES(N) \
+    if (addr > code_len-N) \
+        return { \
+            .code = QB_PARSER_R_FAILED_UNEXPECTED_EOF, \
+            .error_addr = addr \
+        };
 
-parser::res_t parser::dump(Script& script) {
-    // TODO
-    return {
-        .ok = true
-    };
+#define ASSERT_N_BYTES_TARGET(N) \
+    if (addr > code_len-N) \
+        return { \
+            .code = QB_PARSER_R_FAILED_UNEXPECTED_EOF, \
+            .bind = OpBind::NODE_NODE, \
+            .device = 0, \
+            .port = 0, \
+            .index = 0, \
+            .next_addr = 0 \
+        };
+
+#define ASSERT_DEVICE(D) \
+    if (D < 0xFE && D >= devices.size()) return { \
+        .code = QB_PARSER_R_FAILED_DEVICE_INDEX, \
+        .error_addr = addr \
+    }; \
+
+#define RESOLVE_BIND(B) \
+    ((uint8_t) B) >= 0x10 ? (OpBind) ((uint8_t)B - 0x10) : B
+
+#define ASSERT_TARGET() \
+    if (target.code > 0) return { \
+        .code = QB_PARSER_R_FAILED_TARGET, \
+        .error_addr = addr \
+    }; \
+    addr = target.next_addr;
+
+#define ASSERT_SOURCE() \
+    if (source.code > 0) return { \
+        .code = QB_PARSER_R_FAILED_DATA, \
+        .error_addr = addr \
+    }; \
+    addr = source.next_addr;
+
+#define ASSERT_ALIAS() \
+    if (alias.code > 0) return { \
+        .code = QB_PARSER_R_FAILED_DATA, \
+        .error_addr = addr \
+    }; \
+    addr = alias.next_addr;
+
+
+/* Debug Logs */
+
+void log_op_code(code_addr_t addr, OpCode code) {
+    std::cout << "[parser] @" << addr << " ";
+    switch (code) {
+        case OpCode::USE_DEVICE: std::cout << "USE_DEVICE "; break;
+        case OpCode::USE_NODE: std::cout << "USE_NODE "; break;
+        case OpCode::SET: std::cout << "SET "; break;
+        case OpCode::HOLD: std::cout << "HOLD "; break;
+        case OpCode::RELEASE: std::cout << "RELEASE "; break;
+        case OpCode::GOTO: std::cout << "GOTO "; break;
+        case OpCode::IF_EQ: std::cout << "IF_EQ "; break;
+        case OpCode::IF_GT: std::cout << "IF_GT "; break;
+        case OpCode::IF_GTEQ: std::cout << "IF_GTEQ "; break;
+        case OpCode::ADD: std::cout << "ADD "; break;
+        case OpCode::SUB: std::cout << "SUB "; break;
+        case OpCode::MULT: std::cout << "MULT "; break;
+        case OpCode::DIV: std::cout << "DIV "; break;
+        case OpCode::MOD: std::cout << "MOD "; break;
+        case OpCode::POW: std::cout << "POW "; break;
+        case OpCode::FLOOR: std::cout << "FLOOR "; break;
+        case OpCode::CEIL: std::cout << "CEIL "; break;
+        case OpCode::LOG: std::cout << "LOG "; break;
+        case OpCode::SLEEP: std::cout << "SLEEP "; break;
+        case OpCode::RETURN: std::cout << "RETURN "; break;
+        case OpCode::RESET: std::cout << "RESET "; break;
+        case OpCode::REBOOT: std::cout << "REBOOT "; break;
+    }
 }
 
-struct ParsedData {
-    bool ok;
-    std::string message;
-    qb::Data data;
-    code_addr_t i;
+/* Parse Target */
+
+struct ParsedTarget {
+    uint8_t code;
+    OpBind bind;
+    device_t device;
+    port_t port;
+    index_t index;
+    code_addr_t next_addr;
 };
 
-ParsedData parse_data(qb::DataType type, uint8_t* bytes, code_addr_t n, code_addr_t i) {
-    if (type == qb::DataType::UNKNOWN) {
-        return {
-            .ok = false,
-            .message = "Unknown Type",
-            .data = qb::Data::_void(),
-            .i = i
-        };
-    }
-
-    qb::Data data;
-    switch (type) {
-        case qb::DataType::UNKNOWN: break;
-        case qb::DataType::VOID:
-            data = qb::Data::_void();
-            break;
-        case qb::DataType::BOOL:
-        case qb::DataType::UINT8:
-        case qb::DataType::INT8:
-            ASSERT_N_BYTES_DATA(1);
-            data = qb::Data::parse(type, bytes+i);
-            i += 1;
-            break;
-        case qb::DataType::UINT8_ARR:
-        case qb::DataType::INT8_ARR:
-            {
-                ASSERT_N_BYTES_DATA(2);
-                uint16_t length = (bytes[i] << 8) + bytes[i+1];
-                i += 2;
-                ASSERT_N_BYTES_DATA(length);
-                data = qb::Data::parse_arr(type, length, bytes+i);
-                i += length;
-            }
-            break;
-        case qb::DataType::UINT16:
-        case qb::DataType::INT16:
-            ASSERT_N_BYTES_DATA(2);
-            data = qb::Data::parse(type, bytes+i);
-            i += 2;
-            break;
-        case qb::DataType::UINT16_ARR:
-        case qb::DataType::INT16_ARR:
-            {
-                ASSERT_N_BYTES_DATA(2);
-                uint16_t length = (bytes[i] << 8) + bytes[i+1];
-                i += 2;
-                ASSERT_N_BYTES_DATA(length*2);
-                data = qb::Data::parse_arr(type, length, bytes+i);
-                i += length*2;
-            }
-            break;             
-        case qb::DataType::UINT32:
-        case qb::DataType::INT32:
-            ASSERT_N_BYTES_DATA(4);
-            data = qb::Data::parse(type, bytes+i);
-            i += 4;
-            break;
-        case qb::DataType::UINT32_ARR:
-        case qb::DataType::INT32_ARR:
-            {
-                ASSERT_N_BYTES_DATA(2);
-                uint16_t length = (bytes[i] << 8) + bytes[i+1];
-                i += 2;
-                ASSERT_N_BYTES_DATA(length*4);
-                data = qb::Data::parse_arr(type, length, bytes+i);
-                i += length*4;
-            }
-            break;
-        case qb::DataType::FLOAT32:
-            ASSERT_N_BYTES_DATA(4);
-            data = qb::Data::parse(type, bytes+i);
-            i += 4;
-            break;
-        case qb::DataType::FLOAT32_ARR:
-            {
-                ASSERT_N_BYTES_DATA(2);
-                uint16_t length = (bytes[i] << 8) + bytes[i+1];
-                i += 2;
-                ASSERT_N_BYTES_DATA(length*4);
-                data = qb::Data::parse_arr(type, length, bytes+i);
-                i += length*4;
-            }
-            break;
-        case qb::DataType::STRING_SHORT:
-            {
-                ASSERT_N_BYTES_DATA(1);
-                uint8_t length = *((uint8_t*) bytes+i);
-                i += 1;
-                ASSERT_N_BYTES_DATA(length);
-                data = qb::Data::parse(type, bytes+i-1);
-                i += length;
-            }
-            break;
-        case qb::DataType::STRING:
-            {
-                ASSERT_N_BYTES_DATA(2);
-                uint16_t length = (bytes[i] << 8) + bytes[i+1];
-                i += 2;
-                ASSERT_N_BYTES_DATA(length);
-                data = qb::Data::parse(type, bytes+i-2);
-                i += length;
-            }
-            break;
-        default:
-            break;
+ParsedTarget parse_target(code_t* bytes, code_addr_t code_len, code_addr_t addr) {
+    ASSERT_N_BYTES_TARGET(1)
+    OpBind bind = (OpBind) bytes[addr];
+    addr += 1;
+    ASSERT_N_BYTES_TARGET(1)
+    device_t device = (device_t) bytes[addr];
+    addr += 1;
+    ASSERT_N_BYTES_TARGET(1)
+    port_t port = (port_t) bytes[addr];
+    addr += 1;
+    
+    index_t index = 0;
+    if (bind < 0x10) {
+        ASSERT_N_BYTES_TARGET(2)
+        index = (index_t) (bytes[addr] << 8) + bytes[addr+1];
+        addr += 2;
     }
 
     return {
-        .ok = true,
-        .message = "",
-        .data = data,
-        .i = i
+        .code = QB_PARSER_R_OK,
+        .bind = bind,
+        .device = device,
+        .port = port,
+        .index = index,
+        .next_addr = addr
     };
 }
 
-struct ParsedPort {
-    bool ok;
-    std::string message;
-    qb::Device* device;
-};
+/* Parse */
 
-ParsedPort parse_port(std::vector<qb::Device*>& devices, qb::Script* script, uint8_t device_i, uint8_t port) {
-    if (device_i == 0xFF) {
-        if (port >= script->variables.size()) {
-            return {
-                .ok = false,
-                .message = "Register out of range"
-            };
-        }
-        return {
-            .ok = true,
-            .message = "",
-            .device = nullptr
-        };
-    }
-    else {
-        if (device_i >= devices.size()) {
-            return {
-                .ok = false,
-                .message = "Device out of range"
-            };
-        }
-        qb::Device* device = devices.at(device_i);
-        if (!device->has_i(port)) {
-            return {
-                .ok = false,
-                .message = "Register out of range"
-            };
-        }
-        return {
-            .ok = true,
-            .message = "",
-            .device = device
-        };
-    }
-}
-
-
-parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string hex) {
-    auto bytecode = parser::hexToBytecode(hex);
-
-    qb::Script* script = new qb::Script();
-    script->name = name;
-
-    uint8_t new_device_i = 0;
-    uint8_t current_code = 0;
-    qb::code_addr_t addr = 0;
+parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
+    Bytecode bytecode = hex_to_bytecode(hex);
     
-    std::vector<qb::Device*> devices;
-    std::unordered_map<qb::code_addr_t, qb::code_addr_t> gotos_true;
-    std::unordered_map<qb::code_addr_t, qb::code_addr_t> gotos_false;
+    std::vector<Device*> devices;
+    std::vector<Node*> nodes;
+    std::vector<Instruction*> instructions;
+    std::vector<std::string> node_aliases;
     
+    std::unordered_map<code_addr_t, code_addr_t> addr_map;
+
     code_t* bytes = bytecode.bytes;
 
     // Header
@@ -209,600 +148,534 @@ parser::res_t parser::parse(qb::Engine& engine, std::string name, std::string he
         || bytes[3] != 0x00
     ) {
         return {
-            .ok = false,
-            .message = "Invalid quimblos header"
+            .code = QB_PARSER_R_FAILED_INVALID_HEADER,
+            .error_addr = 0
         };
     }
 
-    size_t n = bytecode.length;
-    for (size_t i = 4; i < n;) {
+    code_addr_t code_len = bytecode.length;
+    for (code_addr_t addr = 4; addr < code_len;) {
         
         // [0]: OpCode
+        OpCode code = (OpCode) bytes[addr];
+        addr += 1;
+        #ifdef QB_PARSER_DEBUG
+            log_op_code(addr-1, code);
+        #endif
 
-        if (!current_code) {
-            current_code = bytes[i];
-            i += 1;
-            // code_addresses.push_back(i);
-            #ifdef QB_PARSER_TRACE
-                std::cout << "[parser] @" << i-1 << " ";
-                switch (current_code) {
-                    case qb::OpCode::USE_DEVICE: std::cout << "USE_DEVICE"; break;
-                    case qb::OpCode::USE_PORT: std::cout << "USE_PORT"; break;
-                    case qb::OpCode::SET: std::cout << "SET"; break;
-                    case qb::OpCode::SET_AT: std::cout << "SET_AT"; break;
-                    case qb::OpCode::HOLD: std::cout << "HOLD"; break;
-                    case qb::OpCode::RELEASE: std::cout << "RELEASE"; break;
-                    case qb::OpCode::GOTO: std::cout << "GOTO"; break;
-                    case qb::OpCode::IF_EQ: std::cout << "IF_EQ"; break;
-                    case qb::OpCode::IF_GT: std::cout << "IF_GT"; break;
-                    case qb::OpCode::IF_GTEQ: std::cout << "IF_GTEQ"; break;
-                    case qb::OpCode::ADD: std::cout << "ADD"; break;
-                    case qb::OpCode::SUB: std::cout << "SUB"; break;
-                    case qb::OpCode::MULT: std::cout << "MULT"; break;
-                    case qb::OpCode::DIV: std::cout << "DIV"; break;
-                    case qb::OpCode::MOD: std::cout << "MOD"; break;
-                    case qb::OpCode::LOG: std::cout << "LOG"; break;
-                    case qb::OpCode::SLEEP: std::cout << "SLEEP"; break;
-                    case qb::OpCode::STOP: std::cout << "STOP"; break;
-                    case qb::OpCode::ERROR: std::cout << "ERROR"; break;
-                    case qb::OpCode::RESET: std::cout << "RESET"; break;
-                    case qb::OpCode::REBOOT: std::cout << "REBOOT"; break;
-                    default: std::cout << "?";break;
-                }
-                std::cout << std::endl;
-            #endif
-            continue;
+        if (code != OpCode::USE_DEVICE && code != OpCode::USE_NODE) {
+            addr_map.emplace(addr-1, instructions.size());
         }
 
-        // [1..X] Arguments
-        uint8_t device_i = 0x00;
-        uint8_t port = 0x00;
-        uint8_t log_code = 0x00;
-        
-        qb::DataType idx_type = qb::DataType::VOID;
-        qb::DataType type = qb::DataType::UNKNOWN;
-        qb::Data* index;
+        switch (code) {
+            case OpCode::USE_DEVICE:
+                {
+                    auto source = Node::parse(qb::Type::STRING_SHORT, bytes, code_len, addr);
+                    ASSERT_SOURCE()
 
-        switch (current_code) {
-            case qb::OpCode::USE_DEVICE:
-                {
-                    type = qb::DataType::STRING_SHORT;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "USE DEVICE ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::USE_PORT:
-                {
-                    ASSERT_N_BYTES(1);
-                    type = (qb::DataType) bytes[i];
-                    i += 1;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "USE PORT ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::SET:
-                {
-                    ASSERT_N_BYTES(3);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    type = (qb::DataType) bytes[i+2];
-                    i += 3;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "SET (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::SET_AT:
-                {
-                    ASSERT_N_BYTES(3);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    idx_type = (qb::DataType) bytes[i+2];
-                    i += 3;
-
-                    auto parsed_index = parse_data(idx_type, bytes, n, i);
-                    if (parsed_index.ok) {
-                        index = &parsed_index.data;
-                        i = parsed_index.i;
-                    }
-                    else {
-                        return {
-                            .ok = false,
-                            .message = "Invalid pointer index"
-                        };
-                    }
+                    std::string name = ((node::String*) source.value)->data;
+                    Device* device = engine.get_device(name);
+                    devices.push_back(device);
                     
-                    ASSERT_N_BYTES(1);
-                    type = (qb::DataType) bytes[i];
-                    i += 1;
                     #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "SET_AT (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", index: ";
-                        index->log();
-                        std::cout << ", type:" << ((uint16_t) type) << ") ";
+                        std::cout << source.value->to_str();
+                    #endif
+                    delete source.value;
+                }
+                break;
+            case OpCode::USE_NODE:
+                {
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+
+                    nodes.push_back(source.value);
+                    node_aliases.push_back(std::to_string(nodes.size()-1));
+
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
                     #endif
                 }
                 break;
-            case qb::OpCode::HOLD:
+            case OpCode::USE_NODE_ALIASED:
+                {
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    auto alias = Node::parse(qb::Type::STRING_SHORT, bytes, code_len, addr);
+                    ASSERT_ALIAS()
+
+                    nodes.push_back(source.value);
+                    node_aliases.push_back(((node::String*)alias.value)->data);
+
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::SET:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+
+                    instructions.push_back(new instruction::Set(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value
+                    ));
+
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::HOLD:
                 {
                     ASSERT_N_BYTES(1);
-                    device_i = bytes[i];
-                    type = qb::DataType::VOID;
-                    i += 1;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "HOLD (dev:" << ((uint16_t) device_i) << ") ";
-                    #endif
+                    device_t device = (device_t) bytes[addr];
+                    addr += 1;
+                    ASSERT_DEVICE(device)
+
+                    instructions.push_back(new instruction::Hold(
+                        device
+                    ));
                 }
                 break;
-            case qb::OpCode::RELEASE:
+            case OpCode::RELEASE:
                 {
                     ASSERT_N_BYTES(1);
-                    device_i = bytes[i];
-                    type = qb::DataType::VOID;
-                    i += 1;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "RELEASE (dev:" << ((uint16_t) device_i) << ") ";
-                    #endif
+                    device_t device = (device_t) bytes[addr];
+                    addr += 1;
+                    ASSERT_DEVICE(device)
+
+                    instructions.push_back(new instruction::Release(
+                        device
+                    ));
                 }
                 break;
-            case qb::OpCode::GOTO:
+            case OpCode::GOTO:
                 {
                     ASSERT_N_BYTES(2);
-                    qb::code_addr_t goto_true = (bytes[i] << 8) + bytes[i+1];
-                    gotos_true.emplace(addr, goto_true);
-                    type = qb::DataType::VOID;
-                    i += 2;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "GOTO (addr:" << ((uint16_t) goto_true) << ") ";
-                    #endif
+                    code_addr_t goto_true = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+
+                    instructions.push_back(new instruction::GoTo(
+                        goto_true
+                    ));
                 }
                 break;
-            case qb::OpCode::IF_EQ:
+            case OpCode::IF_EQ:
                 {
-                    ASSERT_N_BYTES(7);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    qb::code_addr_t goto_true = (bytes[i+2] << 8) + bytes[i+3];
-                    gotos_true.emplace(addr, goto_true);
-                    qb::code_addr_t goto_false = (bytes[i+4] << 8) + bytes[i+5];
-                    gotos_false.emplace(addr, goto_false);
-                    type = (qb::DataType) bytes[i+6];
-                    i += 7;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "IF_EQ (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::IF_GT:
-                {
-                    ASSERT_N_BYTES(7);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    qb::code_addr_t goto_true = (bytes[i+2] << 8) + bytes[i+3];
-                    gotos_true.emplace(addr, goto_true);
-                    qb::code_addr_t goto_false = (bytes[i+4] << 8) + bytes[i+5];
-                    gotos_false.emplace(addr, goto_false);
-                    type = (qb::DataType) bytes[i+6];
-                    i += 7;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "IF_GT (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::IF_GTEQ:
-                {
-                    ASSERT_N_BYTES(7);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    qb::code_addr_t goto_true = (bytes[i+2] << 8) + bytes[i+3];
-                    gotos_true.emplace(addr, goto_true);
-                    qb::code_addr_t goto_false = (bytes[i+4] << 8) + bytes[i+5];
-                    gotos_false.emplace(addr, goto_false);
-                    type = (qb::DataType) bytes[i+6];
-                    i += 7;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "IF_GTEQ (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::ADD:
-                {
-                    ASSERT_N_BYTES(3);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    type = (qb::DataType) bytes[i+2];
-                    i += 3;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "SUM (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::SUB:
-                {
-                    ASSERT_N_BYTES(3);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    type = (qb::DataType) bytes[i+2];
-                    i += 3;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "SUB (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::MULT:
-                {
-                    ASSERT_N_BYTES(3);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    type = (qb::DataType) bytes[i+2];
-                    i += 3;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "MULT (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::DIV:
-                {
-                    ASSERT_N_BYTES(3);
-                    device_i = bytes[i];
-                    port = bytes[i+1];
-                    type = (qb::DataType) bytes[i+2];
-                    i += 3;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "DIV (dev:" << ((uint16_t) device_i) << ", port:" << ((uint16_t) port) << ", type:" << ((uint16_t) type) << ") ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::MOD:
-                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
                     ASSERT_N_BYTES(2);
-                    device_i = bytes[i];
-                    log_code = bytes[i+1];
-                    type = qb::DataType::STRING;
-                    i += 2;
+                    code_addr_t goto_true = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+                    ASSERT_N_BYTES(2);
+                    code_addr_t goto_false = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+
+                    instructions.push_back(new instruction::IfEq(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value,
+                        goto_true,
+                        goto_false
+                    ));
+                    
                     #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "MOD (dev:" << ((uint16_t) device_i) << ", type:" << ((uint16_t) type) << ") ";
+                        std::cout << source.value->to_str();
                     #endif
                 }
                 break;
-            case qb::OpCode::LOG:
+            case OpCode::IF_GT:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    ASSERT_N_BYTES(2);
+                    code_addr_t goto_true = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+                    ASSERT_N_BYTES(2);
+                    code_addr_t goto_false = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+
+                    instructions.push_back(new instruction::IfGt(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value,
+                        goto_true,
+                        goto_false
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::IF_GTEQ:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    ASSERT_N_BYTES(2);
+                    code_addr_t goto_true = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+                    ASSERT_N_BYTES(2);
+                    code_addr_t goto_false = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+
+                    instructions.push_back(new instruction::IfGtEq(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value,
+                        goto_true,
+                        goto_false
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::ADD:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    
+                    instructions.push_back(new instruction::Add(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::SUB:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    
+                    instructions.push_back(new instruction::Sub(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::MULT:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    
+                    instructions.push_back(new instruction::Mult(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::DIV:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    
+                    instructions.push_back(new instruction::Div(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::MOD:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    
+                    instructions.push_back(new instruction::Mod(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::POW:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    
+                    instructions.push_back(new instruction::Pow(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
+            case OpCode::FLOOR:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    
+                    instructions.push_back(new instruction::Floor(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index
+                    ));
+                }
+                break;
+            case OpCode::CEIL:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    
+                    instructions.push_back(new instruction::Ceil(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index
+                    ));
+                }
+                break;
+            case OpCode::LOG:
                 {
                     ASSERT_N_BYTES(1);
-                    device_i = bytes[i];
-                    type = qb::DataType::STRING;
-                    i += 1;
+                    device_t device = bytes[addr];
+                    addr += 1;
+                    ASSERT_DEVICE(device)
+
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+
+                    instructions.push_back(new instruction::Log(
+                        device,
+                        source.value
+                    ));
+                    
                     #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "LOG (dev:" << ((uint16_t) device_i) << ") ";
+                        std::cout << source.value->to_str();
                     #endif
                 }
                 break;
-            case qb::OpCode::SLEEP:
+            case OpCode::SLEEP:
                 {
-                    type = qb::DataType::UINT32;
+                    ASSERT_N_BYTES(4);
+                    uint32_t ms = (bytes[addr] << 24) + (bytes[addr+1] << 16) + (bytes[addr+2] << 8) + bytes[addr+3];
+                    addr += 4;
+                    
+                    instructions.push_back(new instruction::Sleep(
+                        ms
+                    ));
+
                     #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "SLEEP ";
+                        std::cout << ms;
                     #endif
                 }
                 break;
-            case qb::OpCode::STOP:
+            case OpCode::RETURN:
                 {
-                    ASSERT_N_BYTES(1);
-                    log_code = bytes[i];
-                    type = qb::DataType::STRING;
-                    i += 1;
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+
+                    instructions.push_back(new instruction::Return(
+                        source.value
+                    ));
+                    
                     #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "STOP ";
+                        std::cout << source.value->to_str();
                     #endif
                 }
                 break;
-            case qb::OpCode::ERROR:
+            case OpCode::RESET:
                 {
-                    ASSERT_N_BYTES(1);
-                    log_code = bytes[i];
-                    type = qb::DataType::STRING;
-                    i += 1;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "ERROR (code:" << log_code << ") ";
-                    #endif
+                    instructions.push_back(new instruction::Reset());
                 }
                 break;
-            case qb::OpCode::RESET:
+            case OpCode::REBOOT:
                 {
-                    type = qb::DataType::VOID;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "RESET ";
-                    #endif
-                }
-                break;
-            case qb::OpCode::REBOOT:
-                {
-                    type = qb::DataType::VOID;
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << "[parser] " << "REBOOT ";
-                    #endif
+                    instructions.push_back(new instruction::Reboot());
                 }
                 break;
             default:
                 return {
-                    .ok = false,
-                    .message = "Unknown OpCode"
+                    .code = QB_PARSER_R_FAILED_INVALID_OPCODE,
+                    .error_addr = addr
                 };
         }
 
-        // (edge case: create variables)
-        if (current_code == qb::OpCode::USE_PORT) {
-            script->variables.emplace_back(type);
-            current_code = 0;
-            continue;
-        }
-
-        // [X..Y] Data
-        qb::Data* data = nullptr;
-
-        if (type == qb::DataType::UNKNOWN) {
-            std::cout << "!" << std::endl;
-            return {
-                .ok = false,
-                .message = "Unknown DataType"
-            };
-        }
-        
-        auto parsed_data = parse_data(type, bytes, n, i);
-        if (parsed_data.ok) {
-            data = &parsed_data.data;
-            i = parsed_data.i;
-        }
-        else {
-            return {
-                .ok = false,
-                .message = "Failed to parse"
-            };
-        }
         #ifdef QB_PARSER_DEBUG
-            if (data != nullptr) {
-                data->log();
-            }
             std::cout << std::endl;
         #endif
-        
-        // (Resolve Device+Port)
-        qb::Device* device = nullptr;
-
-        switch (current_code) {
-            case qb::OpCode::USE_DEVICE:
-                {
-                    device = engine.getDevice(data->as_string());
-                    if (device == nullptr) {
-                        return {
-                            .ok = false,
-                            .message = "Device out of range"
-                        };
-                    }
-                    devices.push_back(device);
-                    data->purge();
-                }
-                break;
-            case qb::OpCode::USE_PORT:
-                break;
-            case qb::OpCode::SET:
-            case qb::OpCode::SET_AT:
-            case qb::OpCode::HOLD:
-            case qb::OpCode::RELEASE:
-            case qb::OpCode::IF_EQ:
-            case qb::OpCode::IF_GT:
-            case qb::OpCode::IF_GTEQ:
-            case qb::OpCode::ADD:
-            case qb::OpCode::SUB:
-            case qb::OpCode::MULT:
-            case qb::OpCode::DIV:
-            case qb::OpCode::MOD:
-                {
-                    auto parsed_port = parse_port(devices, script, device_i, port);
-                    if (parsed_port.ok) {
-                        device = parsed_port.device;
-                    }
-                    else {
-                        return {
-                            .ok = false,
-                            .message = parsed_port.message
-                        };
-                    }
-                }
-                break;
-            case qb::OpCode::GOTO:
-            case qb::OpCode::LOG:
-            case qb::OpCode::SLEEP:
-            case qb::OpCode::STOP:
-            case qb::OpCode::ERROR:
-            case qb::OpCode::RESET:
-            case qb::OpCode::REBOOT:
-                break;
-        }
-        
-        // (Create Instruction)
-        qb::Instruction* instruction = nullptr;
-
-        switch (current_code) {
-            case qb::OpCode::USE_DEVICE:
-                break;
-            case qb::OpCode::USE_PORT:
-                break;
-            case qb::OpCode::SET:
-                instruction = new qb::instruction::Set(device, port, *data);
-                break;
-            case qb::OpCode::SET_AT:
-                instruction = new qb::instruction::SetAt(device, port, *index, *data);
-                break;
-            case qb::OpCode::HOLD:
-                instruction = new qb::instruction::Hold(device);
-                break;
-            case qb::OpCode::RELEASE:
-                instruction = new qb::instruction::Release(device);
-                break;
-            case qb::OpCode::GOTO:
-                // address is resolved later
-                instruction = new qb::instruction::Goto();
-                break;
-            case qb::OpCode::IF_EQ:
-                // addresses are resolved later
-                instruction = new qb::instruction::IfEq(device, port, *data);
-                break;
-            case qb::OpCode::IF_GT:
-                // addresses are resolved later
-                instruction = new qb::instruction::IfGt(device, port, *data);
-                break;
-            case qb::OpCode::IF_GTEQ:
-                // addresses are resolved later
-                instruction = new qb::instruction::IfGtEq(device, port, *data);
-                break;
-            case qb::OpCode::ADD:
-                instruction = new qb::instruction::Add(device, port, *data);
-                break;
-            case qb::OpCode::SUB:
-                instruction = new qb::instruction::Sub(device, port, *data);
-                break;
-            case qb::OpCode::MULT:
-                instruction = new qb::instruction::Mult(device, port, *data);
-                break;
-            case qb::OpCode::DIV:
-                instruction = new qb::instruction::Div(device, port, *data);
-                break;
-            case qb::OpCode::MOD:
-                instruction = new qb::instruction::Mod(device, port, *data);
-                break;
-            case qb::OpCode::LOG:
-                instruction = new qb::instruction::Log(device, *data);
-                break;
-            case qb::OpCode::SLEEP:
-                instruction = new qb::instruction::Sleep(data->as_u32());
-                data->purge();
-                break;
-            case qb::OpCode::STOP:
-                instruction = new qb::instruction::Stop(data->as_string());
-                data->purge();
-                break;
-            case qb::OpCode::ERROR:
-                instruction = new qb::instruction::Error(data->as_string());
-                data->purge();
-                break;
-            case qb::OpCode::RESET:
-                instruction = new qb::instruction::Reset();
-                break;
-            case qb::OpCode::REBOOT:
-            instruction = new qb::instruction::Reboot();
-                break;
-        }
-
-        if (instruction != nullptr) {
-            script->instructions.push_back(instruction);
-            addr++;
-        }
-
-        current_code = 0;
     }
 
-    // Link instructions
-    qb::code_addr_t n_cmds = addr;
+    delete[] bytecode.bytes;
 
-    for (qb::code_addr_t i = 0; i < n_cmds; i++) {
-        qb::Instruction* cmd = script->instructions.at(i);
+    // Chain instructions (next/next_false)
+
+    auto n = instructions.size();
+    for (code_addr_t addr = 0; addr < n; addr++) {
         
-        qb::code_addr_t next_true = 0;
-        qb::code_addr_t next_false = 0;
+        auto instruction = instructions.at(addr);
 
-        if (gotos_true.contains(i)) {
-            const qb::code_addr_t to = gotos_true.at(i);
-            if (to == 0xFFFF) {
-                if (i == n_cmds-1) next_true = 0xFFFF;
-                else next_true = i+1;
-            }
-            else {
-                if (to >= n_cmds) {
-                    return {
-                        .ok = false,
-                        .message = "Invalid GOTO",
-                        .script = nullptr
-                    };
-                }
-                next_true = to;
+        bool advance = true;
+        code_addr_t* next_true = &instruction->next;
+        code_addr_t* next_false = nullptr;
+
+        switch (instruction->code) {
+            case qb::OpCode::SET:
+            case qb::OpCode::HOLD:
+            case qb::OpCode::RELEASE:
+                break;
+            case qb::OpCode::GOTO:
+                advance = false;
+                break;
+            case qb::OpCode::IF_EQ:
+                advance = false;
+                next_false = &((instruction::IfEq*) instruction)->next_false;
+                break;
+            case qb::OpCode::IF_GT:
+                advance = false;
+                next_false = &((instruction::IfGt*) instruction)->next_false;
+                break;
+            case qb::OpCode::IF_GTEQ:
+                advance = false;
+                next_false = &((instruction::IfEq*) instruction)->next_false;
+                break;
+            case qb::OpCode::ADD:
+            case qb::OpCode::SUB:
+            case qb::OpCode::MULT:
+            case qb::OpCode::DIV:
+            case qb::OpCode::MOD:
+            case qb::OpCode::POW:
+            case qb::OpCode::FLOOR:
+            case qb::OpCode::CEIL:
+            case qb::OpCode::LOG:
+            case qb::OpCode::SLEEP:
+            case qb::OpCode::RETURN:
+            case qb::OpCode::RESET:
+            case qb::OpCode::REBOOT:
+                break;
+        }
+
+
+        if (*next_true == 0xFFFF) {
+            if (advance && addr < n-1) {
+                *next_true = addr+1;
             }
         }
         else {
-            if (i == n_cmds-1) next_true = 0xFFFF;
-            else next_true = i+1;
+            if (*next_true >= n) {
+                return {
+                    .code = QB_PARSER_R_FAILED_UNBOUND_GOTO,
+                    .error_addr = addr
+                };
+            }
         }
 
-        if (gotos_false.contains(i)) {
-            const qb::code_addr_t to = gotos_false.at(i);
-            if (to == 0xFFFF) {
-                if (i == n_cmds-1) next_false = 0xFFFF;
-                else next_false = i+1;
+        if (next_false != nullptr) {
+            if (*next_false == 0xFFFF) {
+                if (advance && addr < n-1) {
+                    *next_false = addr+1;
+                }
             }
             else {
-                if (to >= n_cmds) {
+                if (*next_false >= n) {
                     return {
-                        .ok = false,
-                        .message = "Invalid GOTO",
-                        .script = nullptr
+                        .code = QB_PARSER_R_FAILED_UNBOUND_GOTO,
+                        .error_addr = addr
                     };
                 }
-                next_false = to;
             }
         }
-
-        cmd->next = next_true;
-        
-        if (
-            current_code == qb::OpCode::IF_EQ
-            || current_code == qb::OpCode::IF_GT
-            || current_code == qb::OpCode::IF_GTEQ
-        ) {
-            ((qb::instruction::IfEq*)cmd)->next_false = next_false;
-        }
+   
     }
-    
-    delete[] bytecode.bytes;
+
+    Script* script = new Script(name, devices, nodes, instructions, node_aliases);
 
     return {
-        .ok = true,
+        .code = QB_PARSER_R_OK,
+        .error_addr = 0,
         .script = script
     };
 }
 
-qb::Bytecode qb::parser::hexToBytecode(std::string hex) {
-    size_t length = hex.length()/2;
-    std::string s2;
-    std::istringstream ss (hex);
+/* Dump */
 
-    // std::cout << "length: " << length << std::endl;
-    qb::code_t* bytes = new qb::code_t[length];
-    for (size_t i = 0; (ss >> std::setw(2) >> s2); i++) {
-        uint16_t u;                       
-        std::istringstream ss2 (s2);    
-        ss2 >> std::setbase(16) >> u;   
-        bytes[i] = (code_t) static_cast<uint8_t>(u & 0xFF);
-        // std::cout << "s2: " << s2 << ", u: " << u << ", b: " << unsigned(bytes[i]) << ", bb: " << ((uint16_t) bytes[i]) << std::endl;
-    }
-    
+parser::res_t parser::dump(Script& script) {
+    // TODO
     return {
-        .length = length,
-        .bytes = bytes
+        .code = QB_PARSER_R_OK,
+        .error_addr = 0
     };
-}
-
-std::string qb::parser::bytecodeToHex(qb::Bytecode) {
-    return "";
-}
-
-std::string qb::parser::vectorToHex(std::vector<qb::code_t> vec) {
-    std::stringstream ss;
-    ss << std::hex << std::setfill('0');
-    std::vector<uint8_t>::const_iterator it;
-
-    for (it = vec.begin(); it != vec.end(); it++) {
-        ss << std::setw(2) << static_cast<unsigned>(*it);
-    }
-
-    return ss.str();
 }

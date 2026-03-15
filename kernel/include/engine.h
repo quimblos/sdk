@@ -3,7 +3,7 @@
 #include <string>
 #include <unordered_map>
 #include <stdint.h>
-#include "data.h"
+#include "memory.h"
 #include "device.h"
 #include "runner.h"
 
@@ -26,13 +26,13 @@ namespace qb {
     class Engine {
         protected:
             std::unordered_map<std::string, qb::Device*> devices;
-            std::unordered_map<std::string, qb::Data> constants;
+            std::unordered_map<std::string, qb::Node*> constants;
             std::unordered_map<std::string, qb::Runner*> runners;
     
         public:
             ~Engine() {
-                for (std::pair<std::string, qb::Data> pair : this->constants) {
-                    pair.second.purge();
+                for (std::pair<std::string, qb::Node*> pair : this->constants) {
+                    delete pair.second;
                 }
                 for (std::pair<std::string, qb::Runner*> pair : this->runners) {
                     pair.second->destroy();
@@ -40,20 +40,21 @@ namespace qb {
                 }
             }
 
-            const std::unordered_map<std::string, qb::Device*>& getDevices() const;
-            const std::unordered_map<std::string, qb::Data>& getConstants() const;
-            const std::unordered_map<std::string, qb::Runner*>& getRunners() const;
+            const std::unordered_map<std::string, qb::Device*>& get_devices() const;
+            const std::unordered_map<std::string, qb::Node*>& get_constants() const;
+            const std::unordered_map<std::string, qb::Runner*>& get_runners() const;
 
-            qb::Device* getDevice(std::string name);
-            engine::res_t<void> putDevice(qb::Device& device);
-            engine::res_t<void> deleteDevice(std::string name);
+            qb::Device* get_device(std::string name) const;
+            engine::res_t<void> put_device(qb::Device& device);
+            engine::res_t<void> delete_device(std::string name);
             
-            const qb::Data* getConstant(std::string name) const;
-            engine::res_t<void> putConstant(std::string name, const qb::Data& data);
-            engine::res_t<void> deleteConstant(std::string name);
-            
+            const qb::Node* get_constant(std::string name) const;
+            engine::res_t<void> put_constant(std::string name, qb::Node* data);
+            engine::res_t<void> delete_constant(std::string name);
+        
+            engine::res_t<qb::Runner> get_runner(std::string name);
             template <class T>
-            engine::res_t<T> makeRunner(std::string name, const qb::Script* script) {
+            engine::res_t<T> make_runner(std::string name, const qb::Script* script) {
                 if (this->runners.contains(name)) {
                     return {
                         .ok = false,
@@ -76,7 +77,7 @@ namespace qb {
                     .runner = (T*) runner
                 };
             }
-            
-            engine::res_t<qb::Runner> getRunner(std::string name);
+            engine::res_t<void> delete_runner(std::string name);
+        
     };
 }

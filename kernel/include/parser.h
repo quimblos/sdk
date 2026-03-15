@@ -1,11 +1,9 @@
 #pragma once
-#include "data.h"
+#include "memory.h"
 #include "code.h"
 #include "device.h"
 #include "script.h"
 #include "engine.h"
-
-#define HEX(...) qb::parser::vectorToHex(std::vector<qb::code_t>(__VA_ARGS__));
 
 namespace qb {
     
@@ -21,18 +19,25 @@ namespace qb {
     namespace parser {
 
         struct res_t {
-            bool ok;
-            std::string message;
+            uint8_t code;
+            code_addr_t error_addr;
             const qb::Script* script;
         };
 
-        res_t dump(qb::Script& script);
         res_t parse(qb::Engine& engine, std::string name, std::string hex);
-        
-        qb::Bytecode hexToBytecode(std::string hex);
-        std::string bytecodeToHex(qb::Bytecode hex);
-
-        std::string vectorToHex(std::vector<qb::code_t> vec);
+        res_t dump(qb::Script& script);
     }
 
 }
+
+/* Response Codes*/
+
+#define QB_PARSER_R_OK 0
+
+#define QB_PARSER_R_FAILED_UNEXPECTED_EOF 1
+#define QB_PARSER_R_FAILED_INVALID_HEADER 2
+#define QB_PARSER_R_FAILED_INVALID_OPCODE 3
+#define QB_PARSER_R_FAILED_TARGET 4
+#define QB_PARSER_R_FAILED_DATA 5
+#define QB_PARSER_R_FAILED_DEVICE_INDEX 6
+#define QB_PARSER_R_FAILED_UNBOUND_GOTO 7

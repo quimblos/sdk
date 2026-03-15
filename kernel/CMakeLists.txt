@@ -9,9 +9,13 @@ project (quimblos-sdk)
 # Static Lib (lquimblos.a)
 
 set(SOURCES
+    src/engine.cpp
+    src/hex.cpp
+    src/memory.cpp
+    src/operator.cpp
     src/parser.cpp
     src/runner.cpp
-    src/engine.cpp
+    src/static_checker.cpp
 )
 
 # WASM
@@ -38,15 +42,15 @@ else()
         PRIVATE ${PROJECT_SOURCE_DIR}/include
     )
 
-    # Sandbox
+    # Tests
 
-    add_executable(sandbox examples/3-ledstrip.cpp)
+    add_executable(test test/main.cpp)
 
-    target_include_directories(sandbox
+    target_include_directories(test
         PRIVATE ${PROJECT_SOURCE_DIR}/include
     )
 
-    target_link_libraries(sandbox
+    target_link_libraries(test
         PUBLIC quimblos
     )
 endif()

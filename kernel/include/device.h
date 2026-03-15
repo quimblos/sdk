@@ -1,8 +1,12 @@
 #pragma once
 #include <vector>
+#include <iostream>
 #include <string>
 #include <stdint.h>
-#include "data.h"
+#include "memory.h"
+
+#define COLOR_GRAY "\033[30m"
+#define COLOR_NC "\033[0m"
 
 namespace qb {
     
@@ -13,7 +17,7 @@ namespace qb {
     class Device {
         protected:
             std::string name;
-            std::vector<qb::Data> registers;
+            std::vector<std::pair<std::string, qb::Node*>> nodes;
             bool held = false;
         
         public:
@@ -22,21 +26,29 @@ namespace qb {
             {};
 
             ~Device() {
-                for (qb::Data port : this->registers) {
-                    port.purge();
+                for (auto node : this->nodes) {
+                    delete node.second;
                 }
             }
             
-            const std::string& getName() const {
+            const std::string& get_name() const {
                 return this->name;
             }
 
-            bool has_i(uint8_t port) {
-                return port < this->registers.size();
+            bool has_node(port_t port) const {
+                return port < this->nodes.size();
             }
 
-            qb::Data& get(uint8_t port) {
-                return this->registers.at(port);
+            std::vector<std::pair<std::string, qb::Node*>> get_nodes() const {
+                return this->nodes;
+            }
+
+            qb::Node* get_node(port_t port) const {
+                return this->nodes.at(port).second;
+            }
+            
+            std::string get_node_alias(port_t port) const {
+                return this->nodes.at(port).first;
             }
 
             void hold() {
@@ -47,15 +59,24 @@ namespace qb {
                 this->held = false;
             }
 
-            virtual void update() {}
+            virtual void update() {
+                std::stringstream ss;
+                ss << COLOR_GRAY;
+
+                ss << "[" << this->name << "]" << std::endl;
+                for (size_t i = 0; i < this->nodes.size(); i++) {
+                    auto node = this->nodes.at(i);
+                    ss << i << " | " <<  node.first << " " << node.second->to_str() << std::endl;
+                }
+
+                ss << COLOR_NC;
+                std::cout << ss.str();
+            }
         
         protected:
 
-            void addRegister(const qb::Data& data) {
-                this->registers.emplace_back(
-                    data.type,
-                    data.value
-                );
+            void add_node(std::string name, qb::Node* node) {
+                this->nodes.push_back(std::pair(name, node));
             }
 
     };
