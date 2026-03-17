@@ -15,8 +15,10 @@ export class LedStripDevice extends Device<{
     }
 
     public setup() {
-        this.webc!.name = this.name;
-        this.webc!.bytes = Array.from({ length: this.length*3 }).map(() => 0);
+        for (const webc of Object.values(this.webc)) {
+            webc.name = this.name;
+            webc.bytes = Array.from({ length: this.length*3 }).map(() => 0);
+        }
     }
 
     public update(regs: any) {

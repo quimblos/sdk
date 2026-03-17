@@ -1,6 +1,7 @@
 import { Engine } from '../lib/kernel';
 import { LedBarDevice } from './devices/ledbar.device'
 import { LedStripDevice } from './devices/ledstrip.device'
+import { Sling2DDevice } from './devices/sling2d-device';
 
 import Goo from '@quimblos/goo';
 import { GooRouter } from '@quimblos/goo/src/router'
@@ -16,6 +17,7 @@ import '@quimblos/goo/components/goo-form.goo'
 import '@quimblos/goo/components/goo-chart.goo'
 
 import './components/qb-console.goo'
+import './components/qb-editor.goo'
 import './components/qb-servo.goo'
 import './components/qb-water-tank.goo'
 import './pages/page-welcome.goo'
@@ -28,8 +30,9 @@ async function setup() {
   // Quimblos Engine
 
   const engine = await Engine.init();
-  engine.putDevice(new LedBarDevice());
-  engine.putDevice(new LedStripDevice());
+  engine.put_device(new LedBarDevice());
+  engine.put_device(new Sling2DDevice());
+  engine.put_device(new LedStripDevice());
   
   // Goo Routes
 

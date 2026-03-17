@@ -8,7 +8,7 @@
 //
 // SET SH_REF_NODE 0xFF 0x00 UINT8 0x01
 // ADD SH_NODE_NODE 0xFF 0x00 UINT8 0x01
-// IF_GTEQ SH_NODE_REF 0xFF 0x00 PTR_SHORT 0x00 0x01
+// IF_LT SH_NODE_REF 0xFF 0x00 PTR_SHORT 0x00 0x01
 //     GOTO 0xFFFF                                  
 //     GOTO 0x0002
 
@@ -39,8 +39,8 @@ namespace qb {
         // 0x2* -> Flow control commands 
         GOTO = 0x20,          // CODE[2]
         IF_EQ = 0x21,         // TARGET <any> CODE[2] CODE_[2]
+        IF_LT = 0x25,         // TARGET <any> CODE[2] CODE_[2]
         IF_GT = 0x23,         // TARGET <any> CODE[2] CODE_[2]
-        IF_GTEQ = 0x25,       // TARGET <any> CODE[2] CODE_[2]
         // 0x3* -> Arithmetic commands 
         ADD = 0x30,           // TARGET <any>
         SUB = 0x31,           // TARGET <any>
@@ -48,10 +48,8 @@ namespace qb {
         DIV = 0x33,           // TARGET <any>
         MOD = 0x34,           // TARGET <any>
         POW = 0x35,           // TARGET <any>
-        FLOOR = 0x36,         // TARGET <any>
-        CEIL = 0x37,          // TARGET <any>
         // 0xD* -> Log commands
-        LOG = 0xD0,           // DEV <str>
+        LOG = 0xD0,           // DEV <any>
         // 0xE* -> Runner commands
         SLEEP = 0xE0,         // MS[4]
         RETURN = 0xEE,        // <any>
@@ -79,6 +77,7 @@ namespace qb {
         code_addr_t next;
     
         Instruction(OpCode code) : code(code), next(0xFFFF) {}
+        virtual ~Instruction() {};
 
         virtual code_addr_t run(qb::Runner& runner) {
             return this->next;

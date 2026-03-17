@@ -4,9 +4,9 @@
 
 <script>
 public setup() {
-    const devices = qb.getDevices();
+    const devices = qb.get_devices();
     for (const device of devices) {
-        device.makeWebc(this.$list);
+        device.makeWebc('page-devices', this.$list);
     }
 }
 </script>

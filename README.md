@@ -7,7 +7,7 @@
 <!-- vscode-markdown-toc -->
 * 1. [Engine, Devices and Runners](#EngineDevicesandRunners)
 	* 1.1. [Devices](#Devices)
-	* 1.2. [Constants](#Constants)
+	* 1.2. [Nodes](#Nodes)
 	* 1.3. [Runners](#Runners)
 * 2. [Script](#Script)
 	* 2.1. [Types](#Types)
@@ -42,26 +42,26 @@ In order to actually interact with hardware, you must declare a device, with a g
 class MyDevice : public qb::Device {
     public:    
     Device(): qb::Device("my_device") {
-        this->addRegister(qb::Data::u8());
-        this->addRegister(qb::Data::u32());
-        this->addRegister(qb::Data::string());
+        /* 0x00 */ this->add_node("some_u8", qb::node::u8());
+        /* 0x01 */ this->add_node("some_u32", qb::node::u32());
+        /* 0x02 */ this->add_node("some_str", qb::node::str());
     }
 };
 ```
 
-Then, you instantiate your `Device` and add it to ehe engine:
+Then, you instantiate your `Device` and add it to the engine:
 
 ```cpp
 MyDevice device;
-engine.putDevice(device);
+engine.put_device(device);
 ```
 
-###  1.2. <a name='Constants'></a>Constants
+###  1.2. <a name='Nodes'></a>Nodes
 
-You can also add `Constants` to the engine, which can be referenced by _runners_.
+You can add `Nodes` to the engine, which can be referenced by _runners_.
 
 ```cpp
-engine.putConstant("ON", qb::Data::b8(0b11111111));
+engine.put_node("ON", qb::node::u8(0b11111111));
 ```
 
 ###  1.3. <a name='Runners'></a>Runners
@@ -92,18 +92,23 @@ class MyRunner : public qb::Runner {
 Then, you instantiate your `Runner` with a `Script`, usually parsed from a _hexcode_:
 
 ```cpp
-std::string hexcode = "7162000001076c65646c696e651100001b55e0000003e81100001baae0000003e8200001"
-auto parser_out = qb::parser::parse(engine, "blink", blink);
-if (!parser_out.ok) {
-    std::cout << "[error] " << parser_out.message << std::endl;
+std::string hexcode = "7162000001076c65646c696e651100001b55e0000003e81100001baae0000003e8200001";
+
+auto parser_res = qb::parser::parse(engine, "blink", blink);
+if (parser_res.code > 0) {
+    std::cout << "[error] parser:" << +parser_res.code << std::endl;
+}
+auto checker_res = qb::static_checker::check(engine, parser_res.script);
+if (checker_res.code > 0) {
+    std::cout << "[error] checker:" << +checker_res.code << std::endl;
 }
 
-auto runner_out = engine.makeRunner<MyRunner>("blink", parser_out.script);
-if (!runner_out.ok) {
-    std::cout << "[error] " << runner_out.message << std::endl;
+auto runner_res = engine.make_runner<MyRunner>("blink", parser_res.script);
+if (!runner_res.ok) {
+    std::cout << "[error] " << runner_res.message << std::endl;
 }
 
-qb::Runner* runner = runner_out.runner;
+qb::Runner* runner = runner_res.runner;
 ```
 
 

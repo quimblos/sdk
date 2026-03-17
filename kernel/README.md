@@ -53,7 +53,7 @@ Then, you instantiate your `Device` and add it to ehe engine:
 
 ```cpp
 MyDevice device;
-engine.putDevice(device);
+engine.put_device(device);
 ```
 
 ###  1.2. <a name='Constants'></a>Constants
@@ -98,7 +98,7 @@ if (!parser_out.ok) {
     std::cout << "[error] " << parser_out.message << std::endl;
 }
 
-auto runner_out = engine.makeRunner<MyRunner>("blink", parser_out.script);
+auto runner_out = engine.make_runner<MyRunner>("blink", parser_out.script);
 if (!runner_out.ok) {
     std::cout << "[error] " << runner_out.message << std::endl;
 }

@@ -29,7 +29,7 @@ if (DEFINED EMSCRIPTEN)
     )
 
     set_target_properties(quimblos PROPERTIES COMPILE_FLAGS "-Os")
-    set_target_properties(quimblos PROPERTIES LINK_FLAGS    "-Os -s STANDALONE_WASM -s EXPORT_ES6=1 -s ENVIRONMENT=web -lembind --no-entry")
+    set_target_properties(quimblos PROPERTIES LINK_FLAGS    "-Os -s STANDALONE_WASM -s EXPORT_ES6=1 -s ENVIRONMENT=web -lembind --no-entry -s LLD_REPORT_UNDEFINED")
 
 # x86/x64
 else()
@@ -51,6 +51,18 @@ else()
     )
 
     target_link_libraries(test
+        PUBLIC quimblos
+    )
+
+    # Sandbox
+
+    add_executable(sandbox examples/0-blink.cpp)
+
+    target_include_directories(sandbox
+        PRIVATE ${PROJECT_SOURCE_DIR}/include
+    )
+
+    target_link_libraries(sandbox
         PUBLIC quimblos
     )
 endif()

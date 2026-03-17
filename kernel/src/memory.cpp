@@ -41,6 +41,14 @@ qb::node::String* qb::node::str(std::string val) {
     return new qb::node::String(val.length(), val.c_str());
 }
 
+/* Value of (unsafe, use it carefully) */
+bool qb::node::as_bool(Node* node) {
+    return ((qb::node::Numeric<bool>*) node)->data;
+}
+uint8_t qb::node::as_u8(Node* node) {
+    return ((qb::node::Numeric<uint8_t>*) node)->data;
+}
+
 /*
     Bytecode parsing
 */

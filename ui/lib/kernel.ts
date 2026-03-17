@@ -7,7 +7,7 @@ export class Engine {
     public __qb: wasm.Engine;
 
     private devices: Device[] = []
-    private runners: Runner[] = []
+    private runners: Record<string, Runner> = {};
 
     // private logs: string[] = [];
     private target = new EventTarget();
@@ -35,14 +35,25 @@ export class Engine {
         return engine;
     }
 
-    public putDevice(device: Device) {
+    public put_device(device: Device) {
         this.devices.push(device);
-        this.__qb.putDevice((device as any).__qb);
+        this.__qb.put_device((device as any).__qb);
     }
 
-    public makeRunner(name: string, hex: string) {
+    public make_runner(name: string, hex: string, remake = true) {
+        if (remake) {
+            this.delete_runner(name);
+        }
         const runner = new Runner(this, name, hex);
-        this.runners.push(runner);
+        this.runners[name] = runner;
+        return runner;
+    }
+
+    public delete_runner(name: string) {
+        if (!(name in this.runners)) return;
+        const runner = this.runners[name];
+        this.__qb.delete_runner(name);
+        delete this.runners[name];
         return runner;
     }
 
@@ -56,7 +67,10 @@ export class Engine {
         this.target.addEventListener('log', (ev: CustomEvent) => fn(ev.detail));
     }
 
-    public getDevices() {
+    public get_device(name: string) {
+        return this.devices.find(d => d.name === name);
+    }
+    public get_devices() {
         return this.devices;
     }
 }
@@ -72,10 +86,10 @@ export class Runner {
         public name: string,
         public hex: string
     ) {
-        if (engine.__qb.makeRunner(name, hex) != 0) {
+        if (engine.__qb.make_runner(name, hex) != 0) {
             throw new Error('Failed to create runner');
         }
-        this.__qb = engine.__qb.getRunner(name);
+        this.__qb = engine.__qb.get_runner(name);
     }
 
     public get state(): keyof typeof wasm.RunnerState {
@@ -118,7 +132,7 @@ export type DataType = 'void'|'u8'|'i8'|'b8'|'u16'|'i16'|'u32'|'i32'|'f32'|'str'
 
 export abstract class Device<T = {}> {
     public __qb: wasm.Device;
-    protected webc?: GooWebComponent & T;
+    protected webc: Record<string, GooWebComponent & T> = {};
 
     protected constructor(
         public name: string,
@@ -133,13 +147,24 @@ export abstract class Device<T = {}> {
         this.__qb.bind(this);
     }
 
-    public makeWebc(parent: HTMLElement) {
-        this.webc ??= (window as any).goo.make(this.webc_name, {});
-        if (this.webc.parentElement) {
-            this.webc.parentElement.removeChild(this.webc);
+    public makeWebc(name: string, parent: HTMLElement) {
+        if (name in this.webc) return;
+        this.webc[name] = (window as any).goo.make(this.webc_name, {});
+        const webc = this.webc[name];
+        if (webc.parentElement) {
+            webc.parentElement.removeChild(webc);
         }
-        parent.appendChild(this.webc);
+        parent.appendChild(webc);
         this.setup();
+    }
+
+    public destroyWebc(name: string) {
+        if (!(name in this.webc)) return;
+        const webc = this.webc[name];
+        if (webc.parentElement) {
+            webc.parentElement.removeChild(webc);
+        }
+        delete this.webc[name];
     }
 
     public abstract setup(): void;

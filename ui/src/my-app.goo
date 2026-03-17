@@ -16,6 +16,9 @@
 </template>
 
 <script>
+setup() {
+    this.$console.open();
+}
 private open_console() {
     this.$console.open();
     this.$console.render();

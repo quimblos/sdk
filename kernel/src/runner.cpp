@@ -6,6 +6,12 @@ using namespace qb;
 
 #define QB_RUNNER_DEBUG
 
+#define ASSERT_OPERATOR_OK() \
+    if (res.code > 0) { \
+        Runner::set_state(runner, qb::runner::State::ERROR); \
+        return 0xFFFF; \
+    }
+
 Runner::Runner(
     Engine& engine,
     std::string name,
@@ -44,7 +50,7 @@ void Runner::wakeup() {
         std::cout << "[wakeup]" << std::endl;
     #endif
     this->state = runner::State::RUNNING;
-    this->output = "";
+    this->output = nullptr;
     this->sleep = 0;
 }
 
@@ -84,6 +90,7 @@ Device* Runner::resolve_device(device_t device) {
 runner::target_t Runner::resolve_target(OpBind bind, node::Pointer* target) {
     Device* device = nullptr;
     Node* node;
+    index_t index;
 
     if (target->device == 0xFF) {
         node = this->script->nodes.at(target->port);
@@ -94,6 +101,8 @@ runner::target_t Runner::resolve_target(OpBind bind, node::Pointer* target) {
         device = this->script->devices.at(target->device);
         node = device->get_node(target->port);
     }
+
+    index = target->index;
 
     if (bind == OpBind::REF_NODE || bind == OpBind::REF_REF) {
 
@@ -107,12 +116,14 @@ runner::target_t Runner::resolve_target(OpBind bind, node::Pointer* target) {
             device = this->script->devices.at(pointer->device);
             node = device->get_node(pointer->port);
         }
+
+        index = pointer->index;
     }
     
     return {
         .device = device,
         .node = node,
-        .index = target->index
+        .index = index
     };
 }
 
@@ -148,8 +159,9 @@ code_addr_t instruction::Set::run(Runner& runner) {
     Node* source = runner.resolve_source(this->bind, this->source);
     
     auto res = _operator::copy_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
     if (target.device != nullptr) {
-        target.device->update();
+        Device::tick(*target.device);
     }
     return this->next;
 }
@@ -173,66 +185,121 @@ code_addr_t instruction::GoTo::run(Runner& runner) {
 }
 
 code_addr_t instruction::IfEq::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::is_equal_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+
+    if (res.value) return this->next;
+    return this->next_false;
+}
+
+code_addr_t instruction::IfLt::run(Runner& runner) {
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::is_less_than(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+
+    if (res.value) return this->next;
+    return this->next_false;
     return this->next;
 }
 
 code_addr_t instruction::IfGt::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::is_greater_than(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+
+    if (res.value) return this->next;
+    return this->next_false;
     return this->next;
 }
 
-code_addr_t instruction::IfGtEq::run(Runner& runner) {
-    // TODO
-    return this->next;
-}
 
 // Arithmetics
 
 code_addr_t instruction::Add::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::add_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+    if (target.device != nullptr) {
+        Device::tick(*target.device);
+    }
     return this->next;
 }
 
 code_addr_t instruction::Sub::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::sub_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+    if (target.device != nullptr) {
+        Device::tick(*target.device);
+    }
     return this->next;
 }
 
 code_addr_t instruction::Mult::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::mult_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+    if (target.device != nullptr) {
+        Device::tick(*target.device);
+    }
     return this->next;
 }
 
 code_addr_t instruction::Div::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::div_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+    if (target.device != nullptr) {
+        Device::tick(*target.device);
+    }
     return this->next;
 }
 
 code_addr_t instruction::Mod::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::mod_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+    if (target.device != nullptr) {
+        Device::tick(*target.device);
+    }
     return this->next;
 }
 
 code_addr_t instruction::Pow::run(Runner& runner) {
-    // TODO
+    auto target = runner.resolve_target(this->bind, this->target);
+    Node* source = runner.resolve_source(this->bind, this->source);
+    
+    auto res = _operator::pow_to(target.node, source, target.index);
+    ASSERT_OPERATOR_OK()
+    if (target.device != nullptr) {
+        Device::tick(*target.device);
+    }
     return this->next;
 }
 
-code_addr_t instruction::Floor::run(Runner& runner) {
-    // TODO
-    return this->next;
-}
-
-code_addr_t instruction::Ceil::run(Runner& runner) {
-    // TODO
-    return this->next;
-}
 
 // Log
 
 code_addr_t instruction::Log::run(Runner& runner) {
-    // TODO
+    Device* device = runner.resolve_device(this->device);
+    device->log(this->source);
     return this->next;
 }
 
@@ -246,7 +313,7 @@ code_addr_t instruction::Sleep::run(Runner& runner) {
 
 code_addr_t instruction::Return::run(Runner& runner) {
     Runner::set_state(runner, runner::State::OK);
-    // Runner::set_output(runner, this->msg);
+    Runner::set_output(runner, this->source);
     return this->next;
 }
 

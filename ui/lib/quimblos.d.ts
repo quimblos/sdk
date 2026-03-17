@@ -19,9 +19,10 @@ declare global {
         }
         class Engine {
             public constructor();
-            public putDevice(device: Device): res_Engine;
-            public makeRunner(name: string, hex: string): number;
-            public getRunner(name: string): Runner;
+            public put_device(device: Device): res_Engine;
+            public make_runner(name: string, hex: string): number;
+            public get_runner(name: string): Runner;
+            public delete_runner(name: string): res_Engine;
             public _log(...args: string[]): void;
         }
 

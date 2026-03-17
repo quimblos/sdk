@@ -1,0 +1,48 @@
+<template>
+    <goo-card>
+        <a class="h-at-center chip">${this.name}</a>
+        <div class="h-at-center mt sling-2d">
+            <svg>
+                <line x1="0" y1="0" x2="300" y2="200" style="stroke:#ccc; stroke-width:1" />
+                <line x1="300" y1="0" x2="0" y2="200" style="stroke:#ccc; stroke-width:1" />
+            </svg>
+            <div class="sling-2d-motor left"></div>
+            <div class="sling-2d-motor right"></div>
+        </div>
+    </goo-card>
+</template>
+
+<script>
+public name = 'SLING2D';
+public setup() {}
+</script>
+
+<style>
+.sling-2d {
+    position: relative;
+    background-image:
+      repeating-linear-gradient(#222 0 1px, transparent 1px 100%),
+      repeating-linear-gradient(90deg, #222 0 1px, transparent 1px 100%);
+    background-size: 3rem 3rem;
+
+    background-color: #050505;
+    width: calc(15rem + 1px);
+    height: calc(15rem + 1px);
+}
+.sling-2d-motor {
+    position: absolute;
+    background-color: #488;
+    border-radius: 0.5rem;
+    width: 1rem;
+    height: 1rem;
+    top: -0.5rem;
+
+    &.left {
+        left: -0.5rem;
+    }
+    &.right {
+        right: -0.5rem;
+    }
+}
+
+</style>

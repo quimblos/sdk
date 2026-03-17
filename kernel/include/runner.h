@@ -42,7 +42,7 @@ namespace qb {
             code_addr_t cursor = 0;
     
             runner::State state = runner::State::IDLE;
-            std::string output = "";
+            Node* output = nullptr;
             uint32_t sleep = 0;
     
             void start();
@@ -78,7 +78,7 @@ namespace qb {
             static void set_state(Runner& runner, runner::State state) {
                 runner.state = state;
             }
-            static void set_output(Runner& runner, std::string output) {
+            static void set_output(Runner& runner, Node* output) {
                 runner.output = output;
             }
             static void set_sleep(Runner& runner, uint32_t sleep) {
@@ -198,6 +198,20 @@ namespace qb {
             
             code_addr_t run(Runner& runner);
         };
+
+        struct IfLt: public If {
+            IfLt(OpBind bind, device_t device, port_t port, index_t index, Node* source, code_addr_t next, code_addr_t next_false):
+                If(OpCode::IF_LT, bind, device, port, index, source, next, next_false)
+            {}
+
+            std::string to_str() const {
+                std::stringstream ss;
+                ss << "if " << TARGET_NAME(this->target) << " >= " << this->source->to_str() << " @" << this->next << " else @" << this->next_false;
+                return ss.str();
+            }
+
+            code_addr_t run(Runner& runner);
+        };
         struct IfGt: public If {
             IfGt(OpBind bind, device_t device, port_t port, index_t index, Node* source, code_addr_t next, code_addr_t next_false):
                 If(OpCode::IF_GT, bind, device, port, index, source, next, next_false)
@@ -206,19 +220,6 @@ namespace qb {
             std::string to_str() const {
                 std::stringstream ss;
                 ss << "if " << TARGET_NAME(this->target) << " > " << this->source->to_str() << " @" << this->next << " else @" << this->next_false;
-                return ss.str();
-            }
-
-            code_addr_t run(Runner& runner);
-        };
-        struct IfGtEq: public If {
-            IfGtEq(OpBind bind, device_t device, port_t port, index_t index, Node* source, code_addr_t next, code_addr_t next_false):
-                If(OpCode::IF_GTEQ, bind, device, port, index, source, next, next_false)
-            {}
-
-            std::string to_str() const {
-                std::stringstream ss;
-                ss << "if " << TARGET_NAME(this->target) << " >= " << this->source->to_str() << " @" << this->next << " else @" << this->next_false;
                 return ss.str();
             }
 
@@ -330,33 +331,6 @@ namespace qb {
                 return ss.str();
             }
             
-            code_addr_t run(Runner& runner);
-        };
-
-        struct Floor: public Math0 {
-            Floor(OpBind bind, device_t device, port_t port, index_t index):
-                Math0(OpCode::FLOOR, bind, device, port, index)
-            {}
-
-            std::string to_str() const {
-                std::stringstream ss;
-                ss << "math_floor " << TARGET_NAME(this->target);
-                return ss.str();
-            }
-            
-            code_addr_t run(Runner& runner);
-        };
-        struct Ceil: public Math0 {
-            Ceil(OpBind bind, device_t device, port_t port, index_t index):
-                Math0(OpCode::FLOOR, bind, device, port, index)
-            {}
-
-            std::string to_str() const {
-                std::stringstream ss;
-                ss << "math_ceil " << TARGET_NAME(this->target);
-                return ss.str();
-            }
-
             code_addr_t run(Runner& runner);
         };
 

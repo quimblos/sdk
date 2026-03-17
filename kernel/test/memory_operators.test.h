@@ -42,7 +42,7 @@ void test_declare(qb::node::res_t res) {
 
 void test_copy_to_ok(qb::node::res_t a, qb::node::res_t b) {
     auto ptr = qb::node::Pointer(0xFF, 0x00);
-    ptr.data = a.value;
+    // ptr.data = a.value;
     auto res = qb::_operator::copy_to(&ptr, b.value);
     if (res.code == 0) {
         std::cout << __OK << a.value->to_str() << " = " << b.value->to_str() << NC << std::endl;
@@ -54,7 +54,7 @@ void test_copy_to_ok(qb::node::res_t a, qb::node::res_t b) {
 
 void test_copy_to_fail(qb::node::res_t a, qb::node::res_t b) {
     auto ptr = qb::node::Pointer(0xFF, 0x00);
-    ptr.data = a.value;
+    // ptr.data = a.value;
     auto res = qb::_operator::copy_to(&ptr, b.value);
     if (res.code > 0) {
         std::cout << __OK << a.value->to_str() << " = " << b.value->to_str() << NC << std::endl;

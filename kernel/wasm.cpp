@@ -12,7 +12,7 @@ struct WASMDeviceRegister {
 
 class WASMDevice : public qb::Device {
     private:
-        emscripten::val jsDevice;
+        emscripten::val jsDevice = emscripten::val::undefined();
 
     public:    
 
@@ -22,7 +22,7 @@ class WASMDevice : public qb::Device {
     ): qb::Device(name) {
         for (const auto& it : registers) {
             if (it.type == "u8") {
-                if (it.length == 0) this->addRegister(qb::Data::u8());
+                this->add_node("_", qb::node::u8());
             }
         }
     }
@@ -32,15 +32,16 @@ class WASMDevice : public qb::Device {
     }
 
     bool has_i(uint8_t port) {
-        return port < this->registers.size();
+        return port < this->nodes.size();
     }
     
     void update() {
         auto val = emscripten::val::object();
-        for (size_t i = 0; i < this->registers.size(); i++) {
-            const auto port = this->registers.at(i);
-            if (port.type == qb::DataType::UINT8) {
-                val.set(i, emscripten::val(port.as_u8()));
+        for (size_t i = 0; i < this->nodes.size(); i++) {
+            qb::Node* node = this->nodes.at(i).second;
+            if (node->type == qb::Type::UINT8) {
+                uint8_t value = qb::node::as_u8(node);
+                val.set(i, emscripten::val(value));
             }
         }
         this->jsDevice.call<void>("update", val);
@@ -75,62 +76,40 @@ class WASMRunner : public qb::Runner {
 
 class WASMEngine : public qb::Engine {
     public:
-        qb::engine::res_t<void> putDevice(WASMDevice& device) {
-            return qb::Engine::putDevice(device);
-    }
+        qb::engine::res_t<void> put_device(WASMDevice& device) {
+            return qb::Engine::put_device(device);
+        }
 
-    int8_t makeRunner(std::string name, std::string hex) {
-        auto parser_out = qb::parser::parse(*this, name, hex);
-        if (!parser_out.ok) {
-            std::cout << "[error] " << parser_out.message << std::endl;
+    int8_t make_runner(std::string name, std::string hex) {
+        auto parser_res = qb::parser::parse(*this, name, hex);
+        if (parser_res.code > 0) {
+            std::cout << "[error] parser:" << +parser_res.code << std::endl;
+            return -1;
+        }
+        auto checker_res = qb::static_checker::check(*this, parser_res.script);
+        if (checker_res.code > 0) {
+            std::cout << "[error] checker:" << +checker_res.code << std::endl;
             return -1;
         }
 
-        auto runner_out = qb::Engine::makeRunner<WASMRunner>(name, parser_out.script);
-        if (!runner_out.ok) {
-            std::cout << "[error] " << runner_out.message << std::endl;
+        auto runner_res = qb::Engine::make_runner<WASMRunner>(name, parser_res.script);
+        if (!runner_res.ok) {
+            std::cout << "[error] runner:" << runner_res.message << std::endl;
             return -1;
         }
         return 0;
     }
 
-    WASMRunner& getRunner(std::string name) {
+    WASMRunner& get_runner(std::string name) {
         return *(WASMRunner*)this->runners.at(name);
+    }
+
+    qb::engine::res_t<void> delete_runner(std::string name) {
+        return qb::Engine::delete_runner(name);
     }
 };
 
 using namespace emscripten;
-
-// WASMRunner* runner;
-
-// int run(std::string name, std::string hex) {
-//     std::cout << "- Creating Engine..." << std::endl;
-//     qb::Engine engine;
-
-//     std::cout << "- Adding LedBar device..." << std::endl;
-//     LedBar device;
-//     engine.putDevice(device);
-
-//     std::cout << "- Parsing hexcode: " << hex << std::endl;
-//     auto parser_out = qb::parser::parse(engine, name, hex);
-//     if (!parser_out.ok) {
-//         std::cout << "[error] " << parser_out.message << std::endl;
-//         return -1;
-//     }
-
-//     std::cout << "- Creating " << name << " runner... " << std::endl;
-//     auto runner_out = engine.makeRunner<WASMRunner>(name, parser_out.script);
-//     if (!runner_out.ok) {
-//         std::cout << "[error] " << runner_out.message << std::endl;
-//         return -1;
-//     }
-
-//     std::cout << "- Running... " << std::endl;
-//     runner = runner_out.runner;
-//     runner->run();
-
-//     return 0;
-// }
 
 EMSCRIPTEN_BINDINGS(my_module) {
     // STL
@@ -141,7 +120,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
     value_object<qb::engine::res_t<void>>("res_Engine")
         .field("ok", &qb::engine::res_t<void>::ok)
         .field("message", &qb::engine::res_t<void>::message);
-
+        
     value_object<WASMDeviceRegister>("DeviceRegister")
         .field("type", &WASMDeviceRegister::type)
         .field("length", &WASMDeviceRegister::length);
@@ -156,9 +135,10 @@ EMSCRIPTEN_BINDINGS(my_module) {
     // Engine
     class_<WASMEngine>("Engine")
         .constructor()
-        .function("putDevice", &WASMEngine::putDevice)
-        .function("makeRunner", &WASMEngine::makeRunner)
-        .function("getRunner", &WASMEngine::getRunner);
+        .function("put_device", &WASMEngine::put_device)
+        .function("make_runner", &WASMEngine::make_runner)
+        .function("get_runner", &WASMEngine::get_runner)
+        .function("delete_runner", &WASMEngine::delete_runner);
 
     // Runner
     class_<WASMRunner>("Runner")

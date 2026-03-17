@@ -64,15 +64,15 @@ void test_code_parser() {
         qb::OpCode::SLEEP, 0x00, 0x00, 0x00, 0x01,
         qb::OpCode::IF_EQ, qb::OpBind::SHORT_NODE_NODE, 0xFF, 0x00, qb::Type::UINT8, 0x00, 0x00, 0x01, 0xFF, 0xFF
     }));
+    test_parse("IF_LT", HEX({
+        HEADER_QUIMBLOS,
+        qb::OpCode::SLEEP, 0x00, 0x00, 0x00, 0x01,
+        qb::OpCode::IF_LT, qb::OpBind::SHORT_NODE_NODE, 0xFF, 0x00, qb::Type::UINT8, 0x00, 0x00, 0x01, 0xFF, 0xFF
+    }));
     test_parse("IF_GT", HEX({
         HEADER_QUIMBLOS,
         qb::OpCode::SLEEP, 0x00, 0x00, 0x00, 0x01,
         qb::OpCode::IF_GT, qb::OpBind::SHORT_NODE_NODE, 0xFF, 0x00, qb::Type::UINT8, 0x00, 0x00, 0x01, 0xFF, 0xFF
-    }));
-    test_parse("IF_GTEQ", HEX({
-        HEADER_QUIMBLOS,
-        qb::OpCode::SLEEP, 0x00, 0x00, 0x00, 0x01,
-        qb::OpCode::IF_GTEQ, qb::OpBind::SHORT_NODE_NODE, 0xFF, 0x00, qb::Type::UINT8, 0x00, 0x00, 0x01, 0xFF, 0xFF
     }));
 
     test_parse("ADD", HEX({
@@ -98,14 +98,6 @@ void test_code_parser() {
     test_parse("POW", HEX({
         HEADER_QUIMBLOS,
         qb::OpCode::POW, qb::OpBind::SHORT_NODE_NODE, 0xFF, 0x00, qb::Type::UINT8, 0x00
-    }));
-    test_parse("FLOOR", HEX({
-        HEADER_QUIMBLOS,
-        qb::OpCode::FLOOR, qb::OpBind::SHORT_NODE_NODE, 0xFF, 0x00
-    }));
-    test_parse("CEIL", HEX({
-        HEADER_QUIMBLOS,
-        qb::OpCode::CEIL, qb::OpBind::SHORT_NODE_NODE, 0xFF, 0x00
     }));
 
     test_parse("LOG", HEX({

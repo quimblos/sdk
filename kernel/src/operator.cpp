@@ -1,5 +1,6 @@
 #include "operator.h"
 #include <iostream>
+#include <cmath>
 
 #define QB_DEBUG_OPERATOR
 
@@ -18,8 +19,9 @@ qb::_operator::res_t qb::_operator::as_pointer(qb::Node* source) {
         case qb::Type::INT16:
         case qb::Type::UINT32:
         case qb::Type::INT32:
+            return { .code = QB_OPERATOR_R_OK, .value = &((qb::node::Numeric<int32_t>*) source)->data };
         case qb::Type::FLOAT32:
-            return { .code = QB_OPERATOR_R_INVALID_CAST_NUMERIC_TO_PTR };
+            return { .code = QB_OPERATOR_R_INVALID_CAST_FLOAT_TO_PTR };
         case qb::Type::STRING:
             return { .code = QB_OPERATOR_R_INVALID_CAST_STRING_TO_PTR };
         case qb::Type::ARRAY:
@@ -35,7 +37,7 @@ qb::_operator::res_t qb::_operator::as_numeric(qb::Node* source) {
         case qb::Type::ERROR:
             return { .code = QB_OPERATOR_R_INVALID_CAST_ERROR_TO_NUMERIC };
         case qb::Type::PTR:
-            return { .code = QB_OPERATOR_R_INVALID_CAST_PTR_TO_NUMERIC };
+            return { .code = QB_OPERATOR_R_OK, .value = &((qb::node::Pointer*) source)->index };
         case qb::Type::BOOL:
             return { .code = QB_OPERATOR_R_OK, .value = &((qb::node::Numeric<bool>*) source)->data };
         case qb::Type::UINT8:
@@ -85,46 +87,22 @@ qb::_operator::res_t qb::_operator::as_string(qb::Node* source) {
     return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
 }
 
-qb::_operator::res_t qb::_operator::cast_to(type_t type, qb::Node* source) {
-    switch (type) {
-        case qb::Type::VOID:
-            return { .code = QB_OPERATOR_R_OK, .value = nullptr };
-        case qb::Type::ERROR:
-            return qb::_operator::as_string(source);
-        case qb::Type::PTR:
-            return qb::_operator::as_pointer(source);
-        case qb::Type::BOOL:
-        case qb::Type::UINT8:
-        case qb::Type::INT8:
-        case qb::Type::UINT16:
-        case qb::Type::INT16:
-        case qb::Type::UINT32:
-        case qb::Type::INT32:
-        case qb::Type::FLOAT32:
-            return qb::_operator::as_numeric(source);
-        case qb::Type::STRING:
-            return qb::_operator::as_string(source);
-        // Arrays can't be resolved directly
-        case qb::Type::ARRAY:
-            return { .code = QB_OPERATOR_R_INVALID_CAST_TO_ARRAY };
-    }
+// Cast/Copy
 
-    // Unknown type
-    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
-}
+qb::_operator::cast_res_t qb::_operator::cast_to(qb::Node* target, qb::Node* source, index_t index) {
 
-qb::_operator::res_t qb::_operator::copy_to(qb::Node* target, qb::Node* source, index_t index) {
-    
-    bool is_array;
+    // Step 1: Find target type
+
+    bool is_array_item;
     type_t type;
 
     // Resolve target value type
-    if (target->type != qb::Type::ARRAY) {
+    if (type != qb::Type::ARRAY) {
         // Index > 0 only allowed for arrays
         
         if (index > 0) return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_NOT_INDEXABLE };
 
-        is_array = false;
+        is_array_item = false;
         type = target->type;
     }
     // Resolve target array item type
@@ -134,248 +112,776 @@ qb::_operator::res_t qb::_operator::copy_to(qb::Node* target, qb::Node* source, 
         // Out of bounds
         if (index >= array->length) return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_OUT_OF_BOUNDS };
 
-        is_array = true;
+        is_array_item = true;
         type = array->item_type;
     }
 
+    // Step 2: Cast according to type
+
+    void* value = nullptr;
+    switch (type) {
+        case qb::Type::VOID:
+            break;
+        case qb::Type::ERROR:
+        {
+            auto res = qb::_operator::as_string(source);
+            if (res.code > 0) return { .code = res.code };
+            value = res.value;
+            break;
+        }
+        case qb::Type::PTR:
+        {
+            auto res = qb::_operator::as_pointer(source);
+            if (res.code > 0) return { .code = res.code };
+            value = res.value;
+            break;
+        }
+        case qb::Type::BOOL:
+        case qb::Type::UINT8:
+        case qb::Type::INT8:
+        case qb::Type::UINT16:
+        case qb::Type::INT16:
+        case qb::Type::UINT32:
+        case qb::Type::INT32:
+        case qb::Type::FLOAT32:
+        {
+            auto res = qb::_operator::as_numeric(source);
+            if (res.code > 0) return { .code = res.code };
+            value = res.value;
+            break;
+        }
+        case qb::Type::STRING:
+        {
+            auto res = qb::_operator::as_string(source);
+            if (res.code > 0) return { .code = res.code };
+            value = res.value;
+            break;
+        }
+        // Arrays can't be resolved directly
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_INVALID_CAST_TO_ARRAY };
+    }
+
+    // Unknown type
+    if (value == nullptr) {
+        return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+    }
+
+    // Step 3: Get pointer to target for manipulation
+
+    void* ptr = nullptr;
+    if (!is_array_item) {
+        switch (type) {
+            case qb::Type::VOID: break;
+            case qb::Type::ERROR: ptr = &((qb::node::Error*) target)->data; break;
+            case qb::Type::PTR: ptr = nullptr; break;
+            case qb::Type::BOOL: ptr = &((qb::node::Numeric<bool>*) target)->data; break;
+            case qb::Type::UINT8: ptr = &((qb::node::Numeric<uint8_t>*) target)->data; break;
+            case qb::Type::INT8: ptr = &((qb::node::Numeric<int8_t>*) target)->data; break;
+            case qb::Type::UINT16: ptr = &((qb::node::Numeric<uint16_t>*) target)->data; break;
+            case qb::Type::INT16: ptr = &((qb::node::Numeric<uint16_t>*) target)->data; break;
+            case qb::Type::UINT32: ptr = &((qb::node::Numeric<uint32_t>*) target)->data; break;
+            case qb::Type::INT32: ptr = &((qb::node::Numeric<uint32_t>*) target)->data; break;
+            case qb::Type::FLOAT32: ptr = &((qb::node::Numeric<float>*) target)->data; break;
+            case qb::Type::STRING:  ptr = &((qb::node::String*) target)->data; break;
+            case qb::Type::ARRAY: break;
+        }
+    }
+    else {
+        switch (type) {
+            case qb::Type::VOID: break;
+            case qb::Type::ERROR: break;
+            case qb::Type::PTR: break;
+            case qb::Type::BOOL: ptr = ((qb::node::Array<bool>*) target)->items+index; break;
+            case qb::Type::UINT8: ptr = ((qb::node::Array<uint8_t>*) target)->items+index; break;
+            case qb::Type::INT8: ptr = ((qb::node::Array<int8_t>*) target)->items+index; break;
+            case qb::Type::UINT16: ptr = ((qb::node::Array<uint16_t>*) target)->items+index; break;
+            case qb::Type::INT16: ptr = ((qb::node::Array<uint16_t>*) target)->items+index; break;
+            case qb::Type::UINT32: ptr = ((qb::node::Array<uint32_t>*) target)->items+index; break;
+            case qb::Type::INT32: ptr = ((qb::node::Array<uint32_t>*) target)->items+index; break;
+            case qb::Type::FLOAT32: ptr = ((qb::node::Array<float>*) target)->items+index; break;
+            case qb::Type::STRING: ptr = ((qb::node::Array<std::string>*) target)->items+index; break;
+            case qb::Type::ARRAY: break;
+        }
+    }
+
+    return {
+        .code = QB_OPERATOR_R_OK,
+        .type = type,
+        .value = value,
+        .target = ptr
+    };
+}
+
+qb::_operator::res_t qb::_operator::copy_to(qb::Node* target, qb::Node* source, index_t index) {
+    
     // Cast to target type
-    auto cast = qb::_operator::cast_to(type, source);
-    if (cast.code > 0) return cast;
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
     
     // Value
-    if (!is_array) {
-        switch (type) {
-            // Assigning to void doesn't make sense, it's always void
-            case qb::Type::VOID:
-                return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_VALUE_VOID };
+    switch (cast.type) {
+        // Assigning to void doesn't make sense, it's always void
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_VALUE_VOID };
 
-            case qb::Type::ERROR:
-                ((qb::node::Error*) target)->data = std::string(*(std::string*) cast.value);
-                return { .code = QB_OPERATOR_R_OK };
-            
-            case qb::Type::PTR:
-            {
-                // Guaranteed to be a pointer, by 'as_pointer'
+        case qb::Type::ERROR:
+            *((std::string*) cast.target) = std::string(*(std::string*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
                 auto ref = (qb::node::Pointer*) cast.value;
                 ((qb::node::Pointer*) target)->device = ref->device;
                 ((qb::node::Pointer*) target)->port = ref->port;
                 ((qb::node::Pointer*) target)->index = ref->index;
-                ((qb::node::Pointer*) target)->data = ref->data;
-                return { .code = QB_OPERATOR_R_OK };
+                // ((qb::node::Pointer*) target)->data = ref->data;
             }
-            case qb::Type::BOOL:
-                ((qb::node::Numeric<bool>*) target)->data = *(bool*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::UINT8:
-                ((qb::node::Numeric<uint8_t>*) target)->data = *(uint8_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::INT8:
-                ((qb::node::Numeric<int8_t>*) target)->data = *(int8_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::UINT16:
-                ((qb::node::Numeric<uint16_t>*) target)->data = *(uint16_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::INT16:
-                ((qb::node::Numeric<uint16_t>*) target)->data = *(uint16_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::UINT32:
-                ((qb::node::Numeric<uint32_t>*) target)->data = *(uint32_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::INT32:
-                ((qb::node::Numeric<uint32_t>*) target)->data = *(uint32_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::FLOAT32:
-                ((qb::node::Numeric<float>*) target)->data = *(float*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::STRING: 
-                ((qb::node::String*) target)->data = std::string(*(std::string*) cast.value);
-                return { .code = QB_OPERATOR_R_OK };
-    
-            // Array assignment not supported, assign each item instead
-            case qb::Type::ARRAY:
-                return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_VALUE_ARRAY };
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                ((qb::node::Pointer*) target)->index = *(index_t*) cast.value;
+            }
+            return { .code = QB_OPERATOR_R_OK };
         }
-    }
-    // Array Item
-    else {
-        switch (type) {
-            // Invalid array types (unreachable)
-            case qb::Type::VOID:
-            case qb::Type::ERROR:
-            case qb::Type::PTR:
-                return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_UNKNOWN_ARRAY };
-    
-            case qb::Type::BOOL:
-                ((qb::node::Array<bool>*) target)->items[index] = *(bool*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::UINT8:
-                ((qb::node::Array<uint8_t>*) target)->items[index] = *(uint8_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::INT8:
-                ((qb::node::Array<int8_t>*) target)->items[index] = *(int8_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::UINT16:
-                ((qb::node::Array<uint16_t>*) target)->items[index] = *(uint16_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::INT16:
-                ((qb::node::Array<uint16_t>*) target)->items[index] = *(uint16_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::UINT32:
-                ((qb::node::Array<uint32_t>*) target)->items[index] = *(uint32_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::INT32:
-                ((qb::node::Array<uint32_t>*) target)->items[index] = *(uint32_t*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::FLOAT32:
-                ((qb::node::Array<float>*) target)->items[index] = *(float*) cast.value;
-                return { .code = QB_OPERATOR_R_OK };
-            case qb::Type::STRING: 
-                ((qb::node::Array<std::string>*) target)->items[index] = std::string(*(std::string*) cast.value);
-                return { .code = QB_OPERATOR_R_OK };
-    
-            // Invalid array type (unreachable)
-            case qb::Type::ARRAY:
-                return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_UNKNOWN_ARRAY };
-        }
+        case qb::Type::BOOL:
+            *((bool*) cast.target) = *(bool*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT8:
+            *((uint8_t*) cast.target) = *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT8:
+            *((int8_t*) cast.target) = *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT16:
+            *((uint16_t*) cast.target) = *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT16:
+            *((uint16_t*) cast.target) = *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT32:
+            *((uint32_t*) cast.target) = *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT32:
+            *((uint32_t*) cast.target) = *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::FLOAT32:
+            *((float*) cast.target) = *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::STRING: 
+            *((std::string*) cast.target) = std::string(*(std::string*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+
+        // Array assignment not supported, assign each item instead
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_VALUE_ARRAY };
     }
 
     // Unknown type
     return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
 }
 
-// qb::_operator::res_t qb::_operator::copy_to(qb::Node* target, qb::Node* source) {
+// Math
+
+qb::_operator::res_t qb::_operator::add_to(qb::Node* target, qb::Node* source, index_t index) {
     
-//     // Target MUST be a pointer
-//     if (target->type != qb::Type::PTR) return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_NOT_POINTER };
-//     auto pointer = (qb::node::Pointer*) target;
-
-//     // Unresolved pointer, fail
-//     if (pointer->data == nullptr) return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_NOT_RESOLVED };
-
-//     bool is_array;
-//     type_t type;
-
-//     // Resolve target value type
-//     if (pointer->data->type != qb::Type::ARRAY) {
-//         // Index > 0 only allowed for arrays
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Math with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                // Math with pointer as source is ambiguous, not implemented
+                return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                ((qb::node::Pointer*) target)->index += *(index_t*) cast.value;
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+            *((uint8_t*) cast.target) += *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT8:
+            *((int8_t*) cast.target) += *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT16:
+            *((uint16_t*) cast.target) += *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT16:
+            *((uint16_t*) cast.target) += *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT32:
+            *((uint32_t*) cast.target) += *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT32:
+            *((uint32_t*) cast.target) += *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::FLOAT32:
+            *((float*) cast.target) += *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
         
-//         if (pointer->index > 0) return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_NOT_INDEXABLE };
+        // Special case of String append
+        case qb::Type::STRING: 
+            *((std::string*) cast.target) += std::string(*(std::string*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
 
-//         is_array = false;
-//         type = pointer->data->type;
-//     }
-//     // Resolve target array item type
-//     else {
-//         auto array = (qb::node::Array<void*>*) pointer->data;
-        
-//         // Out of bounds
-//         if (pointer->index >= array->length) return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_OUT_OF_BOUNDS };
+        // Array math not supported, operate on each item instead
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
 
-//         is_array = true;
-//         type = array->item_type;
-//     }
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
 
-//     // Cast to target type
-//     auto cast = qb::_operator::cast_to(type, source);
-//     if (cast.code > 0) return cast;
+qb::_operator::res_t qb::_operator::sub_to(qb::Node* target, qb::Node* source, index_t index) {
     
-//     // Value
-//     if (!is_array) {
-//         switch (type) {
-//             // Assigning to void doesn't make sense, it's always void
-//             case qb::Type::VOID:
-//                 return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_VALUE_VOID };
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Math with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                // Math with pointer as source is ambiguous, not implemented
+                return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                ((qb::node::Pointer*) target)->index -= *(index_t*) cast.value;
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+            *((uint8_t*) cast.target) -= *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT8:
+            *((int8_t*) cast.target) -= *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT16:
+            *((uint16_t*) cast.target) -= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT16:
+            *((uint16_t*) cast.target) -= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT32:
+            *((uint32_t*) cast.target) -= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT32:
+            *((uint32_t*) cast.target) -= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::FLOAT32:
+            *((float*) cast.target) -= *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        // String math not supported, operate on each item instead
+        case qb::Type::STRING: 
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_STRING };
+        // Array math not supported, operate on each item instead
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
 
-//             case qb::Type::ERROR:
-//                 ((qb::node::Error*) pointer->data)->data = std::string(*(std::string*) cast.value);
-//                 return { .code = QB_OPERATOR_R_OK };
-            
-//             case qb::Type::PTR:
-//             {
-//                 // Guaranteed to be a pointer, by 'as_pointer'
-//                 auto ref = (qb::node::Pointer*) cast.value;
-//                 ((qb::node::Pointer*) pointer->data)->device = ref->device;
-//                 ((qb::node::Pointer*) pointer->data)->port = ref->port;
-//                 ((qb::node::Pointer*) pointer->data)->index = ref->index;
-//                 ((qb::node::Pointer*) pointer->data)->data = ref->data;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             }
-//             case qb::Type::BOOL:
-//                 ((qb::node::Numeric<bool>*) pointer->data)->data = *(bool*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::UINT8:
-//                 ((qb::node::Numeric<uint8_t>*) pointer->data)->data = *(uint8_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::INT8:
-//                 ((qb::node::Numeric<int8_t>*) pointer->data)->data = *(int8_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::UINT16:
-//                 ((qb::node::Numeric<uint16_t>*) pointer->data)->data = *(uint16_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::INT16:
-//                 ((qb::node::Numeric<uint16_t>*) pointer->data)->data = *(uint16_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::UINT32:
-//                 ((qb::node::Numeric<uint32_t>*) pointer->data)->data = *(uint32_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::INT32:
-//                 ((qb::node::Numeric<uint32_t>*) pointer->data)->data = *(uint32_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::FLOAT32:
-//                 ((qb::node::Numeric<float>*) pointer->data)->data = *(float*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::STRING: 
-//                 ((qb::node::String*) pointer->data)->data = std::string(*(std::string*) cast.value);
-//                 return { .code = QB_OPERATOR_R_OK };
-    
-//             // Array assignment not supported, assign each item instead
-//             case qb::Type::ARRAY:
-//                 return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_VALUE_ARRAY };
-//         }
-//     }
-//     // Array Item
-//     else {
-//         switch (type) {
-//             // Invalid array types (unreachable)
-//             case qb::Type::VOID:
-//             case qb::Type::ERROR:
-//             case qb::Type::PTR:
-//                 return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_UNKNOWN_ARRAY };
-    
-//             case qb::Type::BOOL:
-//                 ((qb::node::Array<bool>*) pointer->data)->items[pointer->index] = *(bool*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::UINT8:
-//                 ((qb::node::Array<uint8_t>*) pointer->data)->items[pointer->index] = *(uint8_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::INT8:
-//                 ((qb::node::Array<int8_t>*) pointer->data)->items[pointer->index] = *(int8_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::UINT16:
-//                 ((qb::node::Array<uint16_t>*) pointer->data)->items[pointer->index] = *(uint16_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::INT16:
-//                 ((qb::node::Array<uint16_t>*) pointer->data)->items[pointer->index] = *(uint16_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::UINT32:
-//                 ((qb::node::Array<uint32_t>*) pointer->data)->items[pointer->index] = *(uint32_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::INT32:
-//                 ((qb::node::Array<uint32_t>*) pointer->data)->items[pointer->index] = *(uint32_t*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::FLOAT32:
-//                 ((qb::node::Array<float>*) pointer->data)->items[pointer->index] = *(float*) cast.value;
-//                 return { .code = QB_OPERATOR_R_OK };
-//             case qb::Type::STRING: 
-//                 ((qb::node::Array<std::string>*) pointer->data)->items[pointer->index] = std::string(*(std::string*) cast.value);
-//                 return { .code = QB_OPERATOR_R_OK };
-    
-//             // Invalid array type (unreachable)
-//             case qb::Type::ARRAY:
-//                 return { .code = QB_OPERATOR_R_COPY_FAILED_TARGET_UNKNOWN_ARRAY };
-//         }
-//     }
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
 
-//     // Unknown type
-//     return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
-// }
+qb::_operator::res_t qb::_operator::mult_to(qb::Node* target, qb::Node* source, index_t index) {
+    
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Math with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                // Math with pointer as source is ambiguous, not implemented
+                return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                ((qb::node::Pointer*) target)->index *= *(index_t*) cast.value;
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+            *((uint8_t*) cast.target) *= *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT8:
+            *((int8_t*) cast.target) *= *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT16:
+            *((uint16_t*) cast.target) *= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT16:
+            *((uint16_t*) cast.target) *= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT32:
+            *((uint32_t*) cast.target) *= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT32:
+            *((uint32_t*) cast.target) *= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::FLOAT32:
+            *((float*) cast.target) *= *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        // String math not supported, operate on each item instead
+        case qb::Type::STRING: 
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_STRING };
+        // Array math not supported, operate on each item instead
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
+
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
+
+qb::_operator::res_t qb::_operator::div_to(qb::Node* target, qb::Node* source, index_t index) {
+    
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Math with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                // Math with pointer as source is ambiguous, not implemented
+                return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                ((qb::node::Pointer*) target)->index /= *(index_t*) cast.value;
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+            *((uint8_t*) cast.target) /= *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT8:
+            *((int8_t*) cast.target) /= *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT16:
+            *((uint16_t*) cast.target) /= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT16:
+            *((uint16_t*) cast.target) /= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT32:
+            *((uint32_t*) cast.target) /= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT32:
+            *((uint32_t*) cast.target) /= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::FLOAT32:
+            *((float*) cast.target) /= *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        // String math not supported, operate on each item instead
+        case qb::Type::STRING: 
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_STRING };
+        // Array math not supported, operate on each item instead
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
+
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
+
+qb::_operator::res_t qb::_operator::mod_to(qb::Node* target, qb::Node* source, index_t index) {
+    
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Math with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                // Math with pointer as source is ambiguous, not implemented
+                return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                ((qb::node::Pointer*) target)->index %= *(index_t*) cast.value;
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+            *((uint8_t*) cast.target) %= *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT8:
+            *((int8_t*) cast.target) %= *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT16:
+            *((uint16_t*) cast.target) %= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT16:
+            *((uint16_t*) cast.target) %= *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT32:
+            *((uint32_t*) cast.target) %= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT32:
+            *((uint32_t*) cast.target) %= *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::FLOAT32:
+            *((float*) cast.target) = std::fmod(*((float*) cast.target), *(float*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        // String math not supported, operate on each item instead
+        case qb::Type::STRING: 
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_STRING };
+        // Array math not supported, operate on each item instead
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
+
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
+
+qb::_operator::res_t qb::_operator::pow_to(qb::Node* target, qb::Node* source, index_t index) {
+    
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Math with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                // Math with pointer as source is ambiguous, not implemented
+                return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                ((qb::node::Pointer*) target)->index = std::pow(((qb::node::Pointer*) target)->index, *(index_t*) cast.value);
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+            *((uint8_t*) cast.target) = std::pow(*((uint8_t*) cast.target), *(uint8_t*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT8:
+            *((int8_t*) cast.target) = std::pow(*((int8_t*) cast.target), *(int8_t*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT16:
+            *((uint16_t*) cast.target) = std::pow(*((uint16_t*) cast.target), *(uint16_t*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT16:
+            *((uint16_t*) cast.target) = std::pow(*((uint16_t*) cast.target), *(uint16_t*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::UINT32:
+            *((uint32_t*) cast.target) = std::pow(*((uint32_t*) cast.target), *(uint32_t*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::INT32:
+            *((uint32_t*) cast.target) = std::pow(*((uint32_t*) cast.target), *(uint32_t*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        case qb::Type::FLOAT32:
+            *((float*) cast.target) = std::pow(*((float*) cast.target), *(float*) cast.value);
+            return { .code = QB_OPERATOR_R_OK };
+        // String math not supported, operate on each item instead
+        case qb::Type::STRING: 
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_STRING };
+        // Array math not supported, operate on each item instead
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
+
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
+
+qb::_operator::res_t qb::_operator::is_equal_to(qb::Node* target, qb::Node* source, index_t index) {
+    
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Compare with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                auto ref = (qb::node::Pointer*) cast.value;
+                bool match = (
+                    ((qb::node::Pointer*) target)->device == ref->device
+                    && ((qb::node::Pointer*) target)->port == ref->port
+                    && ((qb::node::Pointer*) target)->index == ref->index
+                );
+                // ((qb::node::Pointer*) target)->data = ref->data;
+                return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                bool match = ((qb::node::Pointer*) target)->index == *(index_t*) cast.value;
+                return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+        {
+            bool match = *((uint8_t*) cast.target) == *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT8:
+        {
+            bool match = *((int8_t*) cast.target) == *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::UINT16:
+        {
+            bool match = *((uint16_t*) cast.target) == *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT16:
+        {
+            bool match = *((uint16_t*) cast.target) == *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::UINT32:
+        {
+            bool match = *((uint32_t*) cast.target) == *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT32:
+        {
+            bool match = *((uint32_t*) cast.target) == *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::FLOAT32:
+        {
+            bool match = *((float*) cast.target) == *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::STRING:
+        {
+            auto comp = ((std::string*) cast.target)->compare(*(std::string*) cast.value);
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) (comp == 0) };
+        }
+        // Array comparison is ambiguous or costly, not implemented
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
+
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
+
+qb::_operator::res_t qb::_operator::is_less_than(qb::Node* target, qb::Node* source, index_t index) {
+    
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Compare with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                bool match = ((qb::node::Pointer*) target)->index < *(index_t*) cast.value;
+                return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+        {
+            bool match = *((uint8_t*) cast.target) < *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT8:
+        {
+            bool match = *((int8_t*) cast.target) < *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::UINT16:
+        {
+            bool match = *((uint16_t*) cast.target) < *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT16:
+        {
+            bool match = *((uint16_t*) cast.target) < *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::UINT32:
+        {
+            bool match = *((uint32_t*) cast.target) < *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT32:
+        {
+            bool match = *((uint32_t*) cast.target) < *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::FLOAT32:
+        {
+            bool match = *((float*) cast.target) < *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        // String comparison is ambiguous, not implemented
+        case qb::Type::STRING:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_STRING };
+        // Array comparison is ambiguous or costly, not implemented
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
+
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}
+
+qb::_operator::res_t qb::_operator::is_greater_than(qb::Node* target, qb::Node* source, index_t index) {
+    
+    // Cast to target type
+    auto cast = qb::_operator::cast_to(target, source, index);
+    if (cast.code > 0) return { .code = cast.code };
+    
+    // Value
+    switch (cast.type) {
+        // Compare with void/error doesn't make sense
+        case qb::Type::VOID:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_VOID };
+        case qb::Type::ERROR:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ERROR };
+        //
+        case qb::Type::PTR:
+        {
+            if (source->type == Type::PTR) {
+                return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_PTR };
+            }
+            else {
+                // Guaranteed to be an integer, by `as_pointer`;
+                bool match = ((qb::node::Pointer*) target)->index > *(index_t*) cast.value;
+                return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+            }
+            return { .code = QB_OPERATOR_R_OK };
+        }
+        case qb::Type::BOOL:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_SOURCE_VALUE_PTR };
+        case qb::Type::UINT8:
+        {
+            bool match = *((uint8_t*) cast.target) > *(uint8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT8:
+        {
+            bool match = *((int8_t*) cast.target) > *(int8_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::UINT16:
+        {
+            bool match = *((uint16_t*) cast.target) > *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT16:
+        {
+            bool match = *((uint16_t*) cast.target) > *(uint16_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::UINT32:
+        {
+            bool match = *((uint32_t*) cast.target) > *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::INT32:
+        {
+            bool match = *((uint32_t*) cast.target) > *(uint32_t*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        case qb::Type::FLOAT32:
+        {
+            bool match = *((float*) cast.target) > *(float*) cast.value;
+            return { .code = QB_OPERATOR_R_OK, .value = (void*) match };
+        }
+        // String comparison is ambiguous, not implemented
+        case qb::Type::STRING:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_STRING };
+        // Array comparison is ambiguous or costly, not implemented
+        case qb::Type::ARRAY:
+            return { .code = QB_OPERATOR_R_MATH_FAILED_TARGET_VALUE_ARRAY };
+    }
+
+    // Unknown type
+    return { .code = QB_OPERATOR_R_UNKNOWN_TYPE };
+}

@@ -1,8 +1,7 @@
 #pragma once
 
-// #include "code.h"
-// #include "data.h"
-// #include "device.h"
-// #include "parser.h"
-// #include "runner.h"
-// #include "script.h"
+#include "engine.h"
+#include "hex.h"
+#include "operator.h"
+#include "script.h"
+#include "static_checker.h"

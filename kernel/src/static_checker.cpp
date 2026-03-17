@@ -82,15 +82,15 @@ static_checker::res_t static_checker::check(Engine& engine, const Script* script
                 target = ((instruction::IfEq*) instruction)->target;
                 source = ((instruction::IfEq*) instruction)->source;
                 break;
+            case qb::OpCode::IF_LT:
+                bind = ((instruction::IfLt*) instruction)->bind;
+                target = ((instruction::IfLt*) instruction)->target;
+                source = ((instruction::IfLt*) instruction)->source;
+                break;
             case qb::OpCode::IF_GT:
                 bind = ((instruction::IfGt*) instruction)->bind;
                 target = ((instruction::IfGt*) instruction)->target;
                 source = ((instruction::IfGt*) instruction)->source;
-                break;
-            case qb::OpCode::IF_GTEQ:
-                bind = ((instruction::IfGtEq*) instruction)->bind;
-                target = ((instruction::IfGtEq*) instruction)->target;
-                source = ((instruction::IfGtEq*) instruction)->source;
                 break;
             case qb::OpCode::ADD:
                 bind = ((instruction::Add*) instruction)->bind;
@@ -121,14 +121,6 @@ static_checker::res_t static_checker::check(Engine& engine, const Script* script
                 bind = ((instruction::Pow*) instruction)->bind;
                 target = ((instruction::Pow*) instruction)->target;
                 source = ((instruction::Pow*) instruction)->source;
-                break;
-            case qb::OpCode::FLOOR:
-                bind = ((instruction::Floor*) instruction)->bind;
-                target = ((instruction::Floor*) instruction)->target;
-                break;
-            case qb::OpCode::CEIL:
-                bind = ((instruction::Ceil*) instruction)->bind;
-                target = ((instruction::Ceil*) instruction)->target;
                 break;
             case qb::OpCode::LOG:
                 device = &((instruction::Log*) instruction)->device;

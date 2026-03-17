@@ -35,6 +35,8 @@ namespace qb {
                 return this->name;
             }
 
+            // Nodes
+
             bool has_node(port_t port) const {
                 return port < this->nodes.size();
             }
@@ -49,6 +51,17 @@ namespace qb {
             
             std::string get_node_alias(port_t port) const {
                 return this->nodes.at(port).first;
+            }
+
+            // Runner methods
+
+            static void tick(Device& device) {
+                if (device.held) return;
+                device.update();
+            }
+
+            virtual void log(Node* node) {
+                std::cout << COLOR_GRAY << "[" << this->name << "] " << node->to_str() << COLOR_NC << std::endl;
             }
 
             void hold() {

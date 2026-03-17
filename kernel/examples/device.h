@@ -5,11 +5,13 @@ class LedBar : public qb::Device {
     public:    
 
     LedBar(): qb::Device("LEDBAR") {
-        /* LEDS 0x00 */ this->addRegister(qb::Data::u8());
+        /* 0x00 */ this->add_node("leds", qb::node::u8());
     }
     
     void update() {
-        uint8_t val = this->registers.at(0).as_u8();
+        qb::Node* node = this->nodes.at(0).second;
+        uint8_t val = qb::node::as_u8(node);
+
         for (uint8_t i = 0; i < 8; i++) {
             std::cout << ((val >> i & 1) ? "\\ | / " : "      ");
         }

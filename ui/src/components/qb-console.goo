@@ -1,14 +1,8 @@
 <template>
     <goo-modal id="modal">
         <div class="col ga" style="width: 80dvw">
-            <textarea
-                id="output"
-                class="terminal"
-                rows="30"
-            >
-                ${this.output}
-            </textarea>
-            <textarea class="hex-editor" rows="2" id="cmd">7162000001064c45444241521000001055e0000003e810000010aae0000003e8200000</textarea>
+            <qb-editor id="editor"/>
+            <div id="error_list" if:error>${this.error}</div>
             <div class="row h-end">
                 <goo-btn
                     if:_="!this.runner?.running"
@@ -29,15 +23,7 @@
 public name = 'LEDBAR';
 public leds = [true, false, true, false, true, false, true, false]
 
-public output = '';
-
-public setup() {
-    qb.onLog(msg => {
-        this.output += msg + '\n';
-        this.$output.scrollTop = this.$output.scrollHeight;
-        this.render();
-    })
-}
+public error = '';
 
 public open() {
     this.$modal.open();
@@ -46,36 +32,20 @@ public open() {
 private runner;
 
 public async run() {
-    this.output = '';
-    this.runner = qb.makeRunner('console', this.$cmd.value);
-    this.$cmd.value = '';
-    this.runner.run();
-
-    // console.log(quimblos.qbDevice);
-    // class MyDevice extends quimblos.qbDevice {
-    // }
-
-    
-    // const device = new quimblos.qbDevice('ledstrip');
-
-    // console.log(device.has_i(1));
-    // this.running = true;
-    // quimblos.run('accumulator','7162000001086c656473747269700210e0000003e830ff00100121ff00ffff00061005300000100111ff001000200000200000')
-    // this.output += 'Initializing...\n';
-    // setTimeout(() => {
-    //     this.output += 'Doing something...\n';
-    //     this.render();
-    // }, 2000);
-    // setTimeout(() => {
-    //     this.output += 'I swear this is not fake...\n';
-    //     this.render();
-    // }, 4000);
-    // setTimeout(() => {
-    //     this.running = false;
-    //     this.output = '';
-    //     this.render();
-    // }, 6000);
-    // this.render();
+    this.error = '';
+    try {
+        const hex = this.$editor.hex;
+        if (!hex) {
+            throw new Error('Script contains errors');
+        }
+        this.runner = qb.make_runner('console', hex);
+        this.$editor.clear_output();
+        this.runner.run();
+    }
+    catch (e) {
+        this.error = e.toString();
+    }
+    this.render();
 }
 
 public stop() {
@@ -86,29 +56,10 @@ public stop() {
 </script>
 
 <style>
-.hex-editor {
-    background-color: #030303;
-    border: 0px;
-    resize: vertical;
-    color: #fff;
-    font-family: monospace;
-}
-.terminal {
-    background-color: #052930;
-    border: 0px;
-    resize: vertical;
-    color: #fff;
-    font-family: monospace;
+#error_list {
+    padding: 0.5rem;
+    background-color: #bb333344;
     font-weight: 100;
-    min-height: 50dvh;
-
-    max-height: 10rem;
-    transition: max-height 0.5s ease, display 0.5s allow-discrete;
-    &[style*="display: none"] {
-        max-height: 0px;
-    }
-    @starting-style {
-        max-height: 0px;
-    }
+    font-size: 0.6rem;
 }
 </style>

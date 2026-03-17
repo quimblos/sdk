@@ -22,6 +22,20 @@ namespace qb {
 
         std::vector<std::string> node_aliases;
 
+        Script(
+            std::string name,
+            std::vector<qb::Device*> devices,
+            std::vector<qb::Node*> nodes,
+            std::vector<qb::Instruction*> instructions,
+            std::vector<std::string> node_aliases
+        ):
+            name(name),
+            devices(devices),
+            nodes(nodes),
+            instructions(instructions),
+            node_aliases(node_aliases)
+        {}
+        
         ~Script() {
             for (qb::Node* node : this->nodes) {
                 delete node;
@@ -58,8 +72,8 @@ namespace qb {
                 if (
                     instruction->code != OpCode::GOTO
                     && instruction->code != OpCode::IF_EQ
+                    && instruction->code != OpCode::IF_LT
                     && instruction->code != OpCode::IF_GT
-                    && instruction->code != OpCode::IF_GTEQ
                 ) {
                     ss << "\t@" << instruction->next;
                 }

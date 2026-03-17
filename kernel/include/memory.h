@@ -65,6 +65,7 @@ namespace qb {
         type_t type;
 
         Node(type_t type): type(type) {}
+        virtual ~Node() {};
 
         // 
         virtual Node* copy() const = 0;
@@ -143,7 +144,7 @@ namespace qb {
             device_t device = 0;
             port_t port = 0;
             index_t index = 0;
-            Node* data = nullptr;
+            // Node* data = nullptr;
             Pointer(
                 device_t device,
                 port_t port,
@@ -163,18 +164,18 @@ namespace qb {
                 this->device = 0;
                 this->port = 0;
                 this->index = 0;
-                this->data = nullptr;
+                // this->data = nullptr;
             }
 
             const std::string to_str() const {
                 std::stringstream ss;
                 ss << "<ptr:";
-                if (this->data == nullptr) {
+                // if (this->data == nullptr) {
                     ss << +(this->device) << "#" << +(this->port) << "[" << this->index << "]>";
-                }
-                else {
-                    ss << this->data->to_str() << ">";
-                }
+                // }
+                // else {
+                //     ss << this->data->to_str() << ">";
+                // }
                 return ss.str();
             };
         };
@@ -348,7 +349,10 @@ namespace qb {
         }
     }
 
-
+    namespace node {
+        bool as_bool(Node* node);
+        uint8_t as_u8(Node* node);
+    };
 }
 
 /* Response Codes*/

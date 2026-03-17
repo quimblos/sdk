@@ -2,7 +2,7 @@
 #include "parser.h"
 #include "hex.h"
 
-// #define QB_PARSER_DEBUG
+#define QB_PARSER_DEBUG
 
 using namespace qb;
 
@@ -69,16 +69,14 @@ void log_op_code(code_addr_t addr, OpCode code) {
         case OpCode::RELEASE: std::cout << "RELEASE "; break;
         case OpCode::GOTO: std::cout << "GOTO "; break;
         case OpCode::IF_EQ: std::cout << "IF_EQ "; break;
+        case OpCode::IF_LT: std::cout << "IF_LT "; break;
         case OpCode::IF_GT: std::cout << "IF_GT "; break;
-        case OpCode::IF_GTEQ: std::cout << "IF_GTEQ "; break;
         case OpCode::ADD: std::cout << "ADD "; break;
         case OpCode::SUB: std::cout << "SUB "; break;
         case OpCode::MULT: std::cout << "MULT "; break;
         case OpCode::DIV: std::cout << "DIV "; break;
         case OpCode::MOD: std::cout << "MOD "; break;
         case OpCode::POW: std::cout << "POW "; break;
-        case OpCode::FLOOR: std::cout << "FLOOR "; break;
-        case OpCode::CEIL: std::cout << "CEIL "; break;
         case OpCode::LOG: std::cout << "LOG "; break;
         case OpCode::SLEEP: std::cout << "SLEEP "; break;
         case OpCode::RETURN: std::cout << "RETURN "; break;
@@ -296,6 +294,35 @@ parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
                     #endif
                 }
                 break;
+            case OpCode::IF_LT:
+                {
+                    auto target = parse_target(bytes, code_len, addr);
+                    ASSERT_TARGET()
+                    ASSERT_DEVICE(target.device)
+                    auto source = Node::from_bytes(bytes, code_len, addr);
+                    ASSERT_SOURCE()
+                    ASSERT_N_BYTES(2);
+                    code_addr_t goto_true = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+                    ASSERT_N_BYTES(2);
+                    code_addr_t goto_false = (bytes[addr] << 8) + bytes[addr+1];
+                    addr += 2;
+
+                    instructions.push_back(new instruction::IfLt(
+                        RESOLVE_BIND(target.bind),
+                        target.device,
+                        target.port,
+                        target.index,
+                        source.value,
+                        goto_true,
+                        goto_false
+                    ));
+                    
+                    #ifdef QB_PARSER_DEBUG
+                        std::cout << source.value->to_str();
+                    #endif
+                }
+                break;
             case OpCode::IF_GT:
                 {
                     auto target = parse_target(bytes, code_len, addr);
@@ -311,35 +338,6 @@ parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
                     addr += 2;
 
                     instructions.push_back(new instruction::IfGt(
-                        RESOLVE_BIND(target.bind),
-                        target.device,
-                        target.port,
-                        target.index,
-                        source.value,
-                        goto_true,
-                        goto_false
-                    ));
-                    
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << source.value->to_str();
-                    #endif
-                }
-                break;
-            case OpCode::IF_GTEQ:
-                {
-                    auto target = parse_target(bytes, code_len, addr);
-                    ASSERT_TARGET()
-                    ASSERT_DEVICE(target.device)
-                    auto source = Node::from_bytes(bytes, code_len, addr);
-                    ASSERT_SOURCE()
-                    ASSERT_N_BYTES(2);
-                    code_addr_t goto_true = (bytes[addr] << 8) + bytes[addr+1];
-                    addr += 2;
-                    ASSERT_N_BYTES(2);
-                    code_addr_t goto_false = (bytes[addr] << 8) + bytes[addr+1];
-                    addr += 2;
-
-                    instructions.push_back(new instruction::IfGtEq(
                         RESOLVE_BIND(target.bind),
                         target.device,
                         target.port,
@@ -480,34 +478,6 @@ parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
                     #endif
                 }
                 break;
-            case OpCode::FLOOR:
-                {
-                    auto target = parse_target(bytes, code_len, addr);
-                    ASSERT_TARGET()
-                    ASSERT_DEVICE(target.device)
-                    
-                    instructions.push_back(new instruction::Floor(
-                        RESOLVE_BIND(target.bind),
-                        target.device,
-                        target.port,
-                        target.index
-                    ));
-                }
-                break;
-            case OpCode::CEIL:
-                {
-                    auto target = parse_target(bytes, code_len, addr);
-                    ASSERT_TARGET()
-                    ASSERT_DEVICE(target.device)
-                    
-                    instructions.push_back(new instruction::Ceil(
-                        RESOLVE_BIND(target.bind),
-                        target.device,
-                        target.port,
-                        target.index
-                    ));
-                }
-                break;
             case OpCode::LOG:
                 {
                     ASSERT_N_BYTES(1);
@@ -604,13 +574,13 @@ parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
                 advance = false;
                 next_false = &((instruction::IfEq*) instruction)->next_false;
                 break;
+            case qb::OpCode::IF_LT:
+                advance = false;
+                next_false = &((instruction::IfLt*) instruction)->next_false;
+                break;
             case qb::OpCode::IF_GT:
                 advance = false;
                 next_false = &((instruction::IfGt*) instruction)->next_false;
-                break;
-            case qb::OpCode::IF_GTEQ:
-                advance = false;
-                next_false = &((instruction::IfEq*) instruction)->next_false;
                 break;
             case qb::OpCode::ADD:
             case qb::OpCode::SUB:
@@ -618,8 +588,6 @@ parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
             case qb::OpCode::DIV:
             case qb::OpCode::MOD:
             case qb::OpCode::POW:
-            case qb::OpCode::FLOOR:
-            case qb::OpCode::CEIL:
             case qb::OpCode::LOG:
             case qb::OpCode::SLEEP:
             case qb::OpCode::RETURN:
