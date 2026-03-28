@@ -22,6 +22,8 @@ declare global {
             public put_device(device: Device): res_Engine;
             public make_runner(name: string, hex: string): number;
             public get_runner(name: string): Runner;
+            public get_device(name: string): Device | undefined;
+            public get_devices(): Device[];
             public delete_runner(name: string): res_Engine;
             public _log(...args: string[]): void;
         }

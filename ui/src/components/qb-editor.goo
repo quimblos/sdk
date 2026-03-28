@@ -1,627 +1,252 @@
 <template>
-    <div class="col">
-        <div class="hex-editor">
-            <div id="lines_layer"></div>
-            <div id="input_layer" contenteditable="true" spellcheck="false" on:input="this.format"></div>
-            <div id="color_layer"></div>
-        </div>
-        <div id="error_list"/>
-        <div class="col ga" id="device_list"></div>
-        <div
-            id="output"
-        >
-            ${this.output}
-        </div>
+  <div class="col">
+    <div class="hex-editor" id="editor">
+      <div id="lines_layer"></div>
+      <div id="input_layer" contenteditable="true" spellcheck="false" on:input="this.format"></div>
+      <div id="color_layer"></div>
     </div>
+    <div id="error_list"/>
+    <div class="col ga" id="device_list"></div>
+    <div
+      id="output"
+    >
+      ${this.output}
+    </div>
+  </div>
 </template>
 
 <script>
-
 public script = {
-    devices: {},
-    nodes: {},
-    ast: [],
-    errors: []
+  devices: {},
+  nodes: {},
+  ast: [],
+  errors: []
 };
 
 private devices = [];
 private output = '';
 
-public setup() {
-    qb.onLog(msg => {
-        this.output += msg + '\n';
-        this.$output.scrollTop = this.$output.scrollHeight;
-        this.render();
-    })
-    this.format();
-}
-
-public get hex() {
-    if (this.script.errors.length) return;
-
-    const vec = ['q','b',0,0];
-
-    const op_bind = {
-        NODE_NODE: 0x00,
-        NODE_REF: 0x01,
-        REF_NODE: 0x02,
-        REF_REF: 0x03,
-        SHORT_NODE_NODE: 0x10,
-        SHORT_NODE_REF: 0x11,
-        SHORT_REF_NODE: 0x12,
-        SHORT_REF_REF: 0x13
-    };
-
-    const op_code = {
-        USE_DEVICE: 0x01,
-        USE_NODE: 0x02,
-        USE_NODE_ALIASED: 0x03,
-        SET: 0x10,
-        HOLD: 0x1A,
-        RELEASE: 0x1B,
-        GOTO: 0x20,
-        IF_EQ: 0x21,
-        IF_LT: 0x25,
-        IF_GT: 0x23,
-        ADD: 0x30,
-        SUB: 0x31,
-        MULT: 0x32,
-        DIV: 0x33,
-        MOD: 0x34,
-        POW: 0x35,
-        LOG: 0xD0,
-        SLEEP: 0xE0,
-        RETURN: 0xEE,
-        RESET: 0xF0,
-        REBOOT: 0xFF,
-    };
-
-
-    const type = {
-        void: 0x00,
-        err: 0xFF,
-        ptr: 0x02,
-        bool: 0x0A,
-        u8: 0x10,
-        i8: 0x11,
-        u16: 0x20,
-        i16: 0x21,
-        u32: 0x40,
-        i32: 0x41,
-        f32: 0x4A,
-        str: 0xF0,
-        arr: 0xE0,
-    };
-
-    for (const node of this.script.ast) {
-        switch (node.$) {
-            case 'use_device': {
-                const name = node.device.name;
-                vec.push(op_code.USE_DEVICE, name.length, ...name.split(''))
-            } break;
-            case 'set': {
-                vec.push(op_code.SET, op_bind.SHORT_NODE_NODE, node.target.device.index, node.target.node.index, type[node.target.type], node.value)
-            } break;
-            case 'sleep': {
-                vec.push(op_code.SLEEP, 0, 0, 5, 50);
-            } break;
-        }
-    }
-
-    const hex = vec.map(v =>
-        typeof v === 'string'
-        ? v.charCodeAt(0).toString(16).padStart(2,'0')
-        : v.toString(16).padStart(2,'0')
-    ).join('');
-    console.log({vec,hex});
-    return hex;
-    // return '7162000001064c4544424152101000001055e0000003e81010000010aae0000003e8200000';
-}
-
 public clear_output() {
-    this.output = '';
+  this.output = '';
 }
+
+/* Setup */
+
+private setup() {
+  const ast = (window as any).ast;
+
+  // Add style from grammar
+  if (ast.grammar.style) {
+
+    const style = document.createElement('style');
+    let txt = '';
+    for (const _class in ast.grammar.style.css) {
+      const props = ast.grammar.style.css[_class];
+      const v = Object.entries(props)
+        .map(e => `${e[0]}: ${e[1]};`)
+        .join(' ');
+      txt += `.${_class} { ${v} } `;
+    }
+    console.log({txt});
+    style.innerText = txt;
+    this.$editor.appendChild(style);
+  }
+
+  // Show logs from engine
+  qb.onLog(msg => {
+    this.output += msg + '\n';
+    this.$output.scrollTop = this.$output.scrollHeight;
+    this.render();
+  })
+  this.format();
+}
+
+/* AST Builder + Text Highlighting */
 
 private format() {
+  const ast = (window as any).ast;
+  
+  let raw = this.$input_layer.innerText.replace(/\n\n/g,'\n');
+  if (raw.at(-1) !== '\n') raw += '\n';
+  
+  const root = ast.update(raw);
 
-    const devices = {
-        'LEDBAR': {
-            name: 'LEDBAR',
-            nodes: {
-                'dim': { index: 0, type: 'u8' },
-                'color': { index: 1, type: 'arr', item_type: 'u8', length: 3 }
-            }
-        }
-    }
+  if (ast.errors.length) {
+    this.$error_list.innerText = ast.errors.map(e => e.pos+" "+e.error).join('\n');
+    this.$error_list.style.display = 'block';
+  }
+  else {
+    this.$error_list.innerText = '';
+    this.$error_list.style.display = 'none';
+  }
+  // this.make_devices();
 
-    const script = {
-        devices: {},
-        nodes: {},
-        ast: [],
-        errors: []
-    };
+  const html = ast.to_html();
 
-    // Quimblos syntax
-    const syntax = [
-        {
-            re: /^(\s*#use\s+)(\S+)\s*$/,
-            parts: ['macro', ''],
-            cst: { $: 'use_device', device: 2 }
-        },
-        {
-            re: /^(\s*var|ptr)(\s+)(\S+)(\s*:\s*)(\S+)(\s*=\s*)(\S+)\s*$/,
-            parts: ['keyword', '', '', '', 'type', 'operator', ''],
-            cst: { $: 'use_node', kind: 1, name: 3, type: 5, op: 6, value: 7 }
-        },
-        {
-            re: /^(\s*var|ptr)(\s+)(\S+)(\s*:\s*)([^=\s]+)\s*$/,
-            parts: ['keyword', '', '', '', 'type'],
-            cst: { $: 'use_node', kind: 1, name: 3, type: 5 }
-        },
-        {
-            re: /^(\s*[^:\s]+)(\s*=\s*)(\S+)\s*$/,
-            parts: ['keyword', 'operator', ''],
-            cst: { $: 'set', target: 1, op: 2, value: 3 }
-        },
-        {
-            re: /^(\s*hold\s+)(\S+)\s*$/,
-            parts: ['keyword', ''],
-            cst: { $: 'hold', device: 2 }
-        },
-        {
-            re: /^(\s*release\s+)(\S+)\s*$/,
-            parts: ['keyword', ''],
-            cst: { $: 'release', device: 2 }
-        },
-        {
-            re: /^(\s*)(:\S+)\s*$/,
-            parts: [null, 'address'],
-            cst: { $: 'code_addr', addr: 2 }
-        },
-        {
-            re: /^(\s*goto\s+)(:\S+)\s*$/,
-            parts: ['keyword', 'address'],
-            cst: { $: 'goto', addr: 2 }
-        },
-        {
-            re: /^(\s*if\s+)(\S+)(\s*(>|>=|<|<=|==)\s*)(\S+\s*)(:\S+)((\s+else\s+)(:\S+))?\s*$/,
-            parts: ['keyword', '', 'operator', null, '', 'address', null, 'keyword', 'address'],
-            cst: { $: 'if' }
-        },
-        {
-            re: /^(\s*else\s*)(:\S+)\s*$/,
-            parts: ['keyword', 'address'],
-            cst: { $: 'else' }
-        },
-        {
-            re: /^(\s*\S+)(\s*(\+=|-=|\*=|\/=|%=|\^=)\s*)(\S+)\s*$/,
-            parts: ['keyword', 'operator', null, ''],
-            cst: { $: 'math2', target: 1, op: 2, value: 4 }
-        },
-        {
-            re: /^(\s*(floor|ceil)\s+)(\S+)\s*$/,
-            parts: ['keyword', null, ''],
-            cst: { $: 'math1', target: 3 }
-        },
-        {
-            re: /^(\s*log\s+)(\S+)\s*$/,
-            parts: ['keyword', ''],
-            cst: { $: 'log', value: 2 }
-        },
-        {
-            re: /^(\s*sleep\s+)(\d+)\s*$/,
-            parts: ['keyword', ''],
-            cst: { $: 'sleep', value: 2 }
-        },
-        {
-            re: /^(\s*return\s+)(\S+)\s*$/,
-            parts: ['keyword', ''],
-            cst: { $: 'return', value: 2 }
-        },
-        {
-            re: /^(\s*reset\s*)$/,
-            parts: ['keyword', ''],
-            cst: { $: 'reset' }
-        },
-        {
-            re: /^(\s*reboot\s*)$/,
-            parts: ['keyword', ''],
-            cst: { $: 'reboot' }
-        },
-    ];
+  this.$color_layer.innerHTML = html;
 
-    const types = {
-        _log_: { qb: '_LOG_', allow_array: false, allow_cast_from: ['err','ptr','bool','uint','int','float','str'] },
-        void: { qb: 'VOID', allow_array: false, as_source: undefined, allow_cast_from: [] },
-        err: { qb: 'ERROR', allow_array: false, as_source: 'err', allow_cast_from: ['err','str'] },
-        ptr: { qb: 'PTR', allow_array: false, as_source: 'ptr', allow_cast_from: ['ptr','uint'] },
-        bool: { qb: 'BOOL', allow_array: true, as_source: 'bool', allow_cast_from: ['bool','uint','int','float'] },
-        u8: { qb: 'UINT8', allow_array: true, as_source: 'uint', allow_cast_from: ['bool','uint','int','float'] },
-        i8: { qb: 'INT8', allow_array: true, as_source: 'int', allow_cast_from: ['bool','uint','int','float'] },
-        u16: { qb: 'UINT16', allow_array: true, as_source: 'uint', allow_cast_from: ['bool','uint','int','float'] },
-        i16: { qb: 'INT16', allow_array: true, as_source: 'int', allow_cast_from: ['bool','uint','int','float'] },
-        u32: { qb: 'UINT32', allow_array: true, as_source: 'uint', allow_cast_from: ['bool','uint','int','float'] },
-        i32: { qb: 'INT32', allow_array: true, as_source: 'int', allow_cast_from: ['bool','uint','int','float'] },
-        f32: { qb: 'FLOAT32', allow_array: true, as_source: 'float', allow_cast_from: ['bool','uint','int','float'] },
-        str: { qb: 'STRING', allow_array: true, as_source: 'str', allow_cast_from: ['str','err'] },
-        arr: { qb: 'ARRAY', allow_array: false, as_source: undefined, allow_cast_from: [] },
-    }
-
-    const resolve_node = (target, errors, script, error_at = 'target') => {
-        const match = target.match(/^\s*(\S+?)(\.(\S+?))?(\[(\S+)\])?\s*$/);
-        if (!match) {
-            errors.add(error_at, 'Malformed target');
-            return
-        }
-
-        const [_, p0, __, p1, ___, p2] = match;
-        let device = undefined;
-        let node;
-        if (p0 in script.devices) {
-            if (!p1) {
-                errors.add(error_at, 'Must specify device node'); return
-            }
-            if (!(p1 in script.devices[p0].nodes)) {
-                errors.add(error_at, `Device '${p0}' has no node '${p1}'`); return
-            }
-            device = script.devices[p0];
-            node = device.nodes[p1];
-        }
-        else {
-            if (!(p0 in script.nodes)) {
-                errors.add(error_at, `Node '${p0}' not found on script`); return
-            }
-            if (p1) {
-                errors.add(error_at, `'${p0}' is not a device`); return
-            }
-            node = script.nodes[p0];
-        }
-
-        let index = undefined;
-        if (p2) {
-            if (node.type !== 'arr') {
-                errors.add(error_at, 'Index only allowed for array nodes'); return
-            }
-            index = parseInt(p2);
-            if (isNaN(idx)) {
-                errors.add(error_at, 'Index must be integer'); return
-            }
-            if (idx >= node.length) {
-                errors.add(error_at, 'Index out of bounds'); return
-            }
-        }
-        
-        return {
-            device,
-            node,
-            index,
-            type: node.type
-        }
-    }
-
-    const resolve_type = (type, val, errors, script, error_at = 'value') => {
-        
-        if (!(type in types)) {
-            errors.add('type', `Unknown type '${type}'`);
-            return;
-        }
-        if (val === undefined) return;
-
-        let val_type;
-        if (val === 'true' || val === 'false') val_type = 'bool';
-        else if (val[0] === '\'') {
-            if (val.at(-1) === '\'') val_type = 'str';
-            else {
-                errors.add('value', 'Unterminated string')
-                return;
-            }
-        }
-        else {
-            val = parseFloat(val);
-            if (!isNaN(val)) {
-                if (Number.isInteger(val)) {
-                    if (val < 0) val_type = 'int';
-                    else val_type = 'uint';
-                }
-                else val_type = 'float';
-            }
-            else {
-                const target = resolve_node(val, errors, script, error_at);
-                if (!target) return;
-                val_type = types[target.type].as_source;
-            }
-        }
-
-        const allow_cast_from = types[type].allow_cast_from;
-        if (!allow_cast_from.includes(val_type)) {
-            errors.add(error_at, `Cannot cast ${val_type} to ${type}`);
-            return;
-        }
-        return { value: val, type: val_type };
-    }
-
-    const semantics = {
-        use_device: (cst, errors) => {
-            if (!(cst.device in devices))
-                return errors.add('device', `Device '${cst.device}' not found`);
-            const device = devices[cst.device];
-            script.devices[cst.device] = { ...device, index: Object.keys(script.devices).length };
-            cst.device = script.devices[cst.device];
-        },
-        use_node: (cst, errors, script) => {
-            if (cst.kind === 'var') if (!resolve_type(cst.type, cst.value, errors, script)) return;
-            script.nodes[cst.name] = { type: cst.type, value: cst.value, index: Object.keys(script.nodes).length };
-            cst.node = script.nodes[cst.name];
-        },
-        set: (cst, errors, script) => {
-            const target = resolve_node(cst.target, errors, script);
-            if (!target) return;
-            const res = resolve_type(target.type, cst.value, errors, script)
-            if (!res) return;
-            cst.target = target;
-            cst.value = res.value;
-        },
-        hold: (cst, errors, script) => {
-            if (!(cst.device in script.devices))
-                return errors.add('device', `Device '${cst.device}' not imported`);
-            cst.device = devices[cst.device];
-        },
-        release: (cst, errors, script) => {
-            if (!(cst.device in script.devices))
-                return errors.add('device', `Device '${cst.device}' not imported`);
-            cst.device = devices[cst.device];
-        },
-        code_addr: (cst, errors, script) => {
-            const addr = script.ast.find(n => n.$ === 'code_addr' && n.addr === cst.addr);
-            if (addr)
-                return errors.add('addr', `Duplicate section '${cst.addr}'`);
-        },
-        goto: (cst, errors, script) => {
-            const addr = script.ast.find(n => n.$ === 'code_addr' && n.addr === cst.addr);
-            if (!addr)
-                return errors.add('addr', `Section '${cst.addr}' not found`);
-        },
-        math2: (cst, errors, script) => {
-            const target = resolve_node(cst.target, errors, script);
-            if (!target) return;
-            if (!resolve_type(target.type, cst.value, errors, script)) return;
-            cst.target = target;
-            cst.op = cst.op.trim();
-        },
-        math1: (cst, errors, script) => {
-            const target = resolve_node(cst.target, errors, script);
-            if (!target) return;
-            if (!resolve_type(target.type, '0.1', errors, script, 'target')) return;
-            cst.target = target;
-        },
-        log: (cst, errors) => {
-            resolve_type('_log_', cst.value, errors, script);
-        },
-        sleep: (cst, errors) => {
-            resolve_type('u32', cst.value, errors, script);
-        },
-        return: (cst, errors) => {
-            resolve_type('_log_', cst.value, errors, script);
-        },
-    }
-
-    //
-
-    const lines = this.parse_input();
-
-    let colored = '';
-    let hex = '';
-
-    for (let l = 0; l < lines.length; l++) {
-        const line = lines[l];
-        
-        let syntax_error = true;
-
-        for (const opt of syntax) {
-            const match = line.match(opt.re);
-            if (match) {
-                syntax_error = false;
-
-                const cst_node = {
-                    $: opt.cst.$,
-                    line: l,
-                    _parts: {}
-                };
-                for (const key in opt.cst) {
-                    if (key === '$') continue;
-                    const part = opt.cst[key];
-                    cst_node._parts[key] = part;
-                    cst_node[key] = match[part];
-                }
-
-                const errors = [];
-                if (cst_node.$ in semantics) {
-                    const err = (key, msg) => {
-                        errors.push({ line: l, part: cst_node._parts[key], msg });
-                    }
-                    semantics[cst_node.$](cst_node, { add: err }, script);
-                }
-
-                script.ast.push(cst_node);
-                
-                for (let i = 0; i < opt.parts.length; i++) {
-                    let cls = opt.parts[i];
-                    if (cls == null) continue;
-                    cls = errors.find(e => e.part === i+1) ? 'semantics_error' : cls;
-                    colored += `<span class=${cls}>${match[i+1]?.replace(/ /g, '&nbsp;') ?? ''}</span>`;
-                }
-                colored += '<br>';
-                script.errors.push(...errors);
-                break;
-            }
-        }
-        if (syntax_error) {
-            colored += `<span class="syntax_error">${line.replace(/ /g, '&nbsp;')}</span><br>`;
-        }
-    }
-
-    this.$color_layer.innerHTML = colored;
-    this.$lines_layer.innerHTML = lines.map((l,i) => `<div>${i}</div>`).join('');
-    
-    if (script.errors.length) {
-        this.$error_list.innerHTML = script.errors.map(e =>
-            `<span style="color: #999">${e.line}</span>&nbsp;${e.msg}<br>`
-        ).join('<br>');
-        this.$error_list.style.display = 'block';
-    }
-    else {
-        this.$error_list.innerHTML = '';
-        this.$error_list.style.display = 'none';
-    }
-    this.script = script;
-
-    this.make_devices();
+  const n_lines = ast.n_lines();
+  let lines = '';
+  for (let i = 0; i < n_lines; i++) lines += i+'\n';
+  this.$lines_layer.innerText = lines;
 }
 
-private parse_input() {
-    const raw = this.$input_layer.innerHTML;
-
-    const lines: string[] = [''];
-    let state = 0;
-    for (let i = 0; i < raw.length; i++) {
-        if (state === 0) {
-            if (raw[i] !== '<') {
-                if (raw[i] === '&' && raw[i+1] === 'n' && raw[i+2] === 'b' && raw[i+3] === 's' && raw[i+4] === 'p' && raw[i+5] === ';') {
-                    i += 5;
-                    lines[lines.length-1] += ' ';
-                }
-                else if (raw[i] === '&' && raw[i+1] === 'l' && raw[i+2] === 't' && raw[i+3] === ';') {
-                    i += 3;
-                    lines[lines.length-1] += '<';
-                }
-                else if (raw[i] === '&' && raw[i+1] === 'g' && raw[i+2] === 't' && raw[i+3] === ';') {
-                    i += 3;
-                    lines[lines.length-1] += '>';
-                }
-                else {
-                    lines[lines.length-1] += raw[i];
-                }
-            }
-            else {
-                if (raw[i+1] === '/') {
-                    if (raw[i+2] === 'b') i += 4;
-                    else if (raw[i+2] === 'd') {
-                        i += 5;
-                        lines.push('');
-                    }
-                }
-                else {
-                    state = 1;
-                }
-            }
-        }
-        else if (state === 1) {
-            if (raw[i] === 'b' && raw[i+1] === 'r') {
-                i += 2;
-            }
-            else if (raw[i] === 'd' && raw[i+1] === 'i' && raw[i+2] === 'v') {
-                if (lines.length === 1) lines.push('');
-                i += 3;
-            }            
-            state = 0;
-        }
-    }
-    return lines
-}
+/* Internal Helpers */
 
 private make_devices() {
-    for (const device of this.devices) {
-        device.destroyWebc('qb-editor');
+  for (const device of this.devices) {
+    device.destroyWebc('qb-editor');
+  }
+  // this.$device_list.innerHTML = '';
+  for (const name in this.script.devices) {
+    const device = qb.get_device(name);
+    device.makeWebc('qb-editor', this.$device_list);
+    this.devices.push(device);
+  }
+}
+
+/* Build Hex from AST */
+
+public get hex() {
+  if (this.script.errors.length) return;
+
+  const vec = ['q','b',0,0];
+
+  const op_bind = {
+    NODE_NODE: 0x00,
+    NODE_REF: 0x01,
+    REF_NODE: 0x02,
+    REF_REF: 0x03,
+    SHORT_NODE_NODE: 0x10,
+    SHORT_NODE_REF: 0x11,
+    SHORT_REF_NODE: 0x12,
+    SHORT_REF_REF: 0x13
+  };
+
+  const op_code = {
+    USE_DEVICE: 0x01,
+    USE_NODE: 0x02,
+    USE_NODE_ALIASED: 0x03,
+    SET: 0x10,
+    HOLD: 0x1A,
+    RELEASE: 0x1B,
+    GOTO: 0x20,
+    IF_EQ: 0x21,
+    IF_LT: 0x25,
+    IF_GT: 0x23,
+    ADD: 0x30,
+    SUB: 0x31,
+    MULT: 0x32,
+    DIV: 0x33,
+    MOD: 0x34,
+    POW: 0x35,
+    LOG: 0xD0,
+    SLEEP: 0xE0,
+    RETURN: 0xEE,
+    RESET: 0xF0,
+    REBOOT: 0xFF,
+  };
+
+
+  const type = {
+    void: 0x00,
+    err: 0xFF,
+    ptr: 0x02,
+    bool: 0x0A,
+    u8: 0x10,
+    i8: 0x11,
+    u16: 0x20,
+    i16: 0x21,
+    u32: 0x40,
+    i32: 0x41,
+    f32: 0x4A,
+    str: 0xF0,
+    arr: 0xE0,
+  };
+
+  for (const node of this.script.ast) {
+    switch (node.$) {
+      case 'use_device': {
+        const name = node.device.name;
+        vec.push(op_code.USE_DEVICE, name.length, ...name.split(''))
+      } break;
+      case 'set': {
+        vec.push(op_code.SET, op_bind.SHORT_NODE_NODE, node.target.device.index, node.target.node.index, type[node.target.type], node.value)
+      } break;
+      case 'sleep': {
+        vec.push(op_code.SLEEP, 0, 0, 5, 50);
+      } break;
     }
-    // this.$device_list.innerHTML = '';
-    for (const name in this.script.devices) {
-        const device = qb.get_device(name);
-        device.makeWebc('qb-editor', this.$device_list);
-        this.devices.push(device);
-    }
+  }
+
+  const hex = vec.map(v =>
+    typeof v === 'string'
+    ? v.charCodeAt(0).toString(16).padStart(2,'0')
+    : v.toString(16).padStart(2,'0')
+  ).join('');
+  console.log({vec,hex});
+  return hex;
+  // return '7162000001064c4544424152101000001055e0000003e81010000010aae0000003e8200000';
 }
 
 </script>
 
 <style>
 .hex-editor {
-    width: 100%;
-    min-height: 30dvh;
-    background-color: #030303;
-    border: 0px;
-    resize: vertical;
-    font-family: monospace;
-    font-weight: 100;
-
-    position: relative;
+  width: 100%;
+  min-height: 30dvh;
+  background-color: #030303;
+  border: 0px;
+  resize: vertical;
+  font-family: monospace;
+  font-weight: 100;
+  position: relative;
 }
 
 #error_list {
-    padding: 0.5rem;
-    width: inherit;
-    background-color: #bb333344;
-    font-weight: 100;
-    font-size: 0.6rem;
+  padding: 0.5rem;
+  width: inherit;
+  background-color: #bb333344;
+  font-weight: 100;
+  font-size: 0.6rem;
 }
 
 #color_layer {
-    padding: 8px 8px 4px 22px;
-    pointer-events: none;
-    background-color: #00000000;
-    position: absolute;
-    inset: 0;
+  padding: 8px 8px 4px 22px;
+  pointer-events: none;
+  background-color: #00000000;
+  position: absolute;
+  inset: 0;
 }
 
 #input_layer {
-    padding: 8px 8px 4px 22px;
-    color: #00000000;
-    caret-color: #fff;
-    position: absolute;
-    inset: 0;
+  padding: 8px 8px 4px 22px;
+  color: #00000000;
+  caret-color: #fff;
+  position: absolute;
+  inset: 0;
 }
 
 #lines_layer {
-    padding: 8px 8px 4px 8px;
-    color: #333;
-    caret-color: #fff;
-    position: absolute;
-    inset: 0;
+  padding: 8px 8px 4px 8px;
+  color: #333;
+  caret-color: #fff;
+  position: absolute;
+  inset: 0;
 }
 
 #output {
-    padding: 0.5rem;
-    resize: vertical;
-    width: inherit;
-    background-color: #052930;
-    font-family: monospace;
-    font-weight: 100;
-    font-size: 0.6rem;
-    white-space: pre-wrap;
-    overflow-y: auto;
+  padding: 0.5rem;
+  resize: vertical;
+  width: inherit;
+  background-color: #052930;
+  font-family: monospace;
+  font-weight: 100;
+  font-size: 0.6rem;
+  white-space: pre-wrap;
+  overflow-y: auto;
 
-    min-height: 10rem;
-    max-height: 10rem;
-}
-
-.syntax_error {
-    background-color: #bb333322
-}
-.semantics_error {
-    background-color: #bb333388
-}
-.macro {
-    color: #b08;
-}
-.keyword {
-    color: #08b;
-}
-.type {
-    color: #8b0;
-}
-.operator {
-    color: #0b8;
-}
-.address {
-    color: #b80;
+  min-height: 10rem;
+  max-height: 10rem;
 }
 </style>

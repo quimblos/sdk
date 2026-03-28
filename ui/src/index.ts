@@ -1,3 +1,6 @@
+import { AST } from '../lib/lang-maker/ast';
+import * as grammar from "../lib/grammar";
+
 import { Engine } from '../lib/kernel';
 import { LedBarDevice } from './devices/ledbar.device'
 import { LedStripDevice } from './devices/ledstrip.device'
@@ -34,6 +37,9 @@ async function setup() {
   engine.put_device(new Sling2DDevice());
   engine.put_device(new LedStripDevice());
   
+  const ast = new AST(grammar);
+  (window as any).ast = ast;
+
   // Goo Routes
 
   const routes = GooRouter.tree('my-app', $ => $
