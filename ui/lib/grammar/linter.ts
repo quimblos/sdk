@@ -1,134 +1,273 @@
-import { CST } from "../lang-maker/cst";
+import { Device } from "../kernel";
+import { CST, CSTNode } from "../lang-maker/cst";
 import { Linter } from "../lang-maker/linter";
 import { qbscript } from "./semantics";
 import { quimblos_types } from "./types";
 
-function check_type_assign(target: qbscript.Type, source: qbscript.ValueType) {
-    const target_type = quimblos_types[target];
-    if (!target_type)
-        return `Unknown type '${target}'`;
-    if (!target_type.allow_assign_value.includes(source)) 
-        return `A '${source}' value cannot be assigned to a '${target}' variable`
-}
-
-
-// private resolve_node(target, errors, script, error_at = 'target') {
-//   const match = target.match(/^\s*(\S+?)(\.(\S+?))?(\[(\S+)\])?\s*$/);
-//   if (!match) {
-//     errors.add(error_at, 'Malformed target');
-//     return
-//   }
-
-//   const [_, p0, __, p1, ___, p2] = match;
-//   let device = undefined;
-//   let node;
-//   if (p0 in script.devices) {
-//     if (!p1) {
-//       errors.add(error_at, 'Must specify device node'); return
-//     }
-//     if (!(p1 in script.devices[p0].nodes)) {
-//       errors.add(error_at, `Device '${p0}' has no node '${p1}'`); return
-//     }
-//     device = script.devices[p0];
-//     node = device.nodes[p1];
-//   }
-//   else {
-//     if (!(p0 in script.nodes)) {
-//       errors.add(error_at, `Node '${p0}' not found on script`); return
-//     }
-//     if (p1) {
-//       errors.add(error_at, `'${p0}' is not a device`); return
-//     }
-//     node = script.nodes[p0];
-//   }
-
-//   let index = undefined;
-//   if (p2) {
-//     if (node.type !== 'arr') {
-//       errors.add(error_at, 'Index only allowed for array nodes'); return
-//     }
-//     index = parseInt(p2);
-//     if (isNaN(idx)) {
-//       errors.add(error_at, 'Index must be integer'); return
-//     }
-//     if (idx >= node.length) {
-//       errors.add(error_at, 'Index out of bounds'); return
-//     }
-//   }
-  
-//   return {
-//     device,
-//     node,
-//     index,
-//     type: node.type
-//   }
-// }
-
-// private resolve_type(type, val, errors, script, error_at = 'value') {
-  
-//   if (!(type in this.grammar.types)) {
-//     errors.add('type', `Unknown type '${type}'`);
-//     return;
-//   }
-//   if (val === undefined) return;
-
-//   let val_type;
-//   if (val === 'true' || val === 'false') val_type = 'bool';
-//   else if (val[0] === '\'') {
-//     if (val.at(-1) === '\'') val_type = 'str';
-//     else {
-//       errors.add('value', 'Unterminated string')
-//       return;
-//     }
-//   }
-//   else {
-//     val = parseFloat(val);
-//     if (!isNaN(val)) {
-//       if (Number.isInteger(val)) {
-//         if (val < 0) val_type = 'int';
-//         else val_type = 'uint';
-//       }
-//       else val_type = 'float';
-//     }
-//     else {
-//       const target = this.resolve_node(val, errors, script, error_at);
-//       if (!target) return;
-//       val_type = this.grammar.types[target.type].as_source;
-//     }
-//   }
-
-//   const allow_cast_from = this.grammar.types[type].allow_cast_from;
-//   if (!allow_cast_from.includes(val_type)) {
-//     errors.add(error_at, `Cannot cast ${val_type} to ${type}`);
-//     return;
-//   }
-//   return { value: val, type: val_type };
-// }
-
-export const quimblos_linter = new Linter()
+export const quimblos_linter = new Linter<qbscript.Script>()
     
-    .rule(qbscript.UseDeviceMacro, (node, { error }) => {
-        const device = qb.get_device(node.device);
-        if (!device) {
-            const identifier_cst = CST.first(node.cst, 'identifier');
-            error(identifier_cst, `Device '${node.device}' not found`);
-        }
-    })
+    // Identation
+    .ast_rule((ast, { error }) => {
+        const script = ast.root as qbscript.Script;
+        if (script.statements.length < 2) return;
 
-    .rule(qbscript.Identifier, (node, { error }) => {
-        const type = quimblos_types[node.type];
-        if (node.type as string === 'void' || !type) {
-            const identifier_cst = CST.first(node.cst, 'type_identifier');
-            error(identifier_cst, `Invalid type '${node.type}'`);
-        }
-    })
+        const blanks = script.cst.children!.filter(
+            group => group
+                .children!.find(c => c.kind === '_group')
+                ?.children!.some(c => c.kind === 'statement')
+        )
+            .map(group => group
+                .children!.find(c => c.kind === 'blank')
+            );
 
-    .rule(qbscript.VariableDeclaration, (node, { error }) => {
-        if (node.value) {
-            const type_error = check_type_assign(node.identifier.type, node.value.value_type);
-            if (type_error) {
-                const value_cst = CST.first(node.cst, 'value');
-                error(value_cst, type_error);
+        const _tab = (blank?: CSTNode) => {
+            if (!blank) return 0;
+            const idx = blank.text.lastIndexOf('\n');
+            if (idx < 0) return blank.text.length;
+            return blank.text.length - idx;
+        }
+
+        
+        let tabs = [_tab(blanks[0])];
+        
+        for (let i = 0; i < script.statements.length; i++) {
+            const statement = script.statements[i];
+            
+            const tab = _tab(blanks[i]);
+
+            if (tabs.length > 1) {
+                if (tab > tabs[0]) {
+                    error(statement, blanks[i] ?? statement.cst, `Identation error`);
+                    continue
+                }
+                const tab_idx = tabs.findIndex(t => t == tab!)
+                if (tab_idx < 0) {
+                    error(statement, blanks[i] ?? statement.cst, `Identation error`);
+                    continue
+                }
+                tabs = tabs.slice(tab_idx)
+            }
+            else {
+                if (tab != tabs[0]) {
+                    error(statement, blanks[i] ?? statement.cst, `Identation error`);
+                    continue
+                }
+            }
+
+            if (
+                statement instanceof qbscript.IfStatement
+                || statement instanceof qbscript.ElseStatement
+                || statement instanceof qbscript.ElseIfStatement
+            ) {
+                const next_statement = script.statements[i+1];
+                const next_tab = _tab(blanks[i+1]);
+                
+                if (next_statement) {
+                    if (next_tab <= tabs[0]) {
+                        error(next_statement, blanks[i+1] ?? next_statement.cst, `Identation error`);
+                        continue;
+                    }
+                    tabs.unshift(next_tab!);
+                }
             }
         }
     })
+
+    .rule(qbscript.UseDeviceMacro, (ast, { error }) => {
+        try {
+            check_engine_device(ast.device);
+        }
+        catch(e) {
+            error(CST.first(ast.cst, 'identifier_device'), e);
+        }
+    })
+    .rule(qbscript.VariableDeclaration, (ast, { root, error }) => {
+        if (ast.value) {
+            if (!ast.identifier) return;
+            if (ast.identifier.type.arr_length) {
+                error(CST.first(ast.cst, '_group'), 'Cannot assign to array');
+                return
+            }
+            try {
+                check_assign(ast.identifier.type, ast.value);
+            }
+            catch(e) {
+                error(CST.first(ast.cst, 'value'), e);
+            }
+        }
+    })
+    .rule(qbscript.PointerDeclaration, (ast, { root, error }) => {
+        ast.identifier.type = ast.ref.ref?.type;
+    })
+    .rule(qbscript.AssignStatement, (ast, { root, error }) => {
+        if (!ast.target.ref) return;
+        if (ast.target.ref.type.arr_length) {
+            if (ast.target.index === undefined) {
+                error(CST.first(ast.cst, '_group'), 'Cannot assign to array');    
+                return
+            }
+        }
+        try {
+            check_assign(ast.target.ref.type, ast.source);
+        }
+        catch(e) {
+            error(CST.first(ast.cst, 'value'), e);
+        }
+    })
+    .rule(qbscript.HoldStatement, (ast, { root, error }) => {
+        try {
+            check_device(root, ast.device);
+        }
+        catch(e) {
+            error(CST.first(ast.cst, 'identifier_device'), e);
+        }
+    })
+    .rule(qbscript.ReleaseStatement, (ast, { root, error }) => {
+        try {
+            check_device(root, ast.device);
+        }
+        catch(e) {
+            error(CST.first(ast.cst, 'identifier_device'), e);
+        }
+    })
+    .rule(qbscript.IfStatement, (ast, { root, error }) => {
+        const idx = root.statements.indexOf(ast);
+        const next = root.statements[idx+1];
+        if (!next) {
+            error(CST.first(ast.cst, '_group'), 'Missing code for if statement');
+            return
+        }
+    })
+    .rule(qbscript.Reference, (ast, { root, error }) => {
+        ast.ref = resolve_ref(root, ast, error);
+        if (!ast.ref) return;
+        if (typeof ast.index === 'number') {
+            if (
+                ast.index > ast.ref.type.arr_length-1
+                || ast.index < -ast.ref.type.arr_length+1
+            ) {
+                error(CST.first(ast.cst, 'integer'), `Index out of bounds`);
+            }
+        }
+    })
+    .rule(qbscript.Identifier, (ast, { error }) => {
+        if (ast.type) {
+            const type = quimblos_types[ast.type.name];
+            if (['void','err','ptr'].includes(ast.type.name as string) || !type) {
+                error(CST.first(ast.cst, 'identifier_type'), `Invalid type '${ast.type.name}'`);
+            }
+        }
+    })
+    .rule(qbscript.TypeIdentifier, (ast, { error }) => {
+        if (ast.arr_length !== undefined) {
+            if (ast.arr_length <= 0) {
+                error(CST.first(ast.cst, 'unsigned_integer'), `Array size must greater than 0`);
+            }
+        }
+    })
+
+/* Checkers */
+
+function check_engine_device(name: string) {
+    const device = qb.get_device(name);
+    if (!device) {
+        throw `Device '${name}' not found`
+    }
+}
+function check_device(script: qbscript.Script, device_name: string) {
+    const device = script.macros.find(m =>
+        m instanceof qbscript.UseDeviceMacro && m.device === device_name
+    );
+    if (!device) {
+        throw `Device '${device_name}' not imported, did you forget a "@use"?`
+    }
+    return qb.get_device(device_name);
+}
+function check_device_node(device: Device, node: string) {
+    const port = device.nodes.findIndex(n => n.name === node);
+    if (port < 0) {
+        throw `Device '${device.name}' does not contain a node named '${node}'`
+    }
+    return device.nodes[port];
+}
+function check_script_node(script: qbscript.Script, node_name: string) {
+    const node = script.declarations.find(d =>
+        (d instanceof qbscript.VariableDeclaration
+        || d instanceof qbscript.PointerDeclaration)
+        && d.identifier.name === node_name
+    );
+    if (!node) {
+        throw `Script does not contain a node named '${node_name}'`
+    }
+    return node;
+}
+function check_assign(target: qbscript.TypeIdentifier, source: qbscript.Value | qbscript.Reference) {
+    const target_type = quimblos_types[target.name];
+    if (!target_type) return;
+    if (source instanceof qbscript.Value) {
+        if (!target_type.allow_assign_value.includes(source.value_type)) 
+            throw `A '${source.value_type}' value cannot be assigned to a '${target.name}' node`
+    }
+    else {
+        if (source.ref) {
+            if (!target_type.allow_assign_node.includes(source.ref.type.name)) 
+                throw `A '${source.ref.type.name}' node cannot be assigned to a '${target.name}' node`
+        }
+    }
+}
+function check_index(type: qbscript.TypeIdentifier) {
+    if (!['u8','i8','u16','i16','u32','i32'].includes(type.name))
+        throw `A '${type}' node cannot be used as index`
+}
+
+/* Resolvers */
+
+function resolve_ref(script: qbscript.Script, ref: qbscript.Reference, error: (cst: CSTNode, err: string) => void): qbscript.Identifier | undefined {
+    let node;
+    if (ref.device) {
+        let device;
+        try {
+            device = check_device(script, ref.device);
+        }
+        catch (e) {
+            error(CST.first(ref.cst,'identifier_device'), e)
+            return
+        }
+        try {
+            node = check_device_node(device, ref.node);
+        }
+        catch (e) {
+            error(CST.first(ref.cst,'identifier'), e)
+            return
+        }
+    }
+    else {
+        try {
+            node = check_script_node(script, ref.node).identifier;
+        }
+        catch (e) {
+            error(CST.first(ref.cst,'identifier'), e)
+            return
+        }
+    }
+    if (ref.index) {
+        // TODO: check if it's array
+        if (!node.type.arr_length) {
+            error(CST.first(ref.cst, '_group'), `Index can only be used on arrays`)
+            return;
+        }
+        if (ref.index instanceof qbscript.Reference) {
+            const index_ref = resolve_ref(script, ref.index, error);
+            if (index_ref) {
+                try {
+                    check_index(index_ref.type)
+                }
+                catch (e) {
+                    error(CST.first(ref.cst,'ref'), e)
+                    return
+                }
+            }
+        }
+    }
+    return node;
+}

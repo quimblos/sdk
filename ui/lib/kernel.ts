@@ -1,5 +1,6 @@
 import { GooWebComponent } from '@quimblos/goo';
 import WASM, { Kernel } from './quimblos';
+import { qbscript } from './grammar/semantics';
 
 
 export class Engine {
@@ -128,20 +129,31 @@ export class Runner {
     }
 }
 
-export type DataType = 'void'|'u8'|'i8'|'b8'|'u16'|'i16'|'u32'|'i32'|'f32'|'str'|'const';
-
 export abstract class Device<T = {}> {
     public __qb: wasm.Device;
     protected webc: Record<string, GooWebComponent & T> = {};
 
+    public nodes: qbscript.Identifier[] = []
+
     protected constructor(
         public name: string,
         public webc_name: string,
-        public registers: wasm.DeviceRegister[]
+        nodes: wasm.DeviceNode[]
     ) {
-        const regs = new wasm.VectorDeviceRegister();
-        for (const port of registers) {
-            regs.push_back(port);
+        const regs = new wasm.VectorDeviceNode();
+        for (const node of nodes) {
+            regs.push_back({
+                name: node.name,
+                type: node.type,
+                arr_length: node.arr_length ?? 0
+            });
+                        
+            const identifier = new qbscript.Identifier();
+            identifier.name = node.name;
+            identifier.type = new qbscript.TypeIdentifier();
+            identifier.type.name = node.type;
+            identifier.type.arr_length = node.arr_length;
+            this.nodes.push(identifier);
         }
         this.__qb = new wasm.Device(name, regs);
         this.__qb.bind(this);

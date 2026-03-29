@@ -2,10 +2,9 @@ import { CSTNode } from "./cst";
 import { make_syntax_parser } from "./ebnf";
 import { Linter } from "./linter";
 import { Semantics, SemanticsProp } from "./semantics";
-import { Style } from "./styling";
+import { Style } from "./style";
 
 export class ASTNode {
-    public kind: string
     public cst: CSTNode
     public children?: () => ASTNode[]
 }
@@ -51,13 +50,14 @@ export class AST {
         this.grammar.linter?.lint(this);
     }
 
-    public traverse(fn: (node: ASTNode) => boolean|void) {
+    public traverse(fn: (node: ASTNode) => boolean|void, dir: 'down'|'up' = 'down') {
         const down = (node: ASTNode) => {
             if (!node.children) return;
             for (const child of node.children()) {
                 if (!child) continue;
+                if (dir === 'up') down(child);
                 if (fn(child)) continue;
-                down(child);
+                if (dir === 'down') down(child);
             }
         }
         down(this.root);
@@ -130,19 +130,57 @@ export class AST {
         }
 
         const props: Record<string, any> = {}
-        for (const prop in builder.props) {
-            const arg = builder.props[prop];
-            if (typeof arg === 'object') {
-                if ('cst' in arg) {
-                    props[prop] = this.build_node_prop(cst, semantics, arg)
+        
+        const build_prop = (prop: string, arg: SemanticsProp, merge = false) => {
+            let val;
+            if ('_options' in arg) {
+                for (let i = 0; i < arg._options.length; i++) {
+                    try {
+                        build_prop(prop, arg._options[i], merge);
+                        break;
+                    }
+                    catch (e) {
+                        if (i == arg._options.length-1) {
+                            if (arg.required) {
+                                throw new Error(`Property '${prop}' of node '${cst.kind}' doesn't match any of the options`)
+                            }
+                        }
+                    }
                 }
-                else if ('$' in arg) {
-                    props[prop] = this.build_node(cst, semantics, arg)
+                return;
+            }
+            else if ('_merge' in arg) {
+                props[prop] = [];
+                for (let i = 0; i < arg._merge.length; i++) {
+                    build_prop(prop, arg._merge[i], true);
                 }
+                return;
+            }
+            else if ('val' in arg) {
+                val = arg.val
+            }
+            else if ('cst' in arg) {
+                val = this.build_node_prop(cst, semantics, arg)
+            }
+            else if ('_fn' in arg) {
+                val = arg._fn(cst)
+            }
+            else if ('$' in arg) {
+                val = this.build_node(cst, semantics, arg)
+            }
+            if (merge) {
+                if (Array.isArray(val)) props[prop].push(...val);
+                else props[prop].push(val);
             }
             else {
-                props[prop] = arg;
+                props[prop] = val;
             }
+        }
+
+        
+        for (const prop in builder.props) {
+            const arg = builder.props[prop];
+            build_prop(prop, arg);
         }
 
         const obj = new builder.$();
@@ -155,8 +193,7 @@ export class AST {
     private build_node_prop (
         cst: CSTNode,
         semantics: Semantics,
-        arg: Extract<SemanticsProp,{cst: string}>,
-        transform?: (val: string) => any
+        arg: Extract<SemanticsProp,{cst: string}>
     ) {
         const c = this.query_cst(cst, arg.cst);
         
@@ -175,7 +212,7 @@ export class AST {
             if (!c.results.length) return [];
             if (c.get_text)
                 return c.results.map(node => 
-                    transform?.(node.text) ?? node.text
+                    arg.transform?.(node.text) ?? node.text
                 );
             else
                 return c.results.map(node => this.build_node(node, semantics));
@@ -184,7 +221,7 @@ export class AST {
             if (!c.results.length) return;
             const idx = c.mod.startsWith(':') ? parseInt(c.mod.slice(1)) : 0;
             if (c.get_text)
-                return transform?.(c.results[idx].text) ?? c.results[idx].text;
+                return arg.transform?.(c.results[idx].text) ?? c.results[idx].text;
             else
                 return this.build_node(c.results[idx], semantics);
         }

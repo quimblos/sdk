@@ -5,9 +5,10 @@
 #include <emscripten/bind.h>
 #include "sdk.h"
 
-struct WASMDeviceRegister {
+struct WASMDeviceNode {
+    std::string name;
     std::string type;
-    uint16_t length;
+    uint16_t arr_length;
 };
 
 class WASMDevice : public qb::Device {
@@ -18,11 +19,11 @@ class WASMDevice : public qb::Device {
 
     WASMDevice(
         std::string name,
-        std::vector<WASMDeviceRegister> registers
+        std::vector<WASMDeviceNode> nodes
     ): qb::Device(name) {
-        for (const auto& it : registers) {
+        for (const auto& it : nodes) {
             if (it.type == "u8") {
-                this->add_node("_", qb::node::u8());
+                this->add_node(it.name, qb::node::u8());
             }
         }
     }
@@ -31,8 +32,8 @@ class WASMDevice : public qb::Device {
         this->jsDevice = jsDevice;
     }
 
-    bool has_i(uint8_t port) {
-        return port < this->nodes.size();
+    bool has_i(uint8_t node) {
+        return node < this->nodes.size();
     }
     
     void update() {
@@ -114,16 +115,17 @@ using namespace emscripten;
 EMSCRIPTEN_BINDINGS(my_module) {
     // STL
     register_vector<std::string>("VectorString");
-    register_vector<WASMDeviceRegister>("VectorDeviceRegister");
+    register_vector<WASMDeviceNode>("VectorDeviceNode");
 
     // Structs
     value_object<qb::engine::res_t<void>>("res_Engine")
         .field("ok", &qb::engine::res_t<void>::ok)
         .field("message", &qb::engine::res_t<void>::message);
         
-    value_object<WASMDeviceRegister>("DeviceRegister")
-        .field("type", &WASMDeviceRegister::type)
-        .field("length", &WASMDeviceRegister::length);
+    value_object<WASMDeviceNode>("DeviceNode")
+        .field("name", &WASMDeviceNode::name)
+        .field("type", &WASMDeviceNode::type)
+        .field("arr_length", &WASMDeviceNode::arr_length);
 
     enum_<qb::runner::State>("RunnerState")
         .value("IDLE", qb::runner::State::IDLE)
@@ -151,7 +153,7 @@ EMSCRIPTEN_BINDINGS(my_module) {
 
     // Device
     class_<WASMDevice>("Device")
-        .constructor<std::string, std::vector<WASMDeviceRegister>>()
+        .constructor<std::string, std::vector<WASMDeviceNode>>()
         .function("has_i", &WASMDevice::has_i)
         .function("bind", &WASMDevice::bind);
 }

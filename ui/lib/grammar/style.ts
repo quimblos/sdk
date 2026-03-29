@@ -1,16 +1,39 @@
-import { Style } from "../lang-maker/styling";
+import { Style } from "../lang-maker/style";
 
 export const quimblos_style: Style = {
     suffix: 'syntax_error',
     syntax: {
         'comment': 'comment',
-        'port_identifier': 'address',
-        'type_identifier': 'type',
+        'macro_use': 'macro',
+
+        'identifier_device': 'address',
+        'identifier_type': 'type',
+        'identifier': 'identifier',
+
         'kw_var': 'keyword',
         'kw_ptr': 'keyword',
-        'macro_use': 'macro',
+        'kw_hold': 'keyword',
+        'kw_release': 'keyword',
+        'kw_goto': 'keyword',
+        'kw_if': 'keyword',
+        'kw_else': 'keyword',
+        'kw_and': 'keyword',
+        'kw_or': 'keyword',
+        'kw_break': 'keyword',
+        'kw_continue': 'keyword',
+        'kw_log': 'keyword',
+        'kw_sleep': 'keyword',
+        'kw_return': 'keyword',
+        'kw_reset': 'keyword',
+        'kw_reboot': 'keyword',
+
         'op_assign': 'operator',
-        'primitive': 'primitive',
+        'boolean': 'primitive',
+        'hexcode': 'primitive',
+        'bitmask': 'primitive',
+        'float': 'primitive',
+        'integer': 'primitive',
+        'unsigned_integer': 'primitive',
         'string': 'string'
     },
     css: {
@@ -37,6 +60,9 @@ export const quimblos_style: Style = {
         },
         'address': {
             color: '#b80'
+        },
+        'identifier': {
+            color: '#b8b'
         },
         'primitive': {
             color: '#8bb'

@@ -4,7 +4,7 @@ import * as grammar from "../lib/grammar";
 import { Engine } from '../lib/kernel';
 import { LedBarDevice } from './devices/ledbar.device'
 import { LedStripDevice } from './devices/ledstrip.device'
-import { Sling2DDevice } from './devices/sling2d-device';
+import { Sling2DDevice } from './devices/sling2d.device';
 
 import Goo from '@quimblos/goo';
 import { GooRouter } from '@quimblos/goo/src/router'

@@ -1,11 +1,14 @@
+import { qbscript } from "./grammar/semantics"
+import { Engine } from "./kernel"
+
 declare global {
     
     namespace wasm {
         class VectorString {
             public push_back(val: string): void;    
         }
-        class VectorDeviceRegister {
-            public push_back(val: DeviceRegister): void;    
+        class VectorDeviceNode {
+            public push_back(val: DeviceNode): void;    
         }
 
         type res_Engine = {
@@ -13,19 +16,11 @@ declare global {
             message: string
             runner?: any
         }
-        type DeviceRegister = {
-            type: string
-            length: number
-        }
-        class Engine {
-            public constructor();
-            public put_device(device: Device): res_Engine;
-            public make_runner(name: string, hex: string): number;
-            public get_runner(name: string): Runner;
-            public get_device(name: string): Device | undefined;
-            public get_devices(): Device[];
-            public delete_runner(name: string): res_Engine;
-            public _log(...args: string[]): void;
+
+        type DeviceNode = {
+            name: string
+            type: qbscript.Type
+            arr_length?: number
         }
 
         enum RunnerState {
@@ -34,6 +29,14 @@ declare global {
             SLEEPING = 0x10,
             OK = 0xF0,
             ERROR = 0xFF
+        }
+
+        class Engine {
+            public constructor();
+            public put_device(device: Device): res_Engine;
+            public make_runner(name: string, hex: string): number;
+            public get_runner(name: string): Runner;
+            public delete_runner(name: string): res_Engine;
         }
 
         class Runner {
@@ -46,14 +49,14 @@ declare global {
         }
 
         class Device {
-            public constructor(name: string, regs: VectorDeviceRegister);
-            public bind(device: any): void;
+            public constructor(name: string, regs: VectorDeviceNode);
             public has_i(port: number): boolean;
+            public bind(device: any): void;
         }
 
     }
 
-    const qb: wasm.Engine;
+    const qb: Engine;
 }
 
 type Kernel = {
@@ -62,10 +65,10 @@ type Kernel = {
     Device: typeof wasm.Device,
 }
 
-declare function quimblos (opts: {
+declare function WASM (opts: {
     print: (...args: any[]) => void,
     printErr: (...args: any[]) => void,
 }): Promise<Kernel>
 
 export { Kernel }
-export default quimblos
+export default WASM

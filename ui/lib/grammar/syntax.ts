@@ -4,7 +4,7 @@ export const quimblos_syntax = `
     A high-level language for low-level hardware
 */
 
-grammar ::= blank? ((comment | macro | declaration | statement) blank?)+
+grammar ::= (blank? (comment | macro | declaration | statement))+
 
 /*
     Comments
@@ -17,7 +17,7 @@ comment ::= '//' [#x20-#xD7FF]* eol
 */
 
 macro ::= macro_use
-macro_use ::= '@use' ws identifier eol
+macro_use ::= '@use' ws identifier_device eol
 
 /*
     Declarations
@@ -25,8 +25,8 @@ macro_use ::= '@use' ws identifier eol
 
 declaration ::= var_declaration | ptr_declaration | function_declaration
 
-var_declaration ::= kw_var ws typed_identifier (ws? op_assign ws? value)? eol
-ptr_declaration ::= kw_ptr ws identifier ws? ':' ws? port_identifier (ws? op_assign ws? unsigned_integer)? eol
+var_declaration ::= kw_var ws typed_identifier ws? (op_assign ws? value)? eol
+ptr_declaration ::= kw_ptr ws identifier ws? ':' ws? ref_no_idx (ws? op_assign ws? integer)? eol
 
 function_declaration ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? typed_identifier? ')' ws? ':' eol
 
@@ -34,44 +34,57 @@ function_declaration ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? 
     Statements
 */
 
-statement ::= statement_assignment | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
+statement ::= statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
 
-statement_assignment ::= node ws? op_assign ws? (expression_math | value) eol
+statement_assign ::= ref ws? ( op_assign ws? value eol )
 
-statement_hold ::= kw_hold ws identifier eol
-statement_release ::= kw_release ws identifier eol
+statement_hold ::= kw_hold ws identifier_device eol
+statement_release ::= kw_release ws identifier_device eol
 
-statement_if ::= kw_if ws bool_statement ws? ':' eol
+statement_if ::= kw_if ws expression_bool ws? (':' eol)
 statement_else_if ::= kw_else ws statement_if
 statement_else ::= kw_else ws? ':' eol
 
-statement_log ::= kw_log ws (node | value) eol
+statement_log ::= kw_log ws value eol
 statement_sleep ::= kw_sleep ws unsigned_integer eol
-statement_return ::= kw_return ws (node | value) eol
+statement_return ::= kw_return ws value eol
 statement_reset ::= kw_reset eol
 statement_reboot ::= kw_reboot eol
 
 /*
-    Arithmetics
+    Expressions
 */
 
-expression_bool ::= (bool_group ws (kw_and | kw_or) ws)* bool_group
-bool_group ::= (bool_term | ( '(' ws? expression_bool ws? ')'))
-bool_term ::= (node | value) ws? op_compare ws? (node | value)
+expression_bool ::= (bool_term ws bool_mod ws)* bool_term
+bool_mod ::= kw_and | kw_or
+bool_term ::= ( '(' ws? expression_bool ws? ')' ) | bool_operation
+bool_operation ::= value ws? op_compare ws? value
 
 expression_math ::= (math_term ws? op_art ws?)* math_term
-math_term ::= ((node | value) | ( '(' ws? expression_math ws? ')'))
+math_term ::= value | ( '(' ws? expression_math ws? ')')
+
+/*
+    References
+*/
+
+ref ::= ref_idx | ref_no_idx
+ref_no_idx ::= ref_device | ref_script
+ref_idx ::= ref_device_idx | ref_script_idx
+
+ref_script ::= identifier
+ref_script_idx ::= identifier ('[' (integer | ref) ']')
+ref_device ::= identifier_device '.' identifier
+ref_device_idx ::= identifier_device '.' identifier ('[' (integer | ref) ']')
 
 /*
     Identifiers
 */
 
-node ::= identifier ('.' identifier)? ('[' (unsigned_integer | identifier) ']')?
-port_identifier ::= identifier '.' identifier
-typed_identifier ::= identifier ws? ':' ws? type_identifier
-identifier ::= letter (letter | digit)*
+typed_identifier ::= identifier ws? ':' ws? identifier_type ('[' unsigned_integer ']')?
 
-type_identifier ::= char+
+identifier_device ::= letter (letter | digit)*
+identifier_type ::= char+
+identifier ::= letter (letter | digit)*
 
 /*
     Values
@@ -84,7 +97,8 @@ type_identifier ::= char+
     - 'some text'
 */
 
-value ::= primitive | string
+value ::= ref | primitive | string
+
 primitive ::= boolean | hexcode | bitmask | float | unsigned_integer | integer
 
 boolean ::= 'true' | 'false'
@@ -96,6 +110,12 @@ unsigned_integer ::= digit+
 
 string ::= '\\'' (char | ws)* '\\''
 char ::= letter | digit | special_char
+
+/*
+    Identation
+*/
+
+iden ::= ws?
 
 /*
     Keywords

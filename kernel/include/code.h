@@ -32,7 +32,7 @@ namespace qb {
         USE_DEVICE = 0x01,       // <str>
         USE_NODE = 0x02,         // TYPE[?]
         USE_NODE_ALIASED = 0x03, // TYPE[?] <str>
-        // 0x1* -> Register manipulation commands
+        // 0x1* -> Node manipulation commands
         SET = 0x10,           // TARGET <any>
         HOLD = 0x1A,          // DEV
         RELEASE = 0x1B,       // DEV

@@ -10,7 +10,7 @@ export class LedStripDevice extends Device<{
         private length = 10
     ) {
         super(name, 'ledstrip-device', [
-            { type: 'u8', length: 0 }
+            { name: 'data', type: 'u8', arr_length: length*3 }
         ]);
     }
 

@@ -9,6 +9,7 @@ export function make_syntax_parser(ebnf: string) {
   let fn_str = '';
   fn_str += 'const n = input.length;\n';
   fn_str += 'let i = 0;\n';
+  fn_str += 'let last_nl = -1;\n';
 
   const rules_str = [];
 
@@ -18,10 +19,11 @@ export function make_syntax_parser(ebnf: string) {
 
     rule_str += `  let s = 0, t = [];\n`;
     rule_str += '  while (i<n) {\n';
+    rule_str += '    if (input[i] === "\\n") last_nl = i;\n';
+
     let n = 0;
     for (let i = 0; i < terms.length; i++) {
       const term = terms[i];
-      //
       if (term[0] === 'or') continue;
       //
 
@@ -45,7 +47,7 @@ export function make_syntax_parser(ebnf: string) {
           rule_str += `      const children = _${term[1]}(i);\n`
           rule_str += `      if (children?.length) {\n`
           rule_str += `        const end = children.at(-1).end;\n`;
-          rule_str += `        t.push({ kind: '${term[1]}', t: ${i}, start, end, children, text: input.slice(start, end+1) });\n`;
+          rule_str += `        t.push({ kind: '${term[1]}', t: ${i}, start, end, children, tab: children.tab, text: input.slice(start, end+1) });\n`;
           rule_str += `        i = end + 1;\n`
           break;
         }  
@@ -68,7 +70,7 @@ export function make_syntax_parser(ebnf: string) {
           rule_str += `        t.push({ kind: '_group', t: ${i}, start, end, children, text: input.slice(start, end+1) });\n`;
           rule_str += `        i = end + 1;\n`
           break;
-        }  
+        }
       }
       if (terms[i+1]?.[0] === 'or') {
         rule_str += `        break;` // Next term is a "|", but was already found, so break it
@@ -116,7 +118,7 @@ export function make_syntax_parser(ebnf: string) {
       rule_str += '    else { break; }\n';
     }
     rule_str += '  }\n';
-    rule_str += '  return t;\n';
+    rule_str += `  return t;\n`;
     rule_str += '}\n';
     return rule_str;
   }

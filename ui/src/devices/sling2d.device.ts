@@ -7,8 +7,8 @@ export class Sling2DDevice extends Device<{
 }> {
     constructor(name = 'SLING2D') {
         super(name, 'sling2d-device', [
-            { type: 'u8', length: 0 },
-            { type: 'u8', length: 0 }
+            { name: 'x', type: 'u8' },
+            { name: 'y', type: 'u8' }
         ]);
     }
 

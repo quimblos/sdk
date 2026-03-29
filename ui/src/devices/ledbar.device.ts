@@ -10,7 +10,7 @@ export class LedBarDevice extends Device<{
 
     constructor(name = 'LEDBAR') {
         super(name, 'ledbar-device', [
-            { type: 'u8', length: 0 }
+            { name: 'on', type: 'u8' }
         ]);
     }
 

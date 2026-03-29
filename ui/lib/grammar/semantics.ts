@@ -2,14 +2,15 @@ import { ASTNode } from "../lang-maker/ast";
 import { SemanticsBuilder } from "../lang-maker/semantics";
 
 export namespace qbscript {
-    export type Type = NonNullable<qbscript.Identifier['type']>
+    export type Type = NonNullable<qbscript.TypeIdentifier['name']>
     export type ValueType = qbscript.Value['value_type']
 
     export class Script extends ASTNode {
         comments: Comment[]
         macros: Macro[]
         declarations: Declaration[]
-        children = () => [...this.comments, ...this.macros, ...this.declarations]
+        statements: Statement[]
+        children = () => [...this.comments, ...this.macros, ...this.declarations, ...this.statements]
     }
     export class Comment extends ASTNode {}
 
@@ -24,29 +25,96 @@ export namespace qbscript {
 
     export class VariableDeclaration extends ASTNode {
         identifier: Identifier
-        value: Value
+        value: Value | Reference
         children = () => [this.identifier, this.value]
     }
     export class PointerDeclaration extends ASTNode {
         identifier: Identifier
-        port: PortIdentifier
-        value: Value
-        children = () => [this.identifier, this.port, this.value]
+        ref: Reference
+        value?: Value | Reference
+        children = () => [this.identifier, this.ref, this.value]
     }
 
     // Statements
+    export type Statement = HoldStatement | ReleaseStatement | LogStatement | SleepStatement | ReturnStatement | ResetStatement | RebootStatement
+    export class AssignStatement extends ASTNode {
+        target: Reference
+        source: Value | Reference
+        children = () => [this.target, this.source]
+    }
+    export class IfStatement extends ASTNode {
+        expression: BoolExpression
+        children = () => [this.expression]
+    }
+    export class ElseStatement extends ASTNode {}
+    export class ElseIfStatement extends ASTNode {
+        statement: IfStatement
+        children = () => [this.statement]
+    }
+    export class HoldStatement extends ASTNode {
+        device: string
+    }
+    export class ReleaseStatement extends ASTNode {
+        device: string
+    }
+    export class LogStatement extends ASTNode {
+        value: Value | Reference
+        children = () => [this.value]
+    }
+    export class SleepStatement extends ASTNode {
+        time: number
+    }
+    export class ReturnStatement extends ASTNode {
+        value: Value | Reference
+        children = () => [this.value]
+    }
+    export class ResetStatement extends ASTNode {}
+    export class RebootStatement extends ASTNode {}
 
+    // Expressions
+    export class BoolExpression extends ASTNode {
+        terms: BoolExpressionTerm[]
+        mods: ('and'|'or')[]
+        children = () => [...this.terms]
+    }
+    export class BoolExpressionTerm extends ASTNode {
+        value: BoolOperation | BoolExpression
+        children = () => [this.value]
+    }
+    export class BoolOperation extends ASTNode {
+        left: Value | Reference
+        op: '==' | '!=' | '>' | '<' | '>=' | '<='
+        right: Value | Reference
+        children = () => [this.left, this.right]
+    }
+
+    // References
+    export class Reference extends ASTNode {
+        device?: string
+        node: string
+        index?: number | Reference
+        ref!: Identifier
+    }
+    
     // Identifiers
+
+    export class TypeIdentifier extends ASTNode {
+        name: 'err' | 'bool' | 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32' | 'f32' | 'str'
+        arr_length?: number
+    }
     export class Identifier extends ASTNode {
         name: string
-        type: 'err' | 'bool' | 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32' | 'f32' | 'str' | 'arr' | 'unknown'
-    }
-    export class PortIdentifier extends ASTNode {
-        device: string
-        port: string
+        type: TypeIdentifier
+        children = () => [this.type]
     }
 
     // Values
+    export class Node extends ASTNode {
+        device: string
+        port: string
+        index?: number | string
+    }
+
     export class Value extends ASTNode {
         value_type: 'Boolean'|'Hexcode'|'Bitmask'|'Float'|'UnsignedInteger'|'Integer'|'String'
         value: any
@@ -58,7 +126,8 @@ export const quimblos_semantics = new SemanticsBuilder()
         qbscript.Script, $ => ({
             comments: $.all('comment').optional,
             macros: $.all('macro').optional,
-            declarations: $.all('declaration').optional
+            declarations: $.all('declaration').optional,
+            statements: $.all('statement').optional,
         })
     )
     .node('comment',
@@ -69,7 +138,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     
     .node('macro_use',
         qbscript.UseDeviceMacro, $ => ({
-            device: $.first_text('identifier')
+            device: $.first_text('identifier_device')
         })
     )
 
@@ -84,38 +153,148 @@ export const quimblos_semantics = new SemanticsBuilder()
     .node('ptr_declaration',
         qbscript.PointerDeclaration, $ => ({
             identifier: $.nth('identifier', 0),
-            port: $.first('port_identifier'),
-            value: $.first('value').optional
+            ref: $.first('ref_no_idx'),
+            value: $.first('integer').optional
+        })
+    )
+
+    // Statements
+
+    .node('statement_assign',
+        qbscript.AssignStatement, $ => ({
+            target: $.first('ref'),
+            source: $.first('value'),
+        })
+    )
+    .node('statement_if',
+        qbscript.IfStatement, $ => ({
+            expression: $.first('expression_bool')
+        })
+    )
+    .node('statement_else',
+        qbscript.ElseStatement, $ => ({})
+    )
+    .node('statement_else_if',
+        qbscript.ElseIfStatement, $ => ({
+            statement: $.first('statement_if')
+        })
+    )
+    .node('statement_hold',
+        qbscript.HoldStatement, $ => ({
+            device: $.first_text('identifier_device')
+        })
+    )
+    .node('statement_release',
+        qbscript.HoldStatement, $ => ({
+            device: $.first_text('identifier_device')
+        })
+    )
+    .node('statement_log',
+        qbscript.LogStatement, $ => ({
+            value: $.first('value'),
+        })
+    )
+    .node('statement_sleep',
+        qbscript.SleepStatement, $ => ({
+            time: $.first_text('unsigned_integer', v => parseInt(v))
+        })
+    )
+    .node('statement_return',
+        qbscript.ReturnStatement, $ => ({
+            value: $.first('value'),
+        })
+    )
+    .node('statement_reset',
+        qbscript.ResetStatement, $ => ({})
+    )
+    .node('statement_reboot',
+        qbscript.ResetStatement, $ => ({})
+    )
+
+    // Expressions
+
+    .node('expression_bool',
+        qbscript.BoolExpression, $ => ({
+            terms: $.all('bool_term'),
+            mods: $.all_text('bool_mod').optional
+        })
+    )
+    .node('bool_term',
+        qbscript.BoolExpressionTerm, $ => ({
+            value: $.any([
+                $.first('expression_bool'),
+                $.first('bool_operation')
+            ])
+        })
+    )
+    .node('bool_operation',
+        qbscript.BoolOperation, $ => ({
+            left: $.nth('value', 0),
+            right: $.nth('value', 1),
+            op: $.first_text('op_compare')
+        })
+    )
+
+    // References
+
+    .node('ref_script',
+        qbscript.Reference, $ => ({
+            device: $.empty(),
+            node: $.first_text('identifier'),
+            index: $.empty(),
+            ref: $.empty()
+        })
+    )
+    .node('ref_script_idx',
+        qbscript.Reference, $ => ({
+            device: $.empty(),
+            node: $.first_text('identifier'),
+            index: $.any([
+                $.first_text('integer', v => parseInt(v)),
+                $.first('ref')
+            ]).optional,
+            ref: $.empty()
+        })
+    )
+    .node('ref_device',
+        qbscript.Reference, $ => ({
+            device: $.first_text('identifier_device'),
+            node: $.first_text('identifier'),
+            index: $.empty(),
+            ref: $.empty()
+        })
+    )
+    .node('ref_device_idx',
+        qbscript.Reference, $ => ({
+            device: $.first_text('identifier_device'),
+            node: $.first_text('identifier'),
+            index: $.any([
+                $.first_text('integer', v => parseInt(v)),
+                $.first('ref')
+            ]).optional,
+            ref: $.empty()
         })
     )
 
     // Identifiers
 
-    .node('port_identifier',
-        qbscript.PortIdentifier, $ => ({
-            device: $.nth_text('identifier', 0),
-            port: $.nth_text('identifier', 1)
-        })
-    )
     .node('typed_identifier',
         qbscript.Identifier, $ => ({
             name: $.first_text('identifier'),
-            type: $.first_text('type_identifier')
+            type: $.node(qbscript.TypeIdentifier, $ => ({
+                name: $.first_text('identifier_type'),
+                arr_length: $.first_text('unsigned_integer', v => parseInt(v)).optional
+            }))
         })
     )
     .node('identifier',
         qbscript.Identifier, $ => ({
             name: $.text(),
-            type: $.value('unknown')
+            type: $.empty()
         })
     )
 
-    .node('typed_identifier',
-        qbscript.Identifier, $ => ({
-            name: $.first_text('identifier'),
-            type: $.first_text('type_identifier')
-        })
-    )
+    // Values
 
     .node('boolean',
         qbscript.Value, $ => ({

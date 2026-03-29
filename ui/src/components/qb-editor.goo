@@ -70,6 +70,7 @@ private format() {
   if (raw.at(-1) !== '\n') raw += '\n';
   
   const root = ast.update(raw);
+  console.log(root);
 
   if (ast.errors.length) {
     this.$error_list.innerText = ast.errors.map(e => e.pos+" "+e.error).join('\n');
