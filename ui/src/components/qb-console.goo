@@ -44,6 +44,7 @@ public async run() {
     }
     catch (e) {
         this.error = e.toString();
+        console.error(e);
     }
     this.render();
 }

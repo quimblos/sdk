@@ -87,7 +87,7 @@ export class AST {
             let out = '';
             if (node_style) out += `<span\tclass="${node_style}">`;
 
-            if (node.children) {
+            if (node.children && node.kind !== 'blank') {
                 for (const child of node.children) {
                     out += down(child);
                 }

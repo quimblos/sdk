@@ -71,6 +71,9 @@ export class Engine {
     public get_device(name: string) {
         return this.devices.find(d => d.name === name);
     }
+    public get_device_index(name: string) {
+        return this.devices.findIndex(d => d.name === name);
+    }
     public get_devices() {
         return this.devices;
     }

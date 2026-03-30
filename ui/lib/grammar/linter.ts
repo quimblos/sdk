@@ -24,16 +24,17 @@ export const quimblos_linter = new Linter<qbscript.Script>()
             if (!blank) return 0;
             const idx = blank.text.lastIndexOf('\n');
             if (idx < 0) return blank.text.length;
-            return blank.text.length - idx;
+            return blank.text.length - idx - 1;
         }
 
-        
         let tabs = [_tab(blanks[0])];
         
         for (let i = 0; i < script.statements.length; i++) {
             const statement = script.statements[i];
-            
             const tab = _tab(blanks[i]);
+
+            const next_statement = script.statements[i+1];
+            const next_tab = _tab(blanks[i+1]);
 
             if (tabs.length > 1) {
                 if (tab > tabs[0]) {
@@ -53,15 +54,47 @@ export const quimblos_linter = new Linter<qbscript.Script>()
                     continue
                 }
             }
+            
+            if (blanks[i] && tabs.length > 1) {
+                let last_nl = blanks[i].text.lastIndexOf('\n');
+                if (last_nl < 0) last_nl = -1;
+                const n = blanks[i].text.length;
+                let text = '';
+                for (let j = 0; j < n; j++) {
+                    const tab_idx = j - last_nl - 1
+                    const idx = tabs.indexOf(tab_idx);
+                    if (tab_idx >= 0 && idx >= 0) {
+                        if (next_tab < tab && 
+                            (
+                                !(next_statement instanceof qbscript.ElseStatement)
+                                && !(next_statement instanceof qbscript.ElseIfStatement)
+                            )) {
+                            text += '└'
+                        }
+                        else {
+                            if (idx > 1) {
+                                text += '│'
+                            }
+                            else {
+                                text += '├'
+                            }
+                        }
+                    }
+                    else {
+                        text += blanks[i].text[j];
+                    }
+
+                }
+                const c = '<a\tclass="iden">' + text + '</a>'
+                blanks[i].text = c;
+            }
 
             if (
                 statement instanceof qbscript.IfStatement
                 || statement instanceof qbscript.ElseStatement
                 || statement instanceof qbscript.ElseIfStatement
-            ) {
-                const next_statement = script.statements[i+1];
-                const next_tab = _tab(blanks[i+1]);
-                
+                || statement instanceof qbscript.WhileStatement
+            ) {                
                 if (next_statement) {
                     if (next_tab <= tabs[0]) {
                         error(next_statement, blanks[i+1] ?? next_statement.cst, `Identation error`);

@@ -23,6 +23,7 @@ public script = {
   errors: []
 };
 
+private hex = '';
 private devices = [];
 private output = '';
 
@@ -65,13 +66,21 @@ private setup() {
 
 private format() {
   const ast = (window as any).ast;
+  const compiler = (window as any).compiler;
   
+  // Parse input
   let raw = this.$input_layer.innerText.replace(/\n\n/g,'\n');
   if (raw.at(-1) !== '\n') raw += '\n';
   
-  const root = ast.update(raw);
-  console.log(root);
+  // Parse AST
+  const root = ast.update(raw);  
+  
+  // Debug
+  for (const x of root.macros) console.log(x);
+  for (const x of root.declarations) console.log(x);
+  for (const x of root.statements) console.log(x);
 
+  // Update error list
   if (ast.errors.length) {
     this.$error_list.innerText = ast.errors.map(e => e.pos+" "+e.error).join('\n');
     this.$error_list.style.display = 'block';
@@ -80,114 +89,52 @@ private format() {
     this.$error_list.innerText = '';
     this.$error_list.style.display = 'none';
   }
-  // this.make_devices();
 
+  // Update colored text
   const html = ast.to_html();
-
   this.$color_layer.innerHTML = html;
 
+  // Update lines
   const n_lines = ast.n_lines();
   let lines = '';
   for (let i = 0; i < n_lines; i++) lines += i+'\n';
   this.$lines_layer.innerText = lines;
+
+  // Update devices
+  this.make_devices();
+
+  // Compile
+  const compiled = compiler.compile(ast);
+  this.hex = compiled?.hex;
+  
+  console.log(compiled);
 }
 
 /* Internal Helpers */
 
 private make_devices() {
+  const ast = (window as any).ast;
+  const use_device_macros = ast.root.macros;
+
+  const devices = [];
+  for (const macro of use_device_macros) {
+    const device = qb.get_device(macro.device);
+    if (!device) return;
+    devices.push(device);
+  }
+
   for (const device of this.devices) {
-    device.destroyWebc('qb-editor');
-  }
-  // this.$device_list.innerHTML = '';
-  for (const name in this.script.devices) {
-    const device = qb.get_device(name);
-    device.makeWebc('qb-editor', this.$device_list);
-    this.devices.push(device);
-  }
-}
-
-/* Build Hex from AST */
-
-public get hex() {
-  if (this.script.errors.length) return;
-
-  const vec = ['q','b',0,0];
-
-  const op_bind = {
-    NODE_NODE: 0x00,
-    NODE_REF: 0x01,
-    REF_NODE: 0x02,
-    REF_REF: 0x03,
-    SHORT_NODE_NODE: 0x10,
-    SHORT_NODE_REF: 0x11,
-    SHORT_REF_NODE: 0x12,
-    SHORT_REF_REF: 0x13
-  };
-
-  const op_code = {
-    USE_DEVICE: 0x01,
-    USE_NODE: 0x02,
-    USE_NODE_ALIASED: 0x03,
-    SET: 0x10,
-    HOLD: 0x1A,
-    RELEASE: 0x1B,
-    GOTO: 0x20,
-    IF_EQ: 0x21,
-    IF_LT: 0x25,
-    IF_GT: 0x23,
-    ADD: 0x30,
-    SUB: 0x31,
-    MULT: 0x32,
-    DIV: 0x33,
-    MOD: 0x34,
-    POW: 0x35,
-    LOG: 0xD0,
-    SLEEP: 0xE0,
-    RETURN: 0xEE,
-    RESET: 0xF0,
-    REBOOT: 0xFF,
-  };
-
-
-  const type = {
-    void: 0x00,
-    err: 0xFF,
-    ptr: 0x02,
-    bool: 0x0A,
-    u8: 0x10,
-    i8: 0x11,
-    u16: 0x20,
-    i16: 0x21,
-    u32: 0x40,
-    i32: 0x41,
-    f32: 0x4A,
-    str: 0xF0,
-    arr: 0xE0,
-  };
-
-  for (const node of this.script.ast) {
-    switch (node.$) {
-      case 'use_device': {
-        const name = node.device.name;
-        vec.push(op_code.USE_DEVICE, name.length, ...name.split(''))
-      } break;
-      case 'set': {
-        vec.push(op_code.SET, op_bind.SHORT_NODE_NODE, node.target.device.index, node.target.node.index, type[node.target.type], node.value)
-      } break;
-      case 'sleep': {
-        vec.push(op_code.SLEEP, 0, 0, 5, 50);
-      } break;
+    if (!devices.includes(device)) {
+      device.destroyWebc('qb-editor');
+      this.devices.splice(this.devices.indexOf(device), 1);
     }
   }
-
-  const hex = vec.map(v =>
-    typeof v === 'string'
-    ? v.charCodeAt(0).toString(16).padStart(2,'0')
-    : v.toString(16).padStart(2,'0')
-  ).join('');
-  console.log({vec,hex});
-  return hex;
-  // return '7162000001064c4544424152101000001055e0000003e81010000010aae0000003e8200000';
+  for (const device of devices) {
+    if (!this.devices.includes(device)) {
+      device.makeWebc('qb-editor', this.$device_list);
+      this.devices.push(device);
+    }
+  }
 }
 
 </script>

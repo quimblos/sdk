@@ -51,6 +51,10 @@ export namespace qbscript {
         statement: IfStatement
         children = () => [this.statement]
     }
+    export class WhileStatement extends ASTNode {
+        expression: BoolExpression
+        children = () => [this.expression]
+    }
     export class HoldStatement extends ASTNode {
         device: string
     }
@@ -86,6 +90,16 @@ export namespace qbscript {
         op: '==' | '!=' | '>' | '<' | '>=' | '<='
         right: Value | Reference
         children = () => [this.left, this.right]
+    }
+
+    export class MathExpression extends ASTNode {
+        terms: MathExpressionTerm[]
+        ops: ('+'|'-'|'*'|'/'|'%'|'^')[]
+        children = () => [...this.terms]
+    }
+    export class MathExpressionTerm extends ASTNode {
+        value: Value | MathExpression
+        children = () => [this.value]
     }
 
     // References
@@ -163,7 +177,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     .node('statement_assign',
         qbscript.AssignStatement, $ => ({
             target: $.first('ref'),
-            source: $.first('value'),
+            source: $.first('expression_math'),
         })
     )
     .node('statement_if',
@@ -177,6 +191,11 @@ export const quimblos_semantics = new SemanticsBuilder()
     .node('statement_else_if',
         qbscript.ElseIfStatement, $ => ({
             statement: $.first('statement_if')
+        })
+    )
+    .node('statement_while',
+        qbscript.WhileStatement, $ => ({
+            expression: $.first('expression_bool')
         })
     )
     .node('statement_hold',
@@ -201,7 +220,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     )
     .node('statement_return',
         qbscript.ReturnStatement, $ => ({
-            value: $.first('value'),
+            value: $.first('value').optional,
         })
     )
     .node('statement_reset',
@@ -232,6 +251,21 @@ export const quimblos_semantics = new SemanticsBuilder()
             left: $.nth('value', 0),
             right: $.nth('value', 1),
             op: $.first_text('op_compare')
+        })
+    )
+
+    .node('expression_math',
+        qbscript.MathExpression, $ => ({
+            terms: $.all('math_term'),
+            ops: $.all_text('op').optional
+        })
+    )
+    .node('math_term',
+        qbscript.MathExpressionTerm, $ => ({
+            value: $.any([
+                $.first('expression_math'),
+                $.first('value')
+            ])
         })
     )
 

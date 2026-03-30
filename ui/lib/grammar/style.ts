@@ -17,6 +17,7 @@ export const quimblos_style: Style = {
         'kw_goto': 'keyword',
         'kw_if': 'keyword',
         'kw_else': 'keyword',
+        'kw_while': 'keyword',
         'kw_and': 'keyword',
         'kw_or': 'keyword',
         'kw_break': 'keyword',
@@ -28,6 +29,8 @@ export const quimblos_style: Style = {
         'kw_reboot': 'keyword',
 
         'op_assign': 'operator',
+        'op_math': 'operator',
+        
         'boolean': 'primitive',
         'hexcode': 'primitive',
         'bitmask': 'primitive',
@@ -42,6 +45,9 @@ export const quimblos_style: Style = {
         },
         'comment': {
             color:'#666'
+        },
+        'iden': {
+            color:'#222'
         },
         'syntax_error': {
             'background-color':'#bb333322'

@@ -34,9 +34,9 @@ function_declaration ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? 
     Statements
 */
 
-statement ::= statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
+statement ::= statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
 
-statement_assign ::= ref ws? ( op_assign ws? value eol )
+statement_assign ::= ref ws? ( op_math? op_assign ws? expression_math eol )
 
 statement_hold ::= kw_hold ws identifier_device eol
 statement_release ::= kw_release ws identifier_device eol
@@ -44,10 +44,11 @@ statement_release ::= kw_release ws identifier_device eol
 statement_if ::= kw_if ws expression_bool ws? (':' eol)
 statement_else_if ::= kw_else ws statement_if
 statement_else ::= kw_else ws? ':' eol
+statement_while ::= kw_while ws expression_bool ws? (':' eol)
 
 statement_log ::= kw_log ws value eol
 statement_sleep ::= kw_sleep ws unsigned_integer eol
-statement_return ::= kw_return ws value eol
+statement_return ::= kw_return (ws value)? eol
 statement_reset ::= kw_reset eol
 statement_reboot ::= kw_reboot eol
 
@@ -60,8 +61,8 @@ bool_mod ::= kw_and | kw_or
 bool_term ::= ( '(' ws? expression_bool ws? ')' ) | bool_operation
 bool_operation ::= value ws? op_compare ws? value
 
-expression_math ::= (math_term ws? op_art ws?)* math_term
-math_term ::= value | ( '(' ws? expression_math ws? ')')
+expression_math ::= (math_term ws? op_math ws?)* math_term
+math_term ::= ( '(' ws? expression_math ws? ')') | value
 
 /*
     References
@@ -130,6 +131,7 @@ kw_release ::= 'release'
 kw_goto ::= 'goto'
 kw_if ::= 'if'
 kw_else ::= 'else'
+kw_while ::= 'while'
 kw_and ::= 'and'
 kw_or ::= 'or'
 kw_break ::= 'break'
@@ -143,7 +145,7 @@ kw_reboot ::= 'reboot'
 
 op_assign ::= '='
 
-op_art ::= op_add | op_sub | op_mult | op_div | op_mod | op_pow
+op_math ::= op_add | op_sub | op_mult | op_div | op_mod | op_pow
 op_add ::= '+'
 op_sub ::= '-'
 op_mult ::= '*'

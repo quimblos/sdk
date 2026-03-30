@@ -1,4 +1,5 @@
 import { AST } from '../lib/lang-maker/ast';
+import { QuimblosCompiler } from '../lib/compiler/compiler';
 import * as grammar from "../lib/grammar";
 
 import { Engine } from '../lib/kernel';
@@ -39,6 +40,7 @@ async function setup() {
   
   const ast = new AST(grammar);
   (window as any).ast = ast;
+  (window as any).compiler = QuimblosCompiler;
 
   // Goo Routes
 

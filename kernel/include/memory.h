@@ -37,12 +37,12 @@ namespace qb {
         FLOAT32 = 0x4A,
 
         // Strings
-        STRING = 0xF0,          // ... 0xLEN 0xLEN
-        STRING_SHORT = 0xF1,    // ... 0xLEN        (converted to STRING on parse, used to reduce payload)
+        STRING = 0xF0,          // + 0xLEN 0xLEN
+        STRING_SHORT = 0xF1,    // + 0xLEN        (converted to STRING on parse, used to reduce payload)
 
         // Arrays
-        ARRAY = 0xE0,           // ... 0xTYPE 0xLEN 0xLEN
-        ARRAY_SHORT = 0xE1,     // ... 0xTYPE 0xLEN  (converted to ARRAY on parse, used to reduce payload)
+        ARRAY = 0xE0,           // + 0xTYPE 0xLEN 0xLEN
+        ARRAY_SHORT = 0xE1,     // + 0xTYPE 0xLEN  (converted to ARRAY on parse, used to reduce payload)
     };
 
     /*
