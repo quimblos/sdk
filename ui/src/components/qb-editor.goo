@@ -9,9 +9,7 @@
     <div class="col ga" id="device_list"></div>
     <div
       id="output"
-    >
-      ${this.output}
-    </div>
+    ></div>
   </div>
 </template>
 
@@ -37,24 +35,26 @@ private setup() {
   const ast = (window as any).ast;
 
   // Add style from grammar
-  if (ast.grammar.style) {
-
-    const style = document.createElement('style');
-    let txt = '';
-    for (const _class in ast.grammar.style.css) {
-      const props = ast.grammar.style.css[_class];
-      const v = Object.entries(props)
-        .map(e => `${e[0]}: ${e[1]};`)
-        .join(' ');
-      txt += `.${_class} { ${v} } `;
-    }
-    style.innerText = txt;
-    this.$editor.appendChild(style);
+  const style = document.createElement('style');
+  let txt = '';
+  for (const _class in window.qbstyle.css) {
+    const props = window.qbstyle.css[_class];
+    const v = Object.entries(props)
+      .map(e => `${e[0]}: ${e[1]};`)
+      .join(' ');
+    txt += `.${_class} { ${v} } `;
   }
+  style.innerText = txt;
+  this.$editor.appendChild(style);
 
   // Show logs from engine
   qb.onLog(msg => {
+    msg = msg.replace(/</g, '{');
+    msg = msg.replace(/>/g, '}');
+    msg = msg.replace(/\u001b\[30m/g, '<span class="macro">');
+    msg = msg.replace(/\u001b\[0m/g, '</span>');
     this.output += msg + '\n';
+    this.$output.innerHTML = this.output;
     this.$output.scrollTop = this.$output.scrollHeight;
     this.render();
   })
@@ -74,15 +74,17 @@ private format() {
   if (raw.at(-1) !== '\n') raw += '\n';
   
   // Parse AST
-  const root = ast.update(raw);  
+  const compiled = (window as any).qbcompile(raw);
+  console.log(compiled.ast);
+  console.log(compiled.hex);
   
   // Debug
-  for (const x of root.macros) console.log(x);
-  for (const x of root.blocks) console.log(x.describe());
+  for (const x of compiled.ast.root.macros) console.log(x);
+  for (const x of compiled.ast.root.blocks) console.log(x.describe());
 
   // Update error list
-  if (ast.errors.length) {
-    this.$error_list.innerText = ast.errors.map(e => e.pos+" "+e.error).join('\n');
+  if (compiled.ast.errors.length) {
+    this.$error_list.innerText = compiled.ast.errors.map(e => e.pos+" "+e.error).join('\n');
     this.$error_list.style.display = 'block';
   }
   else {
@@ -91,28 +93,24 @@ private format() {
   }
 
   // Update colored text
-  const html = ast.to_html();
-  this.$color_layer.innerHTML = html;
+  this.$color_layer.innerHTML = compiled.html;
 
   // Update lines
-  const n_lines = ast.n_lines();
+  const n_lines = (window as any).n_lines(raw, compiled.ast);
   let lines = '';
   for (let i = 0; i < n_lines; i++) lines += i+'\n';
   this.$lines_layer.innerText = lines;
 
   // Update devices
-  this.make_devices();
+  this.make_devices(compiled.ast);
 
   // Compile
-  const hex = compiler.compile(ast);
-  this.hex = hex;
-  console.log({hex});
+  this.hex = compiled.hex;
 }
 
 /* Internal Helpers */
 
-private make_devices() {
-  const ast = (window as any).ast;
+private make_devices(ast) {
   const use_device_macros = ast.root.macros;
 
   const devices = [];

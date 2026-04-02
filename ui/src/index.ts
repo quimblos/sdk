@@ -1,6 +1,6 @@
-import { AST } from '../lib/lang-maker/ast';
-import { QuimblosCompiler } from '../lib/compiler/compiler';
-import * as grammar from "../lib/grammar";
+import { make_compiler } from '@quimblos/compiler';
+import { quimblos_style } from '@quimblos/compiler/src/lang/style';
+import { n_lines } from '../lib/helper';
 
 import { Engine } from '../lib/kernel';
 import { LedBarDevice } from './devices/ledbar.device'
@@ -38,9 +38,9 @@ async function setup() {
   engine.put_device(new Sling2DDevice());
   engine.put_device(new LedStripDevice());
   
-  const ast = new AST(grammar);
-  (window as any).ast = ast;
-  (window as any).compiler = QuimblosCompiler;
+  (window as any).qbstyle = quimblos_style;
+  (window as any).qbcompile = make_compiler(qb);
+  (window as any).n_lines = n_lines;
 
   // Goo Routes
 

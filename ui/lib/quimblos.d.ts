@@ -1,4 +1,4 @@
-import { qbscript } from "./grammar/semantics"
+import { quimblos } from "@quimblos/compiler/src/lang/semantics"
 import { Engine } from "./kernel"
 
 declare global {
@@ -19,7 +19,7 @@ declare global {
 
         type DeviceNode = {
             name: string
-            type: qbscript.Type
+            type: quimblos.Type
             arr_length?: number
         }
 

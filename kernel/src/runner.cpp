@@ -148,6 +148,20 @@ Node* Runner::resolve_source(OpBind bind, Node* source) {
     }
 }
 
+std::string Runner::to_str(Node& node) {
+    if (node.type == Type::PTR) {
+        auto n = (node::Pointer*) &node;
+        auto d = n->device >= 0xFE ? nullptr : this->resolve_device(n->device);
+        auto v = Runner::get_node(*this, d, n->port);
+        
+        std::stringstream ss;
+        ss << "<ptr:" << +(n->device) << "#" << +(n->port) << "[" << n->index << "] = " << this->to_str(*v) << ">";
+        return ss.str();
+    }
+    else
+        return node.to_str();
+}
+
 /*
     Instructions
 */
@@ -298,8 +312,13 @@ code_addr_t instruction::Pow::run(Runner& runner) {
 // Log
 
 code_addr_t instruction::Log::run(Runner& runner) {
-    Device* device = runner.resolve_device(this->device);
-    device->log(this->source);
+    if (this->device == 0xFF) {
+        std::cout << COLOR_GRAY << runner.to_str(*this->source) << COLOR_NC << std::endl;
+    }
+    else {
+        Device* device = runner.resolve_device(this->device);
+        device->log(this->source);
+    }
     return this->next;
 }
 

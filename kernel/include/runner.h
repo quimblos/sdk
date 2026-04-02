@@ -66,6 +66,8 @@ namespace qb {
             runner::target_t resolve_target(OpBind bind, node::Pointer* target);
             Node* resolve_source(OpBind bind, Node* source);
 
+            std::string to_str(Node& node);
+
             static Node* get_node(Runner& runner, Device* device, uint8_t port) {
                 if (device == nullptr) {
                     return runner.nodes.at(port);

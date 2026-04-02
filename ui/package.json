@@ -11,7 +11,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@quimblos/goo": "file:../../goo/lib/build"
+    "@quimblos/goo": "file:../../goo/lib/build",
+    "@quimblos/compiler": "file:../compiler"
   },
   "devDependencies": {
     "@quimblos/goo-loader": "file:../../goo/loader/build",

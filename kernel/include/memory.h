@@ -169,13 +169,7 @@ namespace qb {
 
             const std::string to_str() const {
                 std::stringstream ss;
-                ss << "<ptr:";
-                // if (this->data == nullptr) {
-                    ss << +(this->device) << "#" << +(this->port) << "[" << this->index << "]>";
-                // }
-                // else {
-                //     ss << this->data->to_str() << ">";
-                // }
+                ss << "<ptr:" << +(this->device) << "#" << +(this->port) << "[" << this->index << "]" << ">";
                 return ss.str();
             };
         };

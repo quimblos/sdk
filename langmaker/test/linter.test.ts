@@ -1,0 +1,9 @@
+describe('Linter', () => {
+    
+    describe('', () => {
+
+        // TODO
+
+    })
+
+})

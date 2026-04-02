@@ -1,0 +1,21 @@
+{
+  "name": "@quimblos/compiler",
+  "description": "A compiler for the Quimblos language, which outputs QASM",
+  "version": "1.0.0",
+  "author": "Hugo Aboud",
+  "license": "GPL-3.0-only",
+  "scripts": {
+    "build": "tsc --p tsconfig.build.json",
+    "bundle": "tsx bundle.ts",
+    "test": "jest --verbose --watch"
+  },
+  "dependencies": {
+    "@quimblos/langmaker": "file:../langmaker"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.2",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.2.0",
+    "ts-jest": "^29.4.6"
+  }
+}
