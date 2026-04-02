@@ -48,7 +48,6 @@ private setup() {
         .join(' ');
       txt += `.${_class} { ${v} } `;
     }
-    console.log({txt});
     style.innerText = txt;
     this.$editor.appendChild(style);
   }
@@ -65,6 +64,8 @@ private setup() {
 /* AST Builder + Text Highlighting */
 
 private format() {
+  console.clear();
+
   const ast = (window as any).ast;
   const compiler = (window as any).compiler;
   
@@ -77,8 +78,7 @@ private format() {
   
   // Debug
   for (const x of root.macros) console.log(x);
-  for (const x of root.declarations) console.log(x);
-  for (const x of root.statements) console.log(x);
+  for (const x of root.blocks) console.log(x.describe());
 
   // Update error list
   if (ast.errors.length) {
@@ -104,10 +104,9 @@ private format() {
   this.make_devices();
 
   // Compile
-  const compiled = compiler.compile(ast);
-  this.hex = compiled?.hex;
-  
-  console.log(compiled);
+  const hex = compiler.compile(ast);
+  this.hex = hex;
+  console.log({hex});
 }
 
 /* Internal Helpers */

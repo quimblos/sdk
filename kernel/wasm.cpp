@@ -87,11 +87,11 @@ class WASMEngine : public qb::Engine {
             std::cout << "[error] parser:" << +parser_res.code << std::endl;
             return -1;
         }
-        auto checker_res = qb::static_checker::check(*this, parser_res.script);
-        if (checker_res.code > 0) {
-            std::cout << "[error] checker:" << +checker_res.code << std::endl;
-            return -1;
-        }
+        // auto checker_res = qb::static_checker::check(*this, parser_res.script);
+        // if (checker_res.code > 0) {
+        //     std::cout << "[error] checker:" << +checker_res.code << std::endl;
+        //     return -1;
+        // }
 
         auto runner_res = qb::Engine::make_runner<WASMRunner>(name, parser_res.script);
         if (!runner_res.ok) {

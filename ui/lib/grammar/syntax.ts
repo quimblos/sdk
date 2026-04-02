@@ -4,7 +4,9 @@ export const quimblos_syntax = `
     A high-level language for low-level hardware
 */
 
-grammar ::= (blank? (comment | macro | declaration | statement))+
+grammar ::= (blank? (comment | macro))* (blank? (comment | statement))*
+
+
 
 /*
     Comments
@@ -19,24 +21,22 @@ comment ::= '//' [#x20-#xD7FF]* eol
 macro ::= macro_use
 macro_use ::= '@use' ws identifier_device eol
 
+statement ::= statement_var | statement_ptr | statement_function | statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
+
 /*
     Declarations
 */
 
-declaration ::= var_declaration | ptr_declaration | function_declaration
+statement_var ::= kw_var ws typed_identifier ws? (op_assign ws? expression)? eol
+statement_ptr ::= kw_ptr ws identifier ws? ':' ws? ref_no_idx (ws? op_assign ws? expression)? eol
 
-var_declaration ::= kw_var ws typed_identifier ws? (op_assign ws? value)? eol
-ptr_declaration ::= kw_ptr ws identifier ws? ':' ws? ref_no_idx (ws? op_assign ws? integer)? eol
-
-function_declaration ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? typed_identifier? ')' ws? ':' eol
+statement_function ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? typed_identifier? ')' ws? ':' eol
 
 /*
     Statements
 */
 
-statement ::= statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
-
-statement_assign ::= ref ws? ( op_math? op_assign ws? expression_math eol )
+statement_assign ::= reference ws? ( op_math? op_assign ws? expression eol )
 
 statement_hold ::= kw_hold ws identifier_device eol
 statement_release ::= kw_release ws identifier_device eol
@@ -46,9 +46,9 @@ statement_else_if ::= kw_else ws statement_if
 statement_else ::= kw_else ws? ':' eol
 statement_while ::= kw_while ws expression_bool ws? (':' eol)
 
-statement_log ::= kw_log ws value eol
+statement_log ::= kw_log ws expression eol
 statement_sleep ::= kw_sleep ws unsigned_integer eol
-statement_return ::= kw_return (ws value)? eol
+statement_return ::= kw_return (ws expression)? eol
 statement_reset ::= kw_reset eol
 statement_reboot ::= kw_reboot eol
 
@@ -56,26 +56,28 @@ statement_reboot ::= kw_reboot eol
     Expressions
 */
 
-expression_bool ::= (bool_term ws bool_mod ws)* bool_term
-bool_mod ::= kw_and | kw_or
-bool_term ::= ( '(' ws? expression_bool ws? ')' ) | bool_operation
-bool_operation ::= value ws? op_compare ws? value
+/*expression ::= expression_bool | expression_math*/
+expression ::= (term ws? op ws?)* term
 
-expression_math ::= (math_term ws? op_math ws?)* math_term
-math_term ::= ( '(' ws? expression_math ws? ')') | value
+/* expression_bool ::= (bool_term ws? op_bool ws?)* bool_term */
+op ::= op_bool|op_math
+term ::= ( '(' ws? expression ws? ')' ) | value
+
+/* expression_math ::= (math_term ws? op_math ws?)* math_term */
+/* math_term ::= ( '(' ws? expression ws? ')') | value */
 
 /*
     References
 */
 
-ref ::= ref_idx | ref_no_idx
+reference ::= ref_idx | ref_no_idx
 ref_no_idx ::= ref_device | ref_script
 ref_idx ::= ref_device_idx | ref_script_idx
 
 ref_script ::= identifier
-ref_script_idx ::= identifier ('[' (integer | ref) ']')
+ref_script_idx ::= identifier ('[' expression ']')
 ref_device ::= identifier_device '.' identifier
-ref_device_idx ::= identifier_device '.' identifier ('[' (integer | ref) ']')
+ref_device_idx ::= identifier_device '.' identifier ('[' expression ']')
 
 /*
     Identifiers
@@ -98,7 +100,7 @@ identifier ::= letter (letter | digit)*
     - 'some text'
 */
 
-value ::= ref | primitive | string
+value ::= primitive | string | reference
 
 primitive ::= boolean | hexcode | bitmask | float | unsigned_integer | integer
 
@@ -153,6 +155,7 @@ op_div ::= '/'
 op_mod ::= '%'
 op_pow ::= '^'
 
+op_bool ::= op_compare | kw_and | kw_or
 op_compare ::= op_eq | op_neq | op_gt | op_lt | op_gteq | op_lteq
 op_eq ::= '=='
 op_neq ::= '!='

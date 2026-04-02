@@ -1,7 +1,7 @@
 import { AST, ASTNode } from "./ast"
 import { CSTNode } from "./cst"
 
-type StaticRule<
+type LinterRule<
     Root extends ASTNode,
     T extends typeof ASTNode
 > = (
@@ -12,7 +12,7 @@ type StaticRule<
     }
 ) => void
 
-type StaticASTRule = (
+type LinterASTRule = (
     ast: AST,
     $: {
         error: (ast: ASTNode, cst: CSTNode, err: string) => void
@@ -24,24 +24,24 @@ export class Linter<
 > {
 
     private ast_rules: {
-        rule: StaticASTRule
+        rule: LinterASTRule
     }[] = []
 
     private node_rules: {
         node: { new (...args: any[]): ASTNode },
-        rule: StaticRule<any, any>
+        rule: LinterRule<any, any>
     }[] = []
 
     public rule<
         T extends typeof ASTNode
-    >(node: T, rule: StaticRule<Root, T>) {
+    >(node: T, rule: LinterRule<Root, T>) {
         this.node_rules.push({ node, rule })
         return this;
     }
 
     public ast_rule<
         T extends typeof ASTNode
-    >(rule: StaticASTRule) {
+    >(rule: LinterASTRule) {
         this.ast_rules.push({ rule })
         return this;
     }

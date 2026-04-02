@@ -55,6 +55,8 @@ export const quimblos_linter = new Linter<qbscript.Script>()
                 }
             }
             
+            statement.cst.tab = tabs.length-1;
+
             if (blanks[i] && tabs.length > 1) {
                 let last_nl = blanks[i].text.lastIndexOf('\n');
                 if (last_nl < 0) last_nl = -1;
@@ -114,7 +116,7 @@ export const quimblos_linter = new Linter<qbscript.Script>()
             error(CST.first(ast.cst, 'identifier_device'), e);
         }
     })
-    .rule(qbscript.VariableDeclaration, (ast, { root, error }) => {
+    .rule(qbscript.VariableStatement, (ast, { root, error }) => {
         if (ast.value) {
             if (!ast.identifier) return;
             if (ast.identifier.type.arr_length) {
@@ -129,7 +131,7 @@ export const quimblos_linter = new Linter<qbscript.Script>()
             }
         }
     })
-    .rule(qbscript.PointerDeclaration, (ast, { root, error }) => {
+    .rule(qbscript.PointerStatement, (ast, { root, error }) => {
         ast.identifier.type = ast.ref.ref?.type;
     })
     .rule(qbscript.AssignStatement, (ast, { root, error }) => {
@@ -223,28 +225,31 @@ function check_device_node(device: Device, node: string) {
     }
     return device.nodes[port];
 }
-function check_script_node(script: qbscript.Script, node_name: string) {
-    const node = script.declarations.find(d =>
-        (d instanceof qbscript.VariableDeclaration
-        || d instanceof qbscript.PointerDeclaration)
+function check_script_node(script: qbscript.Script, node_name: string): qbscript.VariableStatement | qbscript.PointerStatement {
+    const node = script.statements.find(d =>
+        (d instanceof qbscript.VariableStatement
+        || d instanceof qbscript.PointerStatement)
         && d.identifier.name === node_name
     );
     if (!node) {
         throw `Script does not contain a node named '${node_name}'`
     }
-    return node;
+    return node as any;
 }
-function check_assign(target: qbscript.TypeIdentifier, source: qbscript.Value | qbscript.Reference) {
+function check_assign(target: qbscript.TypeIdentifier, source: qbscript.Expression) {
     const target_type = quimblos_types[target.name];
     if (!target_type) return;
-    if (source instanceof qbscript.Value) {
-        if (!target_type.allow_assign_value.includes(source.value_type)) 
-            throw `A '${source.value_type}' value cannot be assigned to a '${target.name}' node`
+
+    const val = source.terms[0].value;
+
+    if (val instanceof qbscript.Literal) {
+        if (!target_type.allow_assign_literal.includes(val.literal_type)) 
+            throw `A '${val.literal_type}' value cannot be assigned to a '${target.name}' node`
     }
-    else {
-        if (source.ref) {
-            if (!target_type.allow_assign_node.includes(source.ref.type.name)) 
-                throw `A '${source.ref.type.name}' node cannot be assigned to a '${target.name}' node`
+    else if (val instanceof qbscript.Reference) {
+        if (val.ref) {
+            if (!target_type.allow_assign_node.includes(val.ref.type.name)) 
+                throw `A '${val.ref.type.name}' node cannot be assigned to a '${target.name}' node`
         }
     }
 }

@@ -38,8 +38,8 @@ public async run() {
         if (!hex) {
             throw new Error('Script contains errors');
         }
-        this.runner = qb.make_runner('console', hex);
         this.$editor.clear_output();
+        this.runner = qb.make_runner('console', hex);
         this.runner.run();
     }
     catch (e) {

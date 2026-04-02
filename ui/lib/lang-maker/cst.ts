@@ -1,12 +1,12 @@
 export type CSTNode = {
     kind: string,
-    t: number,
     start: number,
     end: number,
     text: string,
     children?: CSTNode[]
-    tab?: number
     errors?: string[]
+
+    tab?: number // Added by linter
 }
 
 export class CST {

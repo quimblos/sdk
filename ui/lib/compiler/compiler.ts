@@ -1,8 +1,18 @@
 import { qbscript } from "../grammar/semantics";
 import { AST } from "../lang-maker/ast";
+import { QuimblosLinker } from "./linker";
 
-type CompilerAST = {
-    bytecode: (string|number)[]
+export type Bytecode = (number|string|{$:string})[]
+
+export type CompilerNodes = Record<string, {
+    statement: qbscript.VariableStatement|qbscript.PointerStatement
+    port?: number
+}>;
+
+type CompilerBlock = {
+    idx: number
+    nodes: CompilerNodes
+    bytecode: Bytecode
 }
 
 export class QuimblosCompiler {
@@ -68,139 +78,147 @@ export class QuimblosCompiler {
     };
 
     public static compile(ast: AST) {
-        console.clear();
         if (ast.errors.length) {
             console.error(`Script contains errors. Compilation skipped.`)
             return;
         }
+        const script = ast.root as qbscript.Script;
 
-        ast.traverse(node => {
-            if (node instanceof qbscript.UseDeviceMacro) {
-                this.compile_use_device_macro(node);
-                return true;
-            }
-            if (node instanceof qbscript.VariableDeclaration) {
-                this.compile_variable_declaration(ast, node);
-                return true;
-            }
-            if (node instanceof qbscript.PointerDeclaration) {
-                this.compile_pointer_declaration(ast, node);
-                return true;
-            }
-            if (node instanceof qbscript.AssignStatement) {
-                this.compile_assign_statement(ast, node);
-                return true;
-            }
-            else if (node instanceof qbscript.SleepStatement) {
-                this.compile_sleep_statement(node);
-                return true;
-            }
-            return
-        })
-
-        let bytecode: (number | string)[] = [
+        const nodes: CompilerNodes = {};
+        let header: Bytecode = [
             ...this.HEADER
         ];
-        ast.traverse(node => {
-            const cnode = node as any as CompilerAST;
-            if (!cnode.bytecode?.length) return;
-            bytecode.push(...cnode.bytecode);
-        }, 'up')
+        let bytecode: Bytecode = [];
 
-        const hex = bytecode.map(v =>
-            typeof v === 'string'
-            ? v.charCodeAt(0).toString(16).padStart(2,'0')
-            : v.toString(16).padStart(2,'0')
-        ).join('');
+        for (const macro of script.macros) {
+            if (macro instanceof qbscript.UseDeviceMacro) {
+                header.push(
+                    ...this.compile_use_device_macro(macro)
+                )
+            }
+        }
 
-        return { bytecode, hex }
+        let block_idx = 0;
+        for (const block of script.blocks) {
+            const compiled = this.compile_block(ast, block, block_idx);
+            
+            Object.assign(nodes, compiled.nodes);
+            bytecode.push(...compiled.bytecode);
+
+            block_idx = compiled.idx+1;
+        }
+
+        return QuimblosLinker.link(nodes, header, bytecode);
     }
 
-    private static compile_use_device_macro(node: qbscript.UseDeviceMacro) {
-        (node as any as CompilerAST).bytecode = [
+    private static compile_use_device_macro(node: qbscript.UseDeviceMacro): Bytecode {
+        return [
             this.OP_CODE.USE_DEVICE,
             node.device.length,
             ...node.device.split('')
         ]
     }
 
-    private static compile_variable_declaration(ast: AST, node: qbscript.VariableDeclaration) {
-        (node as any as CompilerAST).bytecode = [
-            this.OP_CODE.USE_NODE,
-            ...this.type(node.identifier.type)
-        ]
+    // Blocks
+
+    private static compile_block(ast: AST, node: qbscript.Block, idx: number) {
+        const compiled: CompilerBlock = {
+            idx,
+            nodes: {},
+            bytecode: []
+        }
+
+        for (const statement of node.statements) {
+            if (statement instanceof qbscript.VariableStatement) {
+                compiled.nodes[statement.identifier.name+(idx??'')] = { statement };
+                compiled.bytecode.push(
+                    ...this.compile_variable_statement(ast, statement, idx)
+                );
+            }
+            else if (statement instanceof qbscript.PointerStatement) {
+                compiled.nodes[statement.identifier.name+(idx??'')] = { statement };
+                compiled.bytecode.push(
+                    ...this.compile_pointer_statement(ast, statement, idx)
+                );
+            }
+            else if (statement instanceof qbscript.AssignStatement) {
+                compiled.bytecode.push(
+                    ...this.compile_assign_statement(ast, statement, idx)
+                );
+            }
+            else if (statement instanceof qbscript.SleepStatement) {
+                compiled.bytecode.push(
+                    ...this.compile_sleep_statement(statement)
+                );
+            }
+        }
+
+        return compiled;
+    }
+
+    // Statements
+
+    private static compile_variable_statement(ast: AST, node: qbscript.VariableStatement, block_idx: number) {
+        let bytecode: Bytecode = []
         if (node.value) {
             // TODO: variable initialization
             // (node as any as CompilerAST).bytecode.push(
             //     ...this.set(ast, node.ref, node.value)
             // )
         }
+        console.log(node.cst.text, bytecode);
+        return bytecode;
     }
 
-    private static compile_pointer_declaration(ast: AST, node: qbscript.PointerDeclaration) {
-        (node as any as CompilerAST).bytecode = [
-            this.TYPE.ptr,
-            ...this.ptr(ast, node.ref)
-        ]
+    private static compile_pointer_statement(ast: AST, node: qbscript.PointerStatement, block_idx: number) {
+        let bytecode: Bytecode = []
 
         if (node.value) {
-            (node as any as CompilerAST).bytecode.push(
-                ...this.set(ast, node.ref, node.value)
+            bytecode.push(
+                ...this.set(ast, node.ref, node.value, block_idx)
             )
         }
+        console.log(node.cst.text, bytecode);
+        return bytecode;
     }
 
-    private static compile_assign_statement(ast: AST, node: qbscript.AssignStatement) {
-        (node as any as CompilerAST).bytecode = this.set(ast, node.target, node.source);
+    private static compile_assign_statement(ast: AST, node: qbscript.AssignStatement, block_idx: number) {
+        const bytecode = this.set(ast, node.target, node.source, block_idx);
+        console.log(node.cst.text, bytecode);
+        return bytecode
     }
 
     private static compile_sleep_statement(node: qbscript.SleepStatement) {
-        (node as any as CompilerAST).bytecode = [
+        const bytecode = [
             this.OP_CODE.SLEEP,
             ...this.u32(node.time)
         ]
+        console.log(node.cst.text, bytecode);
+        return bytecode
     }
 
     // Set Meta-Expression
 
-    private static set(ast: AST, target: qbscript.Reference, source: qbscript.MathExpression | qbscript.Value | qbscript.Reference) {
+    private static set(ast: AST, target: qbscript.Reference, source: qbscript.Expression, block_idx: number) {
         
         const bytecode = [];
 
         const target_ptr = this.prepare_ptr(ast, target);
         bytecode.push(...target_ptr.preset);
 
-        let source_ptr;
-        if (source instanceof qbscript.Reference) {
-            source_ptr = this.prepare_ptr(ast, source, target_ptr.tmp_node);
-        }
-        else if (source instanceof qbscript.Value) {
-            source_ptr = {
-                preset: [],
-                bytecode: this.value(source),
-                tmp_node: undefined
-            }
-        }
-        else if (source instanceof qbscript.MathExpression) {
-            source_ptr = {
-                preset: [],
-                bytecode: this.math_expression(source),
-                tmp_node: undefined
-            }
-        }
+        const source_val = source.terms[0].value;
+        const source_ptr = this.value(ast, source_val, block_idx, target_ptr.tmp_node);
         bytecode.push(...source_ptr.preset);
 
         let bind;
         if (target_ptr.tmp_node === undefined) {
-            if (source_ptr.tmp_node === undefined) bind = this.OP_BIND.NODE_NODE
-            else bind = this.OP_BIND.NODE_REF
+            if (source_val instanceof qbscript.Reference) bind = this.OP_BIND.NODE_REF
+            else bind = this.OP_BIND.NODE_NODE
         }
         else {
-            if (source_ptr.tmp_node === undefined) bind = this.OP_BIND.REF_NODE
-            else bind = this.OP_BIND.REF_REF
+            if (source_val instanceof qbscript.Reference) bind = this.OP_BIND.REF_REF
+            else bind = this.OP_BIND.REF_NODE
         }
-
-        // console.log({target_ptr, source_ptr, bind})
 
         bytecode.push(
             this.OP_CODE.SET,
@@ -214,13 +232,38 @@ export class QuimblosCompiler {
 
     // Value/Type
 
-    private static math_expression(node: qbscript.MathExpression) {
+    private static expression(node: qbscript.Expression) {
         // TODO
-        return this.value(node.terms[0].value as qbscript.Value);
+        return this.literal(node.terms[0].value as qbscript.Literal);
     }
 
-    private static value(node: qbscript.Value) {
-        switch (node.value_type) {
+    public static value(ast: AST, node: qbscript.Value, block_idx: number, avoid_tmp_node?: 0|1|2) {
+        if (node instanceof qbscript.Reference) {
+            const out = this.prepare_ptr(ast, node, block_idx, avoid_tmp_node);
+            return {
+                preset: out.preset,
+                bytecode: [QuimblosCompiler.TYPE.ptr, ...out.bytecode],
+                tmp_node: out.tmp_node,
+            }
+        }
+        else if (node instanceof qbscript.Literal) {
+            return {
+                preset: [] as Bytecode,
+                bytecode: this.literal(node),
+                tmp_node: undefined as 0|1|2|undefined
+            }
+        }
+        else if (node instanceof qbscript.Expression) {
+            return {
+                preset: [],
+                bytecode: this.expression(node),
+                tmp_node: undefined
+            }
+        }
+    }
+
+    public static literal(node: qbscript.Literal) {
+        switch (node.literal_type) {
             case "Boolean":
                 return this.bool(node.value, true)
             case "Hexcode":
@@ -240,7 +283,7 @@ export class QuimblosCompiler {
         }
     }
 
-    private static type(node: qbscript.TypeIdentifier, string: string = '', error = 0) {
+    public static type(node: qbscript.TypeIdentifier, string: string = '', error = 0) {
         // Array
         if (node.arr_length) {
             return [
@@ -272,47 +315,49 @@ export class QuimblosCompiler {
 
     // Pointers
 
-    private static prepare_ptr (ast: AST, ref: qbscript.Reference, block_tmp_node?: 0|1|2) {
+    private static prepare_ptr (ast: AST, ref: qbscript.Reference, block_idx?: number, avoid_tmp_node?: 0|1|2) {
 
         const chain: qbscript.Reference[] = [ref];
         let index: number|undefined = undefined;
         const parse_chain = (ref: qbscript.Reference) => {
-            if (ref.index instanceof qbscript.Reference) {
-                chain.push(ref.index);
-                parse_chain(ref.index);
+            const val = ref.index?.terms[0].value;
+            if (val instanceof qbscript.Reference) {
+                chain.push(val);
+                parse_chain(val);
             }
-            else index = ref.index;
+            else if (val instanceof qbscript.Literal) {
+                index = val.value;
+            }
         }
         parse_chain(ref);
 
         if (chain.length === 1) {
             return {
                 preset: [] as number[],
-                bytecode: this.ptr(ast, chain[0]),
-                tmp_node: undefined
+                bytecode: this.ptr(ast, chain[0], block_idx),
+                tmp_node: undefined as 0|1|2|undefined
             }
         }
         
         let tmp_nodes = [0,1,2]
-            .filter(v => v !== block_tmp_node)
-            .map(v => this[`SCRIPT_PTR_NODE${v as 0|1|2}`]);
+            .filter(v => v !== avoid_tmp_node);
 
         let preset = [];
         // ...[a[b[c[d]]]]
         if (index) {
             preset.push(
                 // Assign c to 0x00
-                this.OP_CODE.SET, this.OP_BIND.NODE_NODE, ...tmp_nodes[0], this.TYPE.ptr, ...this.ptr(ast, chain.at(-1)),
+                this.OP_CODE.SET, this.OP_BIND.NODE_NODE, { $: '__tmp_node_'+tmp_nodes[0] }, this.TYPE.ptr, ...this.ptr(ast, chain.at(-1)),
                 // Assign d to index of 0x00
-                this.OP_CODE.SET, this.OP_BIND.NODE_REF, ...tmp_nodes[0], ...this.u16(index, true),
+                this.OP_CODE.SET, this.OP_BIND.NODE_REF, { $: '__tmp_node_'+tmp_nodes[0] }, ...this.u16(index, true),
             )
         }
         else {
             preset.push(
                 // Assign c to 0x00
-                this.OP_CODE.SET, this.OP_BIND.NODE_NODE, ...tmp_nodes[0], this.TYPE.ptr, ...this.ptr(ast, chain.at(-2)),
+                this.OP_CODE.SET, this.OP_BIND.NODE_NODE, { $: '__tmp_node_'+tmp_nodes[0] }, this.TYPE.ptr, ...this.ptr(ast, chain.at(-2)),
                 // Assign d to index of 0x00
-                this.OP_CODE.SET, this.OP_BIND.NODE_REF, ...tmp_nodes[0], this.TYPE.ptr, ...this.ptr(ast, chain.at(-1)),
+                this.OP_CODE.SET, this.OP_BIND.NODE_REF, { $: '__tmp_node_'+tmp_nodes[0] }, this.TYPE.ptr, ...this.ptr(ast, chain.at(-1)),
             )
         }
         let t = 1;
@@ -320,25 +365,25 @@ export class QuimblosCompiler {
             let last_t = t ? 0 : 1;
             preset.push(
                 // Assign b to tmp
-                this.OP_CODE.SET, this.OP_BIND.NODE_NODE, ...tmp_nodes[t], this.TYPE.ptr, ...this.ptr(ast, chain[j]),
+                this.OP_CODE.SET, this.OP_BIND.NODE_NODE, { $: '__tmp_node_'+tmp_nodes[t] }, this.TYPE.ptr, ...this.ptr(ast, chain[j]),
                 // Assign last tmp to index of 0x00
-                this.OP_CODE.SET, this.OP_BIND.NODE_REF, ...tmp_nodes[t], this.TYPE.ptr, ...tmp_nodes[last_t],
+                this.OP_CODE.SET, this.OP_BIND.NODE_REF, { $: '__tmp_node_'+tmp_nodes[t] }, this.TYPE.ptr, tmp_nodes[last_t],
             )
             t = last_t;
         }
 
         return {
             preset,
-            bytecode: tmp_nodes[t],
-            tmp_node: tmp_nodes[t][1] as 0|1|2
+            bytecode: [tmp_nodes[t]],
+            tmp_node: tmp_nodes[t] as 0|1|2
         }
     }
 
-    private static ptr (ast: AST, ref: qbscript.Reference) {
+    private static ptr (ast: AST, ref: qbscript.Reference, block_idx = 0) {
         return [
             this.device(ref.device),
-            this.port(ast, ref.device, ref.node),
-            ...this.u16(ref.index instanceof qbscript.Reference ? 0 : ref.index)
+            this.port(ast, ref.device, ref.node, block_idx),
+            ...this.u16(0)
         ]
     }
 
@@ -352,7 +397,8 @@ export class QuimblosCompiler {
         return idx;
     }
 
-    private static port (ast: AST, device_name: string|undefined, node_name: string) {
+    private static port (ast: AST, device_name: string|undefined, node_name: string, block_idx: number) {
+        // Device Port
         if (device_name) {
             const device = qb.get_device(device_name);
             if (!device) throw new Error(`Device ${device_name} not found`);
@@ -360,22 +406,38 @@ export class QuimblosCompiler {
             if (idx < 0) throw new Error(`Device ${device_name} doesn't have a node named ${node_name}`);
             return idx;
         }
-        const idx = (ast.root as qbscript.Script).declarations.findIndex(d => 
-            d instanceof qbscript.VariableDeclaration
-            && d.identifier.name === node_name
-        )
-        if (idx < 0) throw new Error(`Script doesn't have a node named ${node_name}`);
-            return idx;
+        // Script Port
+        return { $: node_name+(block_idx??'') };
+        // const idx = (ast.root as qbscript.Script).statements.findIndex(d => 
+        //     d instanceof qbscript.VariableStatement
+        //     && d.identifier.name === node_name
+        // )
+        // if (idx < 0) throw new Error(`Script doesn't have a node named ${node_name}`);
+        //     return idx;
     }
 
     // Data
 
-    private static bool (val: boolean, type?: boolean) {
+    public static bool (val: boolean, type?: boolean) {
         if (type) return [this.TYPE.bool, val ? 0x01 : 0x00];
         return [val ? 0x01 : 0x00];
     }
 
-    private static u16 (val: number, type?: boolean) {
+    public static u8 (val: number, type?: boolean) {
+        if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u8`);
+        if (val > 2**8) throw new Error(`Number ${val} is too large, cannot be compiled to u8`);
+        if (type) return [this.TYPE.u8, val];
+        return [val];
+    }
+
+    public static i8 (val: number, type?: boolean) {
+        if (type) return [this.TYPE.i8, val];
+        return [val];
+    }
+
+    public static u16 (val: number, type?: boolean) {
+        if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u16`);
+        if (val > 2**16) throw new Error(`Number ${val} is too large, cannot be compiled to u16`);
         const arr = new ArrayBuffer(2);
         const view = new DataView(arr);
         view.setUint16(0, val, false);
@@ -384,7 +446,17 @@ export class QuimblosCompiler {
         return [...blob];
     }
 
-    private static u32 (val: number, type?: boolean) {
+    public static i16 (val: number, type?: boolean) {
+        const arr = new ArrayBuffer(2);
+        const view = new DataView(arr);
+        view.setUint16(0, val, false);
+        const blob = new Uint8Array(arr);
+        if (type) return [this.TYPE.i16, ...blob];
+        return [...blob];
+    }
+
+    public static u32 (val: number, type?: boolean) {
+        if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u32`);
         const arr = new ArrayBuffer(4);
         const view = new DataView(arr);
         view.setUint32(0, val, false);
@@ -393,7 +465,7 @@ export class QuimblosCompiler {
         return [...blob];
     }
 
-    private static i32 (val: number, type?: boolean) {
+    public static i32 (val: number, type?: boolean) {
         const arr = new ArrayBuffer(4);
         const view = new DataView(arr);
         view.setInt32(0, val, false);
@@ -402,7 +474,7 @@ export class QuimblosCompiler {
         return [...blob];
     }
 
-    private static f32 (val: number, type?: boolean) {
+    public static f32 (val: number, type?: boolean) {
         const arr = new ArrayBuffer(4);
         const view = new DataView(arr);
         view.setFloat32(0, val, false);
@@ -411,7 +483,12 @@ export class QuimblosCompiler {
         return [...blob];
     }
 
-    private static str (val: string, type?: boolean) {
+    public static err (val: string, type?: boolean) {
+        if (type) return [this.TYPE.err, ...this.u16(val.length), ...val.split('')];
+        return val.split('');
+    }
+
+    public static str (val: string, type?: boolean) {
         if (type) return [this.TYPE.str, ...this.u16(val.length), ...val.split('')];
         return val.split('');
     }

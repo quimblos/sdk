@@ -1,12 +1,22 @@
 import { CSTNode } from "./cst";
 import { make_syntax_parser } from "./ebnf";
 import { Linter } from "./linter";
+import { Transformer } from "./transformer";
 import { Semantics, SemanticsProp } from "./semantics";
 import { Style } from "./style";
 
 export class ASTNode {
     public cst: CSTNode
     public children?: () => ASTNode[]
+
+    public describe(d = 0) {
+        let str = '';
+        str += `${' '.repeat(d*2)}${this.constructor.name} "${this.cst?.text.trim() ?? ''}"\n`;
+        for (const child of this.children?.() ?? []) {
+            str += child?.describe(d+1) ?? '';
+        }
+        return str;
+    }
 }
 
 export class AST {
@@ -29,6 +39,7 @@ export class AST {
             semantics: Semantics,
             style?: Style,
             linter?: Linter
+            transformer?: Transformer
         }
     ) {
         this.syntax_parser = make_syntax_parser(this.grammar.syntax);
@@ -41,13 +52,10 @@ export class AST {
         this.root = this.build_node(cst, this.grammar.semantics);
         this.errors = [];
 
-        this.lint();
+        this.grammar.linter?.lint(this);
+        this.grammar.transformer?.transform(this);
         
         return this.root;
-    }
-
-    public lint() {
-        this.grammar.linter?.lint(this);
     }
 
     public traverse(fn: (node: ASTNode) => boolean|void, dir: 'down'|'up' = 'down') {

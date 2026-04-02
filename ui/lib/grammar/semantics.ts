@@ -3,16 +3,21 @@ import { SemanticsBuilder } from "../lang-maker/semantics";
 
 export namespace qbscript {
     export type Type = NonNullable<qbscript.TypeIdentifier['name']>
-    export type ValueType = qbscript.Value['value_type']
+    export type LiteralType = qbscript.Literal['literal_type']
+    export type Value = Expression | Literal | Reference
 
     export class Script extends ASTNode {
-        comments: Comment[]
         macros: Macro[]
-        declarations: Declaration[]
         statements: Statement[]
-        children = () => [...this.comments, ...this.macros, ...this.declarations, ...this.statements]
+        blocks: Block[]
+        children = () => [...this.macros, ...this.statements, ...this.blocks]
     }
-    export class Comment extends ASTNode {}
+
+    export class Block extends ASTNode {
+        depth: number = 0
+        statements: Statement[] = []
+        children = () => [...this.statements]
+    }
 
     // Macros
     export type Macro = UseDeviceMacro;
@@ -20,18 +25,15 @@ export namespace qbscript {
         device: string
     }
 
-    // Declarations
-    export type Declaration = VariableDeclaration | PointerDeclaration
-
-    export class VariableDeclaration extends ASTNode {
+    export class VariableStatement extends ASTNode {
         identifier: Identifier
-        value: Value | Reference
+        value: Expression
         children = () => [this.identifier, this.value]
     }
-    export class PointerDeclaration extends ASTNode {
+    export class PointerStatement extends ASTNode {
         identifier: Identifier
         ref: Reference
-        value?: Value | Reference
+        value?: Expression
         children = () => [this.identifier, this.ref, this.value]
     }
 
@@ -39,21 +41,27 @@ export namespace qbscript {
     export type Statement = HoldStatement | ReleaseStatement | LogStatement | SleepStatement | ReturnStatement | ResetStatement | RebootStatement
     export class AssignStatement extends ASTNode {
         target: Reference
-        source: Value | Reference
+        source: Expression
         children = () => [this.target, this.source]
     }
     export class IfStatement extends ASTNode {
-        expression: BoolExpression
-        children = () => [this.expression]
+        expression: Expression
+        block: Block
+        children = () => [this.expression, this.block]
     }
-    export class ElseStatement extends ASTNode {}
+    export class ElseStatement extends ASTNode {
+        block: Block
+        children = () => [this.block]
+    }
     export class ElseIfStatement extends ASTNode {
         statement: IfStatement
-        children = () => [this.statement]
+        block: Block
+        children = () => [this.statement, this.block]
     }
     export class WhileStatement extends ASTNode {
-        expression: BoolExpression
-        children = () => [this.expression]
+        expression: Expression
+        block: Block
+        children = () => [this.expression, this.block]
     }
     export class HoldStatement extends ASTNode {
         device: string
@@ -62,43 +70,29 @@ export namespace qbscript {
         device: string
     }
     export class LogStatement extends ASTNode {
-        value: Value | Reference
+        value: Expression
         children = () => [this.value]
     }
     export class SleepStatement extends ASTNode {
         time: number
     }
     export class ReturnStatement extends ASTNode {
-        value: Value | Reference
+        value: Expression
         children = () => [this.value]
     }
     export class ResetStatement extends ASTNode {}
     export class RebootStatement extends ASTNode {}
 
     // Expressions
-    export class BoolExpression extends ASTNode {
-        terms: BoolExpressionTerm[]
-        mods: ('and'|'or')[]
+    export type BoolOp = 'and'|'or'|'=='|'!='|'>'|'<'|'>='|'<='
+    export type MathOp = '+'|'-'|'*'|'/'|'%'|'^'
+    export class Expression extends ASTNode {
+        terms: ExpressionTerm[]
+        ops: (BoolOp | MathOp)[]
         children = () => [...this.terms]
     }
-    export class BoolExpressionTerm extends ASTNode {
-        value: BoolOperation | BoolExpression
-        children = () => [this.value]
-    }
-    export class BoolOperation extends ASTNode {
-        left: Value | Reference
-        op: '==' | '!=' | '>' | '<' | '>=' | '<='
-        right: Value | Reference
-        children = () => [this.left, this.right]
-    }
-
-    export class MathExpression extends ASTNode {
-        terms: MathExpressionTerm[]
-        ops: ('+'|'-'|'*'|'/'|'%'|'^')[]
-        children = () => [...this.terms]
-    }
-    export class MathExpressionTerm extends ASTNode {
-        value: Value | MathExpression
+    export class ExpressionTerm extends ASTNode {
+        value: Value
         children = () => [this.value]
     }
 
@@ -106,7 +100,7 @@ export namespace qbscript {
     export class Reference extends ASTNode {
         device?: string
         node: string
-        index?: number | Reference
+        index?: Expression
         ref!: Identifier
     }
     
@@ -129,8 +123,8 @@ export namespace qbscript {
         index?: number | string
     }
 
-    export class Value extends ASTNode {
-        value_type: 'Boolean'|'Hexcode'|'Bitmask'|'Float'|'UnsignedInteger'|'Integer'|'String'
+    export class Literal extends ASTNode {
+        literal_type: 'Boolean'|'Hexcode'|'Bitmask'|'Float'|'UnsignedInteger'|'Integer'|'String'
         value: any
     }
 }
@@ -138,14 +132,10 @@ export namespace qbscript {
 export const quimblos_semantics = new SemanticsBuilder()
     .node('grammar',
         qbscript.Script, $ => ({
-            comments: $.all('comment').optional,
             macros: $.all('macro').optional,
-            declarations: $.all('declaration').optional,
             statements: $.all('statement').optional,
+            blocks: $.value([] as any)
         })
-    )
-    .node('comment',
-        qbscript.Comment, $ => ({})
     )
 
     // Macros
@@ -156,46 +146,49 @@ export const quimblos_semantics = new SemanticsBuilder()
         })
     )
 
-    // Declarations
+    // Statements
     
-    .node('var_declaration',
-        qbscript.VariableDeclaration, $ => ({
+    .node('statement_var',
+        qbscript.VariableStatement, $ => ({
             identifier: $.first('typed_identifier'),
-            value: $.first('value').optional
+            value: $.first('expression').optional
         })
     )
-    .node('ptr_declaration',
-        qbscript.PointerDeclaration, $ => ({
+    .node('statement_ptr',
+        qbscript.PointerStatement, $ => ({
             identifier: $.nth('identifier', 0),
             ref: $.first('ref_no_idx'),
-            value: $.first('integer').optional
+            value: $.first('expression').optional
         })
     )
-
-    // Statements
 
     .node('statement_assign',
         qbscript.AssignStatement, $ => ({
-            target: $.first('ref'),
-            source: $.first('expression_math'),
+            target: $.first('reference'),
+            source: $.first('expression'),
         })
     )
     .node('statement_if',
         qbscript.IfStatement, $ => ({
-            expression: $.first('expression_bool')
+            expression: $.first('expression_bool'),
+            block: $.empty()
         })
     )
     .node('statement_else',
-        qbscript.ElseStatement, $ => ({})
+        qbscript.ElseStatement, $ => ({
+            block: $.empty()
+        })
     )
     .node('statement_else_if',
         qbscript.ElseIfStatement, $ => ({
-            statement: $.first('statement_if')
+            statement: $.first('statement_if'),
+            block: $.empty()
         })
     )
     .node('statement_while',
         qbscript.WhileStatement, $ => ({
-            expression: $.first('expression_bool')
+            expression: $.first('expression_bool'),
+            block: $.empty()
         })
     )
     .node('statement_hold',
@@ -210,7 +203,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     )
     .node('statement_log',
         qbscript.LogStatement, $ => ({
-            value: $.first('value'),
+            value: $.first('expression'),
         })
     )
     .node('statement_sleep',
@@ -220,7 +213,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     )
     .node('statement_return',
         qbscript.ReturnStatement, $ => ({
-            value: $.first('value').optional,
+            value: $.first('expression').optional,
         })
     )
     .node('statement_reset',
@@ -232,38 +225,16 @@ export const quimblos_semantics = new SemanticsBuilder()
 
     // Expressions
 
-    .node('expression_bool',
-        qbscript.BoolExpression, $ => ({
-            terms: $.all('bool_term'),
-            mods: $.all_text('bool_mod').optional
-        })
-    )
-    .node('bool_term',
-        qbscript.BoolExpressionTerm, $ => ({
-            value: $.any([
-                $.first('expression_bool'),
-                $.first('bool_operation')
-            ])
-        })
-    )
-    .node('bool_operation',
-        qbscript.BoolOperation, $ => ({
-            left: $.nth('value', 0),
-            right: $.nth('value', 1),
-            op: $.first_text('op_compare')
-        })
-    )
-
-    .node('expression_math',
-        qbscript.MathExpression, $ => ({
-            terms: $.all('math_term'),
+    .node('expression',
+        qbscript.Expression, $ => ({
+            terms: $.all('term'),
             ops: $.all_text('op').optional
         })
     )
-    .node('math_term',
-        qbscript.MathExpressionTerm, $ => ({
+    .node('term',
+        qbscript.ExpressionTerm, $ => ({
             value: $.any([
-                $.first('expression_math'),
+                $.first('expression'),
                 $.first('value')
             ])
         })
@@ -283,10 +254,7 @@ export const quimblos_semantics = new SemanticsBuilder()
         qbscript.Reference, $ => ({
             device: $.empty(),
             node: $.first_text('identifier'),
-            index: $.any([
-                $.first_text('integer', v => parseInt(v)),
-                $.first('ref')
-            ]).optional,
+            index: $.first('expression'),
             ref: $.empty()
         })
     )
@@ -302,10 +270,7 @@ export const quimblos_semantics = new SemanticsBuilder()
         qbscript.Reference, $ => ({
             device: $.first_text('identifier_device'),
             node: $.first_text('identifier'),
-            index: $.any([
-                $.first_text('integer', v => parseInt(v)),
-                $.first('ref')
-            ]).optional,
+            index: $.first('expression'),
             ref: $.empty()
         })
     )
@@ -331,44 +296,44 @@ export const quimblos_semantics = new SemanticsBuilder()
     // Values
 
     .node('boolean',
-        qbscript.Value, $ => ({
-            value_type: $.value('Boolean'),
+        qbscript.Literal, $ => ({
+            literal_type: $.value('Boolean'),
             value: $.text(v => v === 'true')
         })
     )
     .node('hexcode',
-        qbscript.Value, $ => ({
-            value_type: $.value('Hexcode'),
+        qbscript.Literal, $ => ({
+            literal_type: $.value('Hexcode'),
             value: $.text()
         })
     )
     .node('bitmask',
-        qbscript.Value, $ => ({
-            value_type: $.value('Bitmask'),
+        qbscript.Literal, $ => ({
+            literal_type: $.value('Bitmask'),
             value: $.text()
         })
     )
     .node('float',
-        qbscript.Value, $ => ({
-            value_type: $.value('Float'),
+        qbscript.Literal, $ => ({
+            literal_type: $.value('Float'),
             value: $.text(v => parseFloat(v))
         })
     )
     .node('integer',
-        qbscript.Value, $ => ({
-            value_type: $.value('Integer'),
+        qbscript.Literal, $ => ({
+            literal_type: $.value('Integer'),
             value: $.text(v => parseInt(v))
         })
     )
     .node('unsigned_integer',
-        qbscript.Value, $ => ({
-            value_type: $.value('UnsignedInteger'),
+        qbscript.Literal, $ => ({
+            literal_type: $.value('UnsignedInteger'),
             value: $.text(v => parseInt(v))
         })
     )
     .node('string',
-        qbscript.Value, $ => ({
-            value_type: $.value('String'),
+        qbscript.Literal, $ => ({
+            literal_type: $.value('String'),
             value: $.text(v => v.slice(1,-1))
         })
     )

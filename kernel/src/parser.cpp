@@ -226,7 +226,7 @@ parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
                     ));
 
                     #ifdef QB_PARSER_DEBUG
-                        std::cout << source.value->to_str();
+                        std::cout << +target.device << "#" << +target.port << "[" << target.index << "] = " << source.value->to_str();
                     #endif
                 }
                 break;

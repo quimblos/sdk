@@ -51,7 +51,7 @@ class SemanticsPropFactory {
     public any(options: SemanticsProp[]): SemanticsProp & { optional: SemanticsProp} {
         return { _options: options, required: true, optional: { _options: options } }
     }
-    public merge(merge: SemanticsProp[]): SemanticsProp & { optional: SemanticsProp} {
+    public merge(...merge: SemanticsProp[]): SemanticsProp & { optional: SemanticsProp} {
         return { _merge: merge, required: true, optional: { _options: merge } }
     }
 
@@ -63,7 +63,7 @@ class SemanticsPropFactory {
 type SemanticsPropDef<
     T extends CustomASTNode
 > = (factory: SemanticsPropFactory) => {
-    [K in Exclude<keyof InstanceType<T>, 'cst'|'kind'|'children'|'errors'>]: SemanticsProp
+    [K in Exclude<keyof InstanceType<T>, 'cst'|'kind'|'children'|'errors'|'describe'>]: SemanticsProp
 }
 
 export class SemanticsBuilder {
