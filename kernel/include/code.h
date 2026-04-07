@@ -42,7 +42,7 @@ namespace qb {
         IF_LT = 0x25,         // TARGET <any> CODE[2] CODE_[2]
         IF_GT = 0x23,         // TARGET <any> CODE[2] CODE_[2]
         // 0x3* -> Arithmetic commands 
-        ADD = 0x30,           // TARGET <any>
+        ADD = 0x30,           // TARwGET <any>
         SUB = 0x31,           // TARGET <any>
         MULT = 0x32,          // TARGET <any>
         DIV = 0x33,           // TARGET <any>

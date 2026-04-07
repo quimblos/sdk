@@ -7,7 +7,7 @@
   "scripts": {
     "build": "tsc --p tsconfig.build.json",
     "bundle": "tsx bundle.ts",
-    "test": "jest --verbose --watch"
+    "test": "jest --verbose --watch --runInBand"
   },
   "dependencies": {
     "@quimblos/langmaker": "file:../langmaker"

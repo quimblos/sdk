@@ -79,8 +79,8 @@ private format() {
   console.log(compiled.hex);
   
   // Debug
-  for (const x of compiled.ast.root.macros) console.log(x);
-  for (const x of compiled.ast.root.blocks) console.log(x.describe());
+  //for (const x of compiled.ast.root.macros) console.log(x);
+  //for (const x of compiled.ast.root.blocks) console.log(x.describe());
 
   // Update error list
   if (compiled.ast.errors.length) {

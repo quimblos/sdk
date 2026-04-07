@@ -1,147 +1,179 @@
-import { Bytecode, CompilerNodes, QuimblosCompiler } from "./compiler";
+import { Instruction, NodeSpec, Ref, Type, Value } from "./compiler";
+import { qasm } from "./bind";
 import { quimblos } from "./lang/semantics";
+
+export type Bytecode = number[]
 
 export class QuimblosLinker {
 
-    public static link(nodes: CompilerNodes, header: Bytecode, bytecode: Bytecode) {
-
-        const intermediate: Bytecode = [...header];
-
-        let port = 0;
-        for (const n in nodes) {
-            nodes[n]!.port = port;
-            port++;
-            intermediate.push(
-                ...this.link_node(nodes[n]!)
-            )
-        }
-        
-        for (const byte of bytecode) {
-            if (typeof byte !== 'object') continue;
-            if (!('port' in byte)) continue;
-            if (!byte.port.startsWith('__tmp')) continue;
-            if (byte.port in nodes) continue;
-
-            nodes[byte.port] = {
-                statement: undefined as any,
-                port
-            }
-            intermediate.push(
-                { op: 'USE_NODE' },
-                { type: 'ptr_short' },
-                0x00,
-                0x00
-            )
-            port++;
-        }
-
-        intermediate.push(...bytecode);
-
-        this.preview(intermediate);
-
-        const final = this.replace_symbols(nodes, intermediate)
-        return this.to_hex(final)
+    private constructor(
+        private nodes: Record<string, NodeSpec>,
+        private code: Instruction[]
+    ) {
+        console.log(nodes);
     }
 
-    private static link_node(node: CompilerNodes[string]): Bytecode {
-        if (node.statement instanceof quimblos.VariableStatement) {
-            let value: Bytecode;
-            
-            if (node.statement.value instanceof quimblos.Literal) {
-                const literal = QuimblosCompiler.literal(node.statement.value);
-                value = [{ type: literal.type }, ...literal.bytecode];
-            }
-            else {
-                switch (node.statement.identifier.type.name) {
-                    case "err": value = QuimblosCompiler.err('', true); break;
-                    case "bool": value = QuimblosCompiler.bool(false, true); break;
-                    case "u8": value = QuimblosCompiler.u8(0, true); break;
-                    case "i8": value = QuimblosCompiler.i8(0, true); break;
-                    case "u16": value = QuimblosCompiler.u16(0, true); break;
-                    case "i16": value = QuimblosCompiler.i16(0, true); break;
-                    case "u32": value = QuimblosCompiler.u32(0, true); break;
-                    case "i32": value = QuimblosCompiler.i32(0, true); break;
-                    case "f32": value = QuimblosCompiler.f32(0, true); break;
-                    case "str": value = QuimblosCompiler.str('', true); break;
-                }
-            }
-
-            const bytecode: Bytecode = [
-                { op: 'USE_NODE' },
-                ...value,
-
-            ]
-            return bytecode
-        }
-        return []
+    public static link(nodes: Record<string, NodeSpec>, code: Instruction[]) {
+        const linker = new QuimblosLinker(nodes, code);
+        return linker.link();
     }
 
-    private static preview(intermediate: Bytecode) {
-        const preview: Bytecode[] = [[]]
-        for (const byte of intermediate) {
-            if (typeof byte === 'object' && 'op' in byte) {
-                preview.push([]);
-            }
-            if (typeof byte === 'object') {
-                if ('op' in byte) preview.at(-1)!.push(byte.op);
-                else if ('bind' in byte) preview.at(-1)!.push(byte.bind);
-                else if ('type' in byte) preview.at(-1)!.push(byte.type);
-                else if ('port' in byte) preview.at(-1)!.push(byte.port);
-                else if ('device' in byte) preview.at(-1)!.push(byte.device);
-            }
-            else {
-                preview.at(-1)!.push(byte);
-            }
-        }
-        for (const line of preview) {
-            console.log(line.join(' '));
-        }
+    public static to_hex(code: Bytecode) {
+        return code.map(v => v.toString(16).padStart(2,'0')).join('');
     }
 
-    private static to_hex(final: (number|string)[]) {
-        return final.map(v =>
-            typeof v === 'string'
-            ? v.charCodeAt(0).toString(16).padStart(2,'0')
-            : v.toString(16).padStart(2,'0')
-        ).join('');
-    }
+    public link(): Bytecode {
+        const bytecode: Bytecode = ['q'.charCodeAt(0),'b'.charCodeAt(0),0,0];
 
-    private static replace_symbols(nodes: CompilerNodes, intermediate: Bytecode) {
-        const bytecode: (number|string)[] = []
-        for (const byte of intermediate) {
-            if (typeof byte !== 'object') {
-                bytecode.push(byte);
-                continue;
-            }
+        for (const instr of this.code) {
+            console.log(instr);
+            switch (instr.op) {
+                case "USE_DEVICE":
+                    bytecode.push(qasm.OpCode.USE_DEVICE, ...this.str(instr.name));
+                    break;
+                case "USE_NODE":
+                    bytecode.push(qasm.OpCode.USE_NODE, ...this.value(instr.type, true));
+                    break;
+                case "SET":
 
-            if ('op' in byte) {
-                bytecode.push(QuimblosCompiler.OP_CODE[byte.op])
-            }
-            else if ('bind' in byte) {
-                bytecode.push(QuimblosCompiler.OP_BIND[byte.bind])
-            }
-            else if ('type' in byte) {
-                bytecode.push(QuimblosCompiler.TYPE[byte.type])
-            }
-            else if ('port' in byte) {
-                if (byte.device === '__script__') {
-                    // TODO: get nearest node
-                    const node = byte.port.startsWith('__tmp')
-                        ? nodes[byte.port]!
-                        : nodes[byte.port+byte.block]!;
-                    bytecode.push(node.port!)
-                }
-                else
-                    // TODO
-                    bytecode.push(0x00)
-            }
-            else if ('device' in byte) {
-                if (byte.device === '__script__') bytecode.push(0xFF);
-                // TODO
-                else bytecode.push(0x00);
+                    break;
+                case "SLEEP":
+                    bytecode.push(qasm.OpCode.SLEEP, ...this.u32(instr.time));
+                    break;
+                case "LOG":
+                    bytecode.push(qasm.OpCode.LOG, this.device(instr.device), ...this.value(instr.type, instr.value, true));
+                    break;
             }
         }
         return bytecode
     }
+
+
+    private type(type: Type): Bytecode {
+        if (type.name === 'arr') {
+            return [qasm.Type.arr, ...this.u16(type.length)]
+        }
+        else return [qasm.Type[type.name]]
+    }
+
+    private device(name: string): number {
+        if (name === '_$_') return 0xFF;
+        throw new Error(`Non-script device not implemented yet`);
+    }
+
+    private value(type: Type, value: Value|Ref, include_type?: boolean): Bytecode {
+        if (type.name === 'arr') {
+            throw new Error(`Value of array not implemented yet`)
+        }
+        else switch (type.name) {
+            case "err": return this.err(value as string, include_type);
+            case "ptr": throw new Error('Value of pointer not implemented yet')
+            case "ptr_short": throw new Error('Value of pointer not implemented yet')
+            case "bool": return this.bool(value as boolean, include_type);
+            case "u8": return this.u8(value as number, include_type);
+            case "i8": return this.i8(value as number, include_type);
+            case "u16": return this.u16(value as number, include_type);
+            case "i16": return this.i16(value as number, include_type);
+            case "u32": return this.u32(value as number, include_type);
+            case "i32": return this.i32(value as number, include_type);
+            case "f32": return this.f32(value as number, include_type);
+            case "str": return this.str(value as string, include_type);
+            case "str_short": return this.str(value as string, include_type);
+        }
+        return []
+    }
+
+
+    private bool (val: boolean, type?: boolean): Bytecode {
+        return [
+            ...(type ? [qasm.Type.bool] : []),
+            val ? 0x01 : 0x00
+        ];
+    }
+
+    private u8 (val: number, type?: boolean): Bytecode {
+        if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u8`);
+        if (val > 2**8) throw new Error(`Number ${val} is too large, cannot be compiled to u8`);
+        if (type) return [qasm.Type.u8, val];
+        return [val];
+    }
+
+    private i8 (val: number, type?: boolean): Bytecode {
+        if (type) return [qasm.Type.i8, val];
+        return [val];
+    }
+
+    private u16 (val: number, type?: boolean): Bytecode {
+        if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u16`);
+        if (val > 2**16) throw new Error(`Number ${val} is too large, cannot be compiled to u16`);
+        const arr = new ArrayBuffer(2);
+        const view = new DataView(arr);
+        view.setUint16(0, val, false);
+        const blob = new Uint8Array(arr);
+        if (type) return [qasm.Type.u16, ...blob];
+        return [...blob];
+    }
+
+    private i16 (val: number, type?: boolean): Bytecode {
+        const arr = new ArrayBuffer(2);
+        const view = new DataView(arr);
+        view.setUint16(0, val, false);
+        const blob = new Uint8Array(arr);
+        if (type) return [qasm.Type.i16, ...blob];
+        return [...blob];
+    }
+
+    private u32 (val: number, type?: boolean): Bytecode {
+        if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u32`);
+        const arr = new ArrayBuffer(4);
+        const view = new DataView(arr);
+        view.setUint32(0, val, false);
+        const blob = new Uint8Array(arr);
+        if (type) return [qasm.Type.u32, ...blob];
+        return [...blob];
+    }
+
+    private i32 (val: number, type?: boolean): Bytecode {
+        const arr = new ArrayBuffer(4);
+        const view = new DataView(arr);
+        view.setInt32(0, val, false);
+        const blob = new Uint8Array(arr);
+        if (type) return [qasm.Type.i32, ...blob];
+        return [...blob];
+    }
+
+    private f32 (val: number, type?: boolean): Bytecode {
+        const arr = new ArrayBuffer(4);
+        const view = new DataView(arr);
+        view.setFloat32(0, val, false);
+        const blob = new Uint8Array(arr);
+        if (type) return [qasm.Type.f32, ...blob];
+        return [...blob];
+    }
+
+    private err (val: string, type?: boolean): Bytecode {
+        const valbytes = val.split('').map(v => v.charCodeAt(0));
+        return [
+            ...(type ? [qasm.Type.err] : []),
+            ...valbytes
+        ];
+    }
+
+    private str (val: string, type?: boolean): Bytecode {
+        const valbytes = val.split('').map(v => v.charCodeAt(0));
+        return [
+            ...(type ? [qasm.Type.str] : []),
+            ...valbytes
+        ];
+    }
+
+    private arr (item_type: quimblos.Type, length: number, type?: boolean): Bytecode {
+        return [
+            ...(type ? [qasm.Type.arr] : []),
+            qasm.Type[item_type],
+            ...this.u16(length)
+        ];
+    }
+
 
 }

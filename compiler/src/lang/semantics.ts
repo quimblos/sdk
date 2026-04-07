@@ -26,7 +26,7 @@ export namespace quimblos {
 
     export class VariableStatement extends ASTNode {
         identifier!: Identifier
-        value!: Expression
+        value?: Expression
         children = () => [this.identifier, this.value]
     }
     export class PointerStatement extends ASTNode {
@@ -170,7 +170,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     )
     .node('statement_if',
         quimblos.IfStatement, $ => ({
-            expression: $.first('expression_bool'),
+            expression: $.first('expression'),
             block: $.empty()
         })
     )
@@ -187,7 +187,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     )
     .node('statement_while',
         quimblos.WhileStatement, $ => ({
-            expression: $.first('expression_bool'),
+            expression: $.first('expression'),
             block: $.empty()
         })
     )

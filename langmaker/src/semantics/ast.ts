@@ -139,7 +139,8 @@ export class AST {
         arg: Extract<SemanticsProp,{cst: string}>
     ) {
         const c = this.query_cst(cst, arg.cst);
-        
+    
+
         // root #text
         if (!c.kind) {
             if (!c.get_text || c.mod)

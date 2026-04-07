@@ -19,7 +19,7 @@ comment ::= '//' [#x20-#xD7FF]* eol
 */
 
 macro ::= macro_use
-macro_use ::= '@use' ws identifier_device eol
+macro_use ::= '#use' ws identifier_device eol
 
 statement ::= statement_var | statement_ptr | statement_function | statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
 
@@ -41,10 +41,10 @@ statement_assign ::= reference ws? ( op_math? op_assign ws? expression eol )
 statement_hold ::= kw_hold ws identifier_device eol
 statement_release ::= kw_release ws identifier_device eol
 
-statement_if ::= kw_if ws expression_bool ws? (':' eol)
+statement_if ::= kw_if ws expression ws? (':' eol)
 statement_else_if ::= kw_else ws statement_if
 statement_else ::= kw_else ws? ':' eol
-statement_while ::= kw_while ws expression_bool ws? (':' eol)
+statement_while ::= kw_while ws expression ws? (':' eol)
 
 statement_log ::= kw_log ws expression eol
 statement_sleep ::= kw_sleep ws unsigned_integer eol

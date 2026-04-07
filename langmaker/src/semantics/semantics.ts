@@ -34,10 +34,10 @@ class SemanticsPropFactory {
         return { cst: kind+':'+index };
     }
     public first_text(kind: string, transform?: SemanticsTransform): SemanticsProp  & { optional: SemanticsProp }{
-        return { cst: kind+'#text', transform, optional: { cst: kind+'#text?'} as any  };
+        return { cst: kind+'#text', transform, optional: { cst: kind+'#text?', transform } as any  };
     }
     public all_text(kind: string, transform?: SemanticsTransform): SemanticsProp  & { optional: SemanticsProp }{
-        return { cst: kind+'#text+', transform, optional: { cst: kind+'#text*'} as any  };
+        return { cst: kind+'#text+', transform, optional: { cst: kind+'#text*', transform } as any  };
     }
     public nth_text(kind: string, index: number, transform?: SemanticsTransform): SemanticsProp {
         return { cst: kind+'#text:'+index, transform };
