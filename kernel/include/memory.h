@@ -22,10 +22,6 @@ namespace qb {
         VOID = 0x00,
         ERROR = 0xFF,
 
-        // Pointers
-        PTR = 0x02,           // 4 bytes -> points to a specific dev+port+idx
-        PTR_SHORT = 0x01,     // 2 bytes -> points to a specific dev+port     (converted to PTR on parse, used to reduce payload)
-
         // Numerics
         BOOL = 0x0A,    // 1 byte
         UINT8 = 0x10,
@@ -37,12 +33,16 @@ namespace qb {
         FLOAT32 = 0x4A,
 
         // Strings
-        STRING = 0xF0,          // + 0xLEN 0xLEN
-        STRING_SHORT = 0xF1,    // + 0xLEN        (converted to STRING on parse, used to reduce payload)
+        STRING = 0xA0,          // + 0xLEN 0xLEN
+        STRING_SHORT = 0xA1,    // + 0xLEN        (converted to STRING on parse, used to reduce payload)
 
         // Arrays
-        ARRAY = 0xE0,           // + 0xTYPE 0xLEN 0xLEN
-        ARRAY_SHORT = 0xE1,     // + 0xTYPE 0xLEN  (converted to ARRAY on parse, used to reduce payload)
+        ARRAY = 0xB0,           // + 0xTYPE 0xLEN 0xLEN
+        ARRAY_SHORT = 0xB1,     // + 0xTYPE 0xLEN  (converted to ARRAY on parse, used to reduce payload)
+
+        // References
+        REF = 0xF0,             // + 0xDEVICE 0xPORT
+        REF_IDX = 0xF1,         // + 0xDEVICE 0xPORT {index:any}
     };
 
     /*
@@ -139,41 +139,7 @@ namespace qb {
                 return ss.str();
             };
         };
-    
-        struct Pointer: public Node {
-            device_t device = 0;
-            port_t port = 0;
-            index_t index = 0;
-            // Node* data = nullptr;
-            Pointer(
-                device_t device,
-                port_t port,
-                index_t index = 0
-            ):
-                Node(Type::PTR),
-                device(device),
-                port(port),
-                index(index)
-            {}
-
-            Node* copy() const {
-                return new Pointer(this->device, this->port, this->index);
-            }
-
-            void clear() {
-                this->device = 0;
-                this->port = 0;
-                this->index = 0;
-                // this->data = nullptr;
-            }
-
-            const std::string to_str() const {
-                std::stringstream ss;
-                ss << "<ptr:" << +(this->device) << "#" << +(this->port) << "[" << this->index << "]" << ">";
-                return ss.str();
-            };
-        };
-        
+            
         template <typename T>
         struct Numeric: public Node {
             T data = 0;
@@ -199,7 +165,7 @@ namespace qb {
                 switch (this->type) {
                     case Type::VOID:
                         ss << "void"; break;
-                    case Type::PTR:
+                    case Type::REF:
                     case Type::STRING:
                     case Type::ARRAY:
                         ss << "!"; break;
@@ -289,7 +255,7 @@ namespace qb {
                 ss << "<";
                 switch (this->item_type) {
                     case Type::VOID: ss << "void"; break;
-                    case Type::PTR: ss << "ptr"; break;
+                    case Type::REF: ss << "ptr"; break;
                     case Type::STRING: ss << "str"; break;
                     case Type::ARRAY: ss << "arr"; break;
                     case Type::BOOL: ss << "bool"; break;
@@ -305,7 +271,7 @@ namespace qb {
                 for (index_t i = 0; i < this->length; i++) {
                     switch (this->item_type) {
                         case Type::VOID: break;
-                        case Type::PTR: break;
+                        case Type::REF: break;
                         case Type::BOOL: ss << (((bool*) this->items)[i] ? "true" : "false"); break;
                         case Type::UINT8: ss << +(((uint8_t*)this->items)[i]); break;
                         case Type::INT8: ss << +((int8_t*)this->items)[i]; break;
@@ -324,9 +290,43 @@ namespace qb {
             };
         };
 
+
+        struct Reference: public Node {
+            device_t device = 0;
+            port_t port = 0;
+            Node* index = nullptr;
+
+            Reference(
+                device_t device,
+                port_t port,
+                Node* index = nullptr
+            ):
+                Node(Type::REF),
+                device(device),
+                port(port),
+                index(index)
+            {}
+
+            Node* copy() const {
+                return new Reference(this->device, this->port, this->index);
+            }
+
+            void clear() {
+                this->device = 0;
+                this->port = 0;
+                delete this->index;
+                this->index = nullptr;
+            }
+
+            const std::string to_str() const {
+                std::stringstream ss;
+                ss << "<ptr:" << +(this->device) << "#" << +(this->port) << "[" << this->index << "]" << ">";
+                return ss.str();
+            };
+        };
+
         // Simple initializers
 
-        Pointer* ptr(device_t device, port_t port, index_t index);
         Numeric<bool>* _bool(bool val = 0);
         Numeric<uint8_t>* u8(uint8_t val = 0);
         Numeric<int8_t>* i8(int8_t val = 0);
@@ -341,6 +341,8 @@ namespace qb {
         Array<T>* arr(Type type, index_t length) {
             return Array<T>(type, length);
         }
+
+        Reference* ref(device_t device, port_t port, index_t index);
     }
 
     namespace node {
@@ -351,8 +353,8 @@ namespace qb {
 
 /* Response Codes*/
 
-#define QB_MEMORY_R_OK 00
+#define QB_DATA_R_OK 00
 
-#define QB_MEMORY_R_PARSE_FAILED_UNEXPECTED_EOF 01
-#define QB_MEMORY_R_PARSE_FAILED_UNKNOWN_TYPE 10
-#define QB_MEMORY_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY 20
+#define QB_DATA_R_PARSE_FAILED_UNEXPECTED_EOF 01
+#define QB_DATA_R_PARSE_FAILED_UNKNOWN_TYPE 10
+#define QB_DATA_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY 20

@@ -41,7 +41,7 @@ export class QuimblosLinker {
                     bytecode.push(qasm.OpCode.SLEEP, ...this.u32(instr.time));
                     break;
                 case "LOG":
-                    bytecode.push(qasm.OpCode.LOG, this.device(instr.device), ...this.value(instr.type, instr.value, true));
+                    // bytecode.push(qasm.OpCode.LOG, this.device(instr.device), ...this.value(instr.type, instr.value, true));
                     break;
             }
         }
@@ -50,6 +50,9 @@ export class QuimblosLinker {
 
 
     private type(type: Type): Bytecode {
+        if (type.name === 'ref') {
+            return [0x00] // TODO
+        }
         if (type.name === 'arr') {
             return [qasm.Type.arr, ...this.u16(type.length)]
         }
@@ -65,21 +68,21 @@ export class QuimblosLinker {
         if (type.name === 'arr') {
             throw new Error(`Value of array not implemented yet`)
         }
-        else switch (type.name) {
-            case "err": return this.err(value as string, include_type);
-            case "ptr": throw new Error('Value of pointer not implemented yet')
-            case "ptr_short": throw new Error('Value of pointer not implemented yet')
-            case "bool": return this.bool(value as boolean, include_type);
-            case "u8": return this.u8(value as number, include_type);
-            case "i8": return this.i8(value as number, include_type);
-            case "u16": return this.u16(value as number, include_type);
-            case "i16": return this.i16(value as number, include_type);
-            case "u32": return this.u32(value as number, include_type);
-            case "i32": return this.i32(value as number, include_type);
-            case "f32": return this.f32(value as number, include_type);
-            case "str": return this.str(value as string, include_type);
-            case "str_short": return this.str(value as string, include_type);
-        }
+        // else switch (type.name) {
+        //     case "err": return this.err(value as string, include_type);
+        //     case "ptr": throw new Error('Value of pointer not implemented yet')
+        //     case "ptr_short": throw new Error('Value of pointer not implemented yet')
+        //     case "bool": return this.bool(value as boolean, include_type);
+        //     case "u8": return this.u8(value as number, include_type);
+        //     case "i8": return this.i8(value as number, include_type);
+        //     case "u16": return this.u16(value as number, include_type);
+        //     case "i16": return this.i16(value as number, include_type);
+        //     case "u32": return this.u32(value as number, include_type);
+        //     case "i32": return this.i32(value as number, include_type);
+        //     case "f32": return this.f32(value as number, include_type);
+        //     case "str": return this.str(value as string, include_type);
+        //     case "str_short": return this.str(value as string, include_type);
+        // }
         return []
     }
 

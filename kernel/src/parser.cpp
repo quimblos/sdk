@@ -6,8 +6,6 @@
 
 using namespace qb;
 
-const std::string E_UNEXPECTED_EOF = "Unexpected end of file";
-
 #define ASSERT_N_BYTES(N) \
     if (addr > code_len-N) \
         return { \
@@ -40,6 +38,10 @@ const std::string E_UNEXPECTED_EOF = "Unexpected end of file";
         .code = QB_PARSER_R_FAILED_TARGET, \
         .error_addr = addr \
     }; \
+    if (target.value.type != qb::Type::REF) return { \
+        .code = QB_PARSER_R_FAILED_TARGET, \
+        .error_addr = addr \
+    }; \
     addr = target.next_addr;
 
 #define ASSERT_SOURCE() \
@@ -68,9 +70,13 @@ void log_op_code(code_addr_t addr, OpCode code) {
         case OpCode::HOLD: std::cout << "HOLD "; break;
         case OpCode::RELEASE: std::cout << "RELEASE "; break;
         case OpCode::GOTO: std::cout << "GOTO "; break;
-        case OpCode::IF_EQ: std::cout << "IF_EQ "; break;
-        case OpCode::IF_LT: std::cout << "IF_LT "; break;
-        case OpCode::IF_GT: std::cout << "IF_GT "; break;
+        case OpCode::BRANCH: std::cout << "BRANCH "; break;
+        case OpCode::SET_IF_EQ: std::cout << "SET_IF_EQ "; break;
+        case OpCode::SET_IF_LT: std::cout << "SET_IF_LT "; break;
+        case OpCode::SET_IF_GT: std::cout << "SET_IF_GT "; break;
+        case OpCode::AND: std::cout << "AND "; break;
+        case OpCode::OR: std::cout << "OR "; break;
+        case OpCode::XOR: std::cout << "XOR "; break;
         case OpCode::ADD: std::cout << "ADD "; break;
         case OpCode::SUB: std::cout << "SUB "; break;
         case OpCode::MULT: std::cout << "MULT "; break;
@@ -194,24 +200,9 @@ parser::res_t parser::parse(Engine& engine, std::string name, std::string hex) {
                     #endif
                 }
                 break;
-            case OpCode::USE_NODE_ALIASED:
-                {
-                    auto source = Node::from_bytes(bytes, code_len, addr);
-                    ASSERT_SOURCE()
-                    auto alias = Node::parse(qb::Type::STRING_SHORT, bytes, code_len, addr);
-                    ASSERT_ALIAS()
-
-                    nodes.push_back(source.value);
-                    node_aliases.push_back(((node::String*)alias.value)->data);
-
-                    #ifdef QB_PARSER_DEBUG
-                        std::cout << source.value->to_str();
-                    #endif
-                }
-                break;
             case OpCode::SET:
                 {
-                    auto target = parse_target(bytes, code_len, addr);
+                    auto target = Node::from_bytes(bytes, code_len, addr);
                     ASSERT_TARGET()
                     ASSERT_DEVICE(target.device)
                     auto source = Node::from_bytes(bytes, code_len, addr);

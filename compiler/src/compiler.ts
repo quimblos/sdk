@@ -1,56 +1,76 @@
 import { AST } from "@quimblos/langmaker";
-import { qasm } from "./bind";
 import { quimblos } from "./lang/semantics";
 import { Kernel } from "./kernel";
-import { QuimblosLinker } from "./linker";
 
+export type TypeName = quimblos.TypeIdentifier['name']
+export type Type =
+    { name: Exclude<TypeName, 'arr'> }
+    | { name: 'ref' }
+    | { name: 'arr', item: TypeName, length: number } 
+
+export type Value = boolean|number|string|boolean[]|number[]|string[]
 export type Ref = {
     device?: string|undefined
     node: string
-    index?: number
 }
-export type Value = boolean|number|string|boolean[]|number[]|string[]
 
-export type Type =
-    { name: Exclude<keyof qasm.Type, 'arr'|'ptr'> }
-    | { name: 'ptr' }
-    | { name: 'arr', item: keyof qasm.Type, length: number }
+export type Node = {
+    type: Exclude<Type, { name: 'ref' }>
+    value: Value
+} | {
+    type: Extract<Type, { name: 'ref' }>
+    value: Ref
+    index?: Node | undefined
+}
+
+export type CodeAddr = [string, number] // name, offset
 
 export type Instruction = 
-    { op: 'USE_DEVICE', name: string }
-    | { op: 'USE_NODE', name: string, type: Type }
-    | { op: 'SET', bind: keyof qasm.OpBind, target: Ref, source: Source }
-    | { op: 'ADD', target: Ref, source: Source }
-    | { op: 'SUB', target: Ref, source: Source }
-    | { op: 'MULT', target: Ref, source: Source }
-    | { op: 'DIV', target: Ref, source: Source }
-    | { op: 'MOD', target: Ref, source: Source }
-    | { op: 'POW', target: Ref, source: Source }
-    | { op: 'SLEEP', time: number }
-    | { op: 'LOG', device: string, source: Source }
+    { $addr?: string, op: 'USE_DEVICE', name: string }
+    | { $addr?: string, op: 'USE_NODE', name: string, type: Type }
+
+    | { $addr?: string, op: 'SET', target: Node, source: Node }
+    | { $addr?: string, op: 'HOLD', device: string }
+    | { $addr?: string, op: 'RELEASE', device: string }
+
+    | { $addr?: string, op: 'GOTO', code_addr: CodeAddr }
+    | { $addr?: string, op: 'BRANCH', source: Node, true_addr: CodeAddr, false_addr: CodeAddr }
+    
+    | { $addr?: string, op: 'SET_IF_EQ', target: Node, left: Node, right: Node, true_source: Node, false_source: Node }
+    | { $addr?: string, op: 'SET_IF_LT', target: Node, left: Node, right: Node, true_source: Node, false_source: Node }
+    | { $addr?: string, op: 'SET_IF_GT', target: Node, left: Node, right: Node, true_source: Node, false_source: Node }
+
+    | { $addr?: string, op: 'AND', target: Node, source: Node }
+    | { $addr?: string, op: 'OR', target: Node, source: Node }
+    | { $addr?: string, op: 'XOR', target: Node, source: Node }
+
+    | { $addr?: string, op: 'ADD', target: Node, source: Node }
+    | { $addr?: string, op: 'SUB', target: Node, source: Node }
+    | { $addr?: string, op: 'MULT', target: Node, source: Node }
+    | { $addr?: string, op: 'DIV', target: Node, source: Node }
+    | { $addr?: string, op: 'POW', target: Node, source: Node }
+    | { $addr?: string, op: 'MOD', target: Node, source: Node }
+    
+    | { $addr?: string, op: 'SLEEP', time: Node }
+    | { $addr?: string, op: 'LOG', device: string, source: Node }
+    | { $addr?: string, op: 'STOP' }
 
 
-type TypeSpec = {
-    name: keyof qasm.Type | 'ptr'
-    arr_length?: number | undefined
-}
 export type NodeSpec = {
-    type: TypeSpec
+    type: Type
     name: string
 }
-type Source = {
-    type: Type
-    value: Value|Ref
-}
+
 type Chunk = {
     prepare: Instruction[]
-    out: Source
+    out: Node
 }
 
 export class QuimblosCompiler {
 
     private root: quimblos.Script;
     private nodes: Record<string, NodeSpec> = {};
+    private code_addresses = 0;
 
     private code: Instruction[] = [];
 
@@ -84,21 +104,23 @@ export class QuimblosCompiler {
 
         for (const statement of node.statements) {
             if (statement instanceof quimblos.VariableStatement) {
-                this.make_symbol(statement.identifier.name, statement.identifier.type)
-            }
-            else if (statement instanceof quimblos.PointerStatement) {
-                this.make_symbol(statement.identifier.name, { name: 'ptr' })
+                const type = this.type_from_identifier(statement.identifier.type);
+                this.make_node(statement.identifier.name, type)
             }
             else if (statement instanceof quimblos.AssignStatement) {
                 code.push(...this.compile_assign(statement.target, statement.source))
             }
+            else if (statement instanceof quimblos.IfStatement) {
+                code.push(...this.compile_if(statement.expression, statement.block))
+            }
+            else if (statement instanceof quimblos.WhileStatement) {
+                code.push(...this.compile_while(statement.expression, statement.block))
+            }
             else if (statement instanceof quimblos.SleepStatement) {
-                code.push(this._sleep(statement.time))
+                code.push(...this.compile_sleep(statement.time))
             }
             else if (statement instanceof quimblos.LogStatement) {
-                const chunk = this.chunk_expression(statement.value);
-                code.push(...chunk.prepare)
-                code.push(this._log('_$_', chunk.out.type, chunk.out.value))
+                code.push(...this.compile_log('_$_', statement.value))
             }
         }
 
@@ -108,27 +130,108 @@ export class QuimblosCompiler {
     private compile_assign(target: quimblos.Reference, source: quimblos.Expression) {
         const code: Instruction[] = [];
 
-        const target_chunk = this.chunk_ptr(target);
+        const target_chunk = this.chunk_ref(target);
         code.push(...target_chunk.prepare);
 
         const source_chunk = this.chunk_expression(source);
         code.push(...source_chunk.prepare);
 
-        // let bind: keyof qasm.OpBind;
-        // if (source_chunk.out.type.name === 'ptr') {
-        //     if (target_chunk.out.type.name === 'ptr') bind = 'REF_REF';
-        //     else bind = 'NODE_REF';
-        // }
-        // else {
-        //     if (target_chunk.out.type.name === 'ptr') bind = 'REF_NODE';
-        //     else bind = 'NODE_NODE';
-        // }
-        const bind = 'NODE_NODE';
-
         code.push({
             op: 'SET',
-            bind,
-            target: target_chunk.out.value as Ref,
+            target: {
+                type: { name: 'ref' },
+                value: target_chunk.out.value as Ref
+            },
+            source: source_chunk.out
+        })
+
+        return code;
+    }
+
+    private compile_if(source: quimblos.Expression, block: quimblos.Block) {
+        const code: Instruction[] = [];
+
+        const source_chunk = this.chunk_expression(source);
+        code.push(...source_chunk.prepare);
+        
+        const block_code = this.compile_block(block);
+
+        const true_addr = this.make_code_addr();
+        const false_addr = block_code.length === 1
+            ? [true_addr[0], 1] as CodeAddr
+            : this.make_code_addr(1);
+
+        block_code.at(0)!.$addr = true_addr[0];
+        block_code.at(-1)!.$addr = false_addr[0];
+
+        code.push({
+            op: 'BRANCH',
+            source: source_chunk.out,
+            true_addr,
+            false_addr
+        })
+        code.push(...block_code);      
+
+        return code;
+    }
+
+    private compile_while(source: quimblos.Expression, block: quimblos.Block) {
+        const code: Instruction[] = [];
+
+        const source_chunk = this.chunk_expression(source);
+        code.push(...source_chunk.prepare);
+        
+        const block_code = this.compile_block(block);
+
+        const start_addr = this.make_code_addr();
+        const block_start_addr = this.make_code_addr();
+        const end_addr = block_code.length === 1
+            ? [block_start_addr[0], 1] as CodeAddr
+            : this.make_code_addr(1);
+
+        block_code.at(0)!.$addr = block_start_addr[0];
+
+        code.push({
+            op: 'BRANCH',
+            source: source_chunk.out,
+            true_addr: block_start_addr,
+            false_addr: end_addr
+        })        
+        code.push(...block_code);
+
+        code.at(0)!.$addr = start_addr[0];
+        code.push({
+            $addr: end_addr[0],
+            op: 'GOTO',
+            code_addr: start_addr
+        })
+
+        return code;
+    }
+
+    private compile_sleep(source: quimblos.Expression) {
+        const code: Instruction[] = [];
+
+        const source_chunk = this.chunk_expression(source);
+        code.push(...source_chunk.prepare);
+
+        code.push({
+            op: 'SLEEP',
+            time: source_chunk.out
+        })
+
+        return code;
+    }
+
+    private compile_log(device: string, source: quimblos.Expression) {
+        const code: Instruction[] = [];
+
+        const source_chunk = this.chunk_expression(source);
+        code.push(...source_chunk.prepare);
+
+        code.push({
+            op: 'LOG',
+            device,
             source: source_chunk.out
         })
 
@@ -137,127 +240,179 @@ export class QuimblosCompiler {
 
     // Meta-Instructions
 
-    private chunk_ptr(node: quimblos.Reference): Chunk {
+    private chunk_ref(node: quimblos.Reference): Chunk {
         if (!node.index) {
             return {
                 prepare: [],
                 out: {
-                    type: { name: 'ptr' },
+                    type: { name: 'ref' },
                     value: { device: node.device, node: node.node }
                 }
             }
         }
-        throw new Error(`Indexed pointer not implemented yet`);
+        const index = this.chunk_expression(node.index);
+        return {
+            prepare: index.prepare,
+            out: {
+                type: { name: 'ref' },
+                value: { device: node.device, node: node.node },
+                index: index.out
+            }
+        }
     }
     
     private chunk_expression(node: quimblos.Expression): Chunk {
         if (node.terms.length === 1) {
             const value = node.terms[0]!.value;
-            if (value instanceof quimblos.Literal) {
-                return {
-                    prepare: [],
-                    out: {
-                        type: this.type_of_literal(value),
-                        value: value.value
-                    }
-                }
-            }
-            throw new Error(`Non-literal values not implemented yet`);
+            return this.chunk_value(value);
         }
 
         const prepare: Instruction[] = []
+        let target: Node|undefined = undefined;
 
         const parts: {
             left: number,
             right: number,
             op: quimblos.BoolOp | quimblos.MathOp
         }[] = [];
+        
+        const sources: Record<number, Node> = {};
+        const resolved = new Set<number>();
 
-        for (let i=0; i < node.terms.length-1; i++) {
-            if (!['*','/'].includes(node.ops[i]!)) continue;
-            parts.push({ left: i, right: i+1, op: node.ops[i]! })
+        const scan_terms = (...operators: string[]) => {
+            for (let i=0; i < node.terms.length-1; i++) {
+                if (!operators.includes(node.ops[i]!)) continue;
+                const left = this.chunk_value(node.terms[i]!.value);
+                const right = this.chunk_value(node.terms[i+1]!.value);
+                prepare.push(...left.prepare);
+                prepare.push(...right.prepare);
+                parts.push({ left: i, right: i+1, op: node.ops[i]! })
+                sources[i] = left.out;
+                sources[i+1] = right.out;
+            }
         }
-        for (let i=0; i < node.terms.length-1; i++) {
-            if (!['+','-'].includes(node.ops[i]!)) continue;
-            parts.push({ left: i, right: i+1, op: node.ops[i]! })
-        }
+
+        scan_terms('^');
+        scan_terms('*','/');
+        scan_terms('+','-');
+        scan_terms('%');
+        scan_terms('==','!=','>','<','>=','<=');
+        scan_terms('and','or','xor');
         
         if (parts.length < node.terms.length-1) {
             throw new Error(`Some expression operators not implemented yet`);
         }
 
-        const targets: Record<number, Ref> = {};
+        for (let i = 0; i < parts.length; i++) {
+            const part = parts[i]!;
+            const is_comparison = ['==','!=','>','<','>=','<='].includes(part.op);
 
-        let expr_type;
-        let target;
+            const left = sources[part.left]!;
+            const right = sources[part.right]!;
 
-        for (const part of parts) {
-            const left = node.terms[part.left]!.value;
-            const right = node.terms[part.right]!.value;
-            
-            target = targets[part.left];
-            if (!target) {
-                if (left instanceof quimblos.Expression) {
-                    throw new Error(`Nested expressions not implemented yet`);
+            let bool_target: Node|undefined = undefined;
+            let bool_value: Ref|undefined = undefined;
+            if (is_comparison) {
+                if (left.type.name === 'ref') {
+                    const node = this.nodes[(left.value as Ref).node]!;
+                    if (resolved.has(part.left) && node.type.name === 'bool')
+                        bool_value = left.value as Ref;
+                    else
+                        bool_value = this.make_node(undefined, { name: 'bool' });
                 }
-                else if (left instanceof quimblos.Reference) {
-                    throw new Error(`Non-literal values not implemented yet`);
+                else bool_value = this.make_node(undefined, { name: 'bool' });
+                
+                bool_target = bool_value ? { type: { name: 'ref' as const }, value: bool_value } : undefined;
+                target = left
+            }
+            else {
+                let value;
+                if (left.type.name === 'ref') {
+                    if (resolved.has(part.left)) value = left.value;
+                    else {
+                        const node = this.nodes[(left.value as Ref).node]!;
+                        value = this.make_node(undefined, node.type);
+                    }
                 }
-                else { // if (left instanceof quimblos.Literal)
-                    expr_type = this.type_of_literal(left);
-                    target = { node: this.make_symbol(undefined, expr_type) };
-                    prepare.push(this._add(target!, expr_type, left.value));
-                }
+                else value = this.make_node(undefined, left.type);
+
+                target = { type: { name: 'ref' }, value: value as Ref };
             }
 
-            let type: Type, value;
-            type = { name: 'ptr' };
-            value = targets[part.right];
-            if (!value) {
-                if (right instanceof quimblos.Expression) {
-                    throw new Error(`Nested expressions not implemented yet`);
-                }
-                else if (right instanceof quimblos.Reference) {
-                    throw new Error(`Non-literal values not implemented yet`);
-                }
-                else { // if (right instanceof quimblos.Literal)
-                    type = this.type_of_literal(right);
-                    value = right.value;
-                }
+            if (!resolved.has(part.left) && !is_comparison) {
+                prepare.push(this._set(target, left));
             }
-            targets[part.left] = target;
-            targets[part.right] = target;
-            console.log(part, targets, prepare);
 
+            const _true: Node = { type: { name: 'bool' }, value: true };
+            const _false: Node = { type: { name: 'bool' }, value: false };
 
             switch (part.op) {
-                case "and": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case "or": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case "==": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case "!=": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case ">": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case "<": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case ">=": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case "<=": throw new Error(`Operator '${part.op}' not implemented yet`)
+                case "and":
+                    prepare.push(this._and(target, right)); break;
+                case "or":
+                    prepare.push(this._or(target, right)); break;
+                case "xor":
+                    prepare.push(this._xor(target, right)); break;
+                case "==":
+                    prepare.push(this._set_eq(bool_target!, target!, right, _true, _false)); break;
+                case "!=":
+                    prepare.push(this._set_eq(bool_target!, target!, right, _false, _true)); break;
+                case ">":
+                    prepare.push(this._set_gt(bool_target!, target!, right, _true, _false)); break;
+                case "<":
+                    prepare.push(this._set_lt(bool_target!, target!, right, _true, _false)); break;
+                case "<=":
+                    prepare.push(this._set_gt(bool_target!, target!, right, _false, _true)); break;
+                case ">=":
+                    prepare.push(this._set_lt(bool_target!, target!, right, _false, _true)); break;
                 case "+":
-                    prepare.push(this._add(target!, type, value)); break;
+                    prepare.push(this._add(target, right)); break;
                 case "-": 
-                    prepare.push(this._sub(target!, type, value)); break;
+                    prepare.push(this._sub(target, right)); break;
                 case "*":
-                    prepare.push(this._mult(target!, type, value)); break;
+                    prepare.push(this._mult(target, right)); break;
                 case "/":
-                    prepare.push(this._div(target!, type, value)); break;
-                case "%": throw new Error(`Operator '${part.op}' not implemented yet`)
-                case "^": throw new Error(`Operator '${part.op}' not implemented yet`)
+                    prepare.push(this._div(target, right)); break;
+                case "%":
+                    prepare.push(this._mod(target, right)); break;
+                case "^":
+                    prepare.push(this._pow(target, right)); break;
             }
+
+            target = bool_target ?? target;
+
+            sources[part.left] = target;
+            for (let j = i+1; j < parts.length; j++) {
+                if (parts[j]!.left === part.right) {
+                    parts[j]!.left = part.left;
+                }
+            }
+            
+            resolved.add(part.left)
+            resolved.add(part.right)
         }
 
         return {
             prepare,
-            out: {
-                type: { name: 'ptr' },
-                value: target!
+            out: target!
+        }
+    }
+
+    private chunk_value(node: quimblos.Literal | quimblos.Reference | quimblos.Expression): Chunk {
+        if (node instanceof quimblos.Literal) {
+            return {
+                prepare: [],
+                out: {
+                    type: this.type_of_literal(node),
+                    value: node.value as Value
+                }
             }
+        }
+        else if (node instanceof quimblos.Expression) {
+            return this.chunk_expression(node)
+        }
+        else {
+            return this.chunk_ref(node)
         }
     }
 
@@ -266,63 +421,82 @@ export class QuimblosCompiler {
     private _use_device(name: string): Instruction {
         return { op: 'USE_DEVICE', name }
     }
-    private _add(target: Ref, type: Type, value: Value|Ref): Instruction {
-        return { op: 'ADD', target, source: { type, value } }
+    private _set(target: Node, source: Node): Instruction {
+        return { op: 'SET', target, source }
     }
-    private _sub(target: Ref, type: Type, value: Value|Ref): Instruction {
-        return { op: 'SUB', target, source: { type, value } }
+    private _and(target: Node, source: Node): Instruction {
+        return { op: 'AND', target, source }
     }
-    private _mult(target: Ref, type: Type, value: Value|Ref): Instruction {
-        return { op: 'MULT', target, source: { type, value } }
+    private _or(target: Node, source: Node): Instruction {
+        return { op: 'OR', target, source }
     }
-    private _div(target: Ref, type: Type, value: Value|Ref): Instruction {
-        return { op: 'DIV', target, source: { type, value } }
+    private _xor(target: Node, source: Node): Instruction {
+        return { op: 'XOR', target, source }
     }
-    private _mod(target: Ref, type: Type, value: Value|Ref): Instruction {
-        return { op: 'MOD', target, source: { type, value } }
+    private _set_eq(target: Node, left: Node, right: Node, source: Node, source_else: Node): Instruction {
+        return { op: 'SET_IF_EQ', target, left, right, true_source: source, false_source: source_else }
     }
-    private _pow(target: Ref, type: Type, value: Value|Ref): Instruction {
-        return { op: 'POW', target, source: { type, value } }
+    private _set_gt(target: Node, left: Node, right: Node, source: Node, source_else: Node): Instruction {
+        return { op: 'SET_IF_GT', target, left, right, true_source: source, false_source: source_else }
     }
-    private _sleep(time: number): Instruction {
-        return { op: 'SLEEP', time }
+    private _set_lt(target: Node, left: Node, right: Node, source: Node, source_else: Node): Instruction {
+        return { op: 'SET_IF_LT', target, left, right, true_source: source, false_source: source_else }
     }
-    private _log(device: string, typespec: TypeSpec, value: Value|Ref): Instruction {
-        const type = this.type_from_spec(typespec);
-        return { op: 'LOG', device, source: { type, value } }
+    private _add(target: Node, source: Node): Instruction {
+        return { op: 'ADD', target, source }
+    }
+    private _sub(target: Node, source: Node): Instruction {
+        return { op: 'SUB', target, source }
+    }
+    private _mult(target: Node, source: Node): Instruction {
+        return { op: 'MULT', target, source }
+    }
+    private _div(target: Node, source: Node): Instruction {
+        return { op: 'DIV', target, source }
+    }
+    private _mod(target: Node, source: Node): Instruction {
+        return { op: 'MOD', target, source }
+    }
+    private _pow(target: Node, source: Node): Instruction {
+        return { op: 'POW', target, source }
+    }
+    private _log(device: string, source: Node): Instruction {
+        return { op: 'LOG', device, source }
     }
 
     // Internal Helpers
 
-    private make_symbol(name: string|undefined, type: TypeSpec) {
+    private make_node(name: string|undefined, type: Type): Ref {
         name ??= '_v_'+Object.keys(this.nodes).length;
-        this.nodes[name] = { name, type: this.type_from_spec(type) };
-        return name;
+        this.nodes[name] = { name, type };
+        return { node: name };
+    }
+    private make_code_addr(offset = 0): CodeAddr {
+        return [`_${this.code_addresses++}`, offset];
     }
 
-    private type_from_spec(spec: TypeSpec): Type {
-        if (spec.name === 'ptr') return { name: 'ptr' };
-        if (spec.arr_length != null) return { name: 'arr', item: spec.name, length: spec.arr_length }
-        else return { name: spec.name } as Type
+    private type_from_identifier(node: quimblos.TypeIdentifier): Type {
+        if (node.arr_length != null) return { name: 'arr', item: node.name, length: node.arr_length }
+        else return { name: node.name } as Type
     }
 
-    private type_of_literal(node: quimblos.Literal): Type {
+    private type_of_literal(node: quimblos.Literal) {
         switch (node.literal_type) {
             case "Boolean":
-                return { name: 'bool' }
+                return { name: 'bool' as const }
             case "Hexcode":
                 // TODO
-                return { name: 'u32' }
+                return { name: 'u32' as const }
             case "Bitmask":
-                return { name: 'u32' }
+                return { name: 'u32' as const }
             case "Float":
-                return { name: 'f32' }
+                return { name: 'f32' as const }
             case "UnsignedInteger":
-                return { name: 'u32' }
+                return { name: 'u32' as const }
             case "Integer":
-                return { name: 'i32' }
+                return { name: 'i32' as const }
             case "String":
-                return { name: 'str' }
+                return { name: 'str' as const }
         }
     }
 

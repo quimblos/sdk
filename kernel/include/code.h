@@ -3,24 +3,6 @@
 
 #define HEADER_QUIMBLOS 'q', 'b', 0x00, 0x00
 
-// USE_DEVICE 0x00
-// USE_NODE PTR 0x00 0x00 0x00 0x00
-//
-// SET SH_REF_NODE 0xFF 0x00 UINT8 0x01
-// ADD SH_NODE_NODE 0xFF 0x00 UINT8 0x01
-// IF_LT SH_NODE_REF 0xFF 0x00 PTR_SHORT 0x00 0x01
-//     GOTO 0xFFFF                                  
-//     GOTO 0x0002
-
-// #use ledstrip
-// var it = ledstrip.buffer
-//
-// @loop
-//     *it = 1
-//     it += 1
-//     if it < ledstrip.length @loop else @end
-
-
 namespace qb {
 
     /**
@@ -29,48 +11,39 @@ namespace qb {
     
     enum OpCode {
         // 0x0* -> Parser commands
-        USE_DEVICE = 0x01,       // <str>
-        USE_NODE = 0x02,         // TYPE[?]
-        USE_NODE_ALIASED = 0x03, // TYPE[?] <str>
+        USE_DEVICE = 0x01,       // {name:str}
+        USE_NODE = 0x02,         // {source:any}
         // 0x1* -> Node manipulation commands
-        SET = 0x10,           // TARGET <any>
-        HOLD = 0x1A,          // DEV
-        RELEASE = 0x1B,       // DEV
+        SET = 0x10,           // {target:ref} {source:str}
+        HOLD = 0x1A,          // {device:u8}
+        RELEASE = 0x1B,       // {device:u8}
         // 0x2* -> Flow control commands 
-        GOTO = 0x20,          // CODE[2]
-        IF_EQ = 0x21,         // TARGET <any> CODE[2] CODE_[2]
-        IF_LT = 0x25,         // TARGET <any> CODE[2] CODE_[2]
-        IF_GT = 0x23,         // TARGET <any> CODE[2] CODE_[2]
-        // 0x3* -> Arithmetic commands 
-        ADD = 0x30,           // TARwGET <any>
-        SUB = 0x31,           // TARGET <any>
-        MULT = 0x32,          // TARGET <any>
-        DIV = 0x33,           // TARGET <any>
-        MOD = 0x34,           // TARGET <any>
-        POW = 0x35,           // TARGET <any>
-        // 0xD* -> Log commands
-        LOG = 0xD0,           // DEV <any>
+        GOTO = 0x20,          // {code:u16}
+        BRANCH = 0x21,        // {source:any} {true_code:u16} {false_code:u16}
+        // 0x3* -> Comparator commands 
+        SET_IF_EQ = 0x30,     // {target:ref} {left:any} {right:any} {true:any} {false:any}
+        SET_IF_LT = 0x31,     // {target:ref} {left:any} {right:any} {true:any} {false:any}
+        SET_IF_GT = 0x32,     // {target:ref} {left:any} {right:any} {true:any} {false:any}
+        // 0x4* -> Boolean Arithmetic commands 
+        AND = 0x40,           // {target:reg} {source:any}
+        OR = 0x41,            // {target:reg} {source:any}
+        XOR = 0x42,           // {target:reg} {source:any}
+        // 0x5* -> Arithmetic commands 
+        ADD = 0x50,           // {target:reg} {source:any}
+        SUB = 0x51,           // {target:reg} {source:any}
+        MULT = 0x52,          // {target:reg} {source:any}
+        DIV = 0x53,           // {target:reg} {source:any}
+        MOD = 0x54,           // {target:reg} {source:any}
+        POW = 0x55,           // {target:reg} {source:any}
         // 0xE* -> Runner commands
-        SLEEP = 0xE0,         // MS[4]
-        RETURN = 0xEE,        // <any>
+        LOG = 0xE0,           // {source:any}
+        SLEEP = 0xEE,         // {time:any}
+        RETURN = 0xEF,        // {source:any}
         // 0xF* -> Engine commands
         RESET = 0xF0,         // !
         REBOOT = 0xFF,        // !
     };
     
-    // The type of data binding of an instruction
-    enum OpBind {
-        NODE_NODE = 0x00,           // Target: Node, Source: Node
-        NODE_REF = 0x01,            // Target: Node, Source: Referenced Node
-        REF_NODE = 0x02,            // Target: Referenced Node, Source: Node
-        REF_REF = 0x03,             // Target: Referenced Node, Source: Referenced Node
-        
-        SHORT_NODE_NODE = 0x10,     // Target: Node, Source: Node
-        SHORT_NODE_REF = 0x11,      // Target: Node, Source: Referenced Node
-        SHORT_REF_NODE = 0x12,      // Target: Referenced Node, Source: Node
-        SHORT_REF_REF = 0x13        // Target: Referenced Node, Source: Referenced Node
-    };
-
     struct Runner;
     struct Instruction { 
         OpCode code;                // The type of instruction

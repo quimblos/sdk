@@ -1,16 +1,16 @@
 export namespace qasm {
 
-    export const OpBind = {
-        NODE_NODE: 0x00,
-        NODE_REF: 0x01,
-        REF_NODE: 0x02,
-        REF_REF: 0x03,
-        SHORT_NODE_NODE: 0x10,
-        SHORT_NODE_REF: 0x11,
-        SHORT_REF_NODE: 0x12,
-        SHORT_REF_REF: 0x13
-    };
-    export type OpBind = typeof OpBind;
+    // export const OpBind = {
+    //     NODE_NODE: 0x00,
+    //     NODE_REF: 0x01,
+    //     REF_NODE: 0x02,
+    //     REF_REF: 0x03,
+    //     SHORT_NODE_NODE: 0x10,
+    //     SHORT_NODE_REF: 0x11,
+    //     SHORT_REF_NODE: 0x12,
+    //     SHORT_REF_REF: 0x13
+    // };
+    // export type OpBind = typeof OpBind;
 
     export const OpCode = {
         USE_DEVICE: 0x01,
@@ -42,6 +42,8 @@ export namespace qasm {
         err: 0xFF,
         ptr: 0x02,
         ptr_short: 0x01,
+        ptr_deref: 0x04,
+        ptr_short_deref: 0x02,
         bool: 0x0A,
         u8: 0x10,
         i8: 0x11,

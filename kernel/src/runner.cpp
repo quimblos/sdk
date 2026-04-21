@@ -155,7 +155,7 @@ std::string Runner::to_str(Node& node) {
         auto v = Runner::get_node(*this, d, n->port);
         
         std::stringstream ss;
-        ss << "<ptr:" << +(n->device) << "#" << +(n->port) << "[" << n->index << "] = " << this->to_str(*v) << ">";
+        ss << "<ptr:" << +(n->device) << "#" << +(n->port) << "[" << n->index << "] -> " << this->to_str(*v) << ">";
         return ss.str();
     }
     else

@@ -29,12 +29,6 @@ export namespace quimblos {
         value?: Expression
         children = () => [this.identifier, this.value]
     }
-    export class PointerStatement extends ASTNode {
-        identifier!: Identifier
-        ref!: Reference
-        value?: Expression
-        children = () => [this.identifier, this.ref, this.value]
-    }
 
     // Statements
     export type Statement = HoldStatement | ReleaseStatement | LogStatement | SleepStatement | ReturnStatement | ResetStatement | RebootStatement
@@ -73,7 +67,7 @@ export namespace quimblos {
         children = () => [this.value]
     }
     export class SleepStatement extends ASTNode {
-        time!: number
+        time!: Expression
     }
     export class ReturnStatement extends ASTNode {
         value!: Expression
@@ -83,7 +77,7 @@ export namespace quimblos {
     export class RebootStatement extends ASTNode {}
 
     // Expressions
-    export type BoolOp = 'and'|'or'|'=='|'!='|'>'|'<'|'>='|'<='
+    export type BoolOp = 'and'|'or'|'xor'|'=='|'!='|'>'|'<'|'>='|'<='
     export type MathOp = '+'|'-'|'*'|'/'|'%'|'^'
     export class Expression extends ASTNode {
         terms!: ExpressionTerm[]
@@ -154,13 +148,6 @@ export const quimblos_semantics = new SemanticsBuilder()
             value: $.first('expression').optional
         })
     )
-    .node('statement_ptr',
-        quimblos.PointerStatement, $ => ({
-            identifier: $.nth('identifier', 0),
-            ref: $.first('ref_no_idx'),
-            value: $.first('expression').optional
-        })
-    )
 
     .node('statement_assign',
         quimblos.AssignStatement, $ => ({
@@ -208,7 +195,7 @@ export const quimblos_semantics = new SemanticsBuilder()
     )
     .node('statement_sleep',
         quimblos.SleepStatement, $ => ({
-            time: $.first_text('unsigned_integer', v => parseInt(v))
+            time: $.first('expression')
         })
     )
     .node('statement_return',

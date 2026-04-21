@@ -2,7 +2,7 @@
 
 #define ASSERT_N_BYTES(N) \
     if (addr > code_len-N) return { \
-        .code = QB_MEMORY_R_PARSE_FAILED_UNEXPECTED_EOF, \
+        .code = QB_DATA_R_PARSE_FAILED_UNEXPECTED_EOF, \
         .next_addr = 0xFFFF \
     };
 
@@ -10,9 +10,6 @@
     Initializers
 */
 
-qb::node::Pointer* qb::node::ptr(device_t device, port_t port, index_t index = 0) {
-    return new qb::node::Pointer(device, port, index);
-}
 qb::node::Numeric<bool>* qb::node::_bool(bool val) {
     return new qb::node::Numeric<bool>(qb::Type::BOOL, val);
 }
@@ -40,6 +37,9 @@ qb::node::Numeric<float>* qb::node::f32(float val) {
 qb::node::String* qb::node::str(std::string val) {
     return new qb::node::String(val.length(), val.c_str());
 }
+qb::node::Reference* qb::node::ref(device_t device, port_t port, Node* index = nullptr) {
+    return new qb::node::Reference(device, port, index);
+}
 
 /* Value of (unsafe, use it carefully) */
 bool qb::node::as_bool(Node* node) {
@@ -60,8 +60,8 @@ qb::node::res_t parse_array(qb::type_t item_type, qb::index_t length, qb::code_t
     switch (item_type) {
         case qb::Type::VOID:
         case qb::Type::ERROR:
-        case qb::Type::PTR:
-        case qb::Type::PTR_SHORT:
+        case qb::Type::REF:
+        case qb::Type::REF_SHORT:
             break;
         case qb::Type::BOOL:
         case qb::Type::UINT8:
@@ -80,7 +80,7 @@ qb::node::res_t parse_array(qb::type_t item_type, qb::index_t length, qb::code_t
             break;
     }
     if (array == nullptr) return {
-        .code = QB_MEMORY_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY,
+        .code = QB_DATA_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY,
         .next_addr = 0xFFFF
     };
 
@@ -93,8 +93,8 @@ qb::node::res_t parse_array(qb::type_t item_type, qb::index_t length, qb::code_t
         switch (item_type) {
             case qb::Type::VOID:
             case qb::Type::ERROR:
-            case qb::Type::PTR:
-            case qb::Type::PTR_SHORT:
+            case qb::Type::REF:
+            case qb::Type::REF_SHORT:
                 break;
             case qb::Type::BOOL:
             case qb::Type::UINT8:
@@ -116,7 +116,7 @@ qb::node::res_t parse_array(qb::type_t item_type, qb::index_t length, qb::code_t
     }
     
     return {
-        .code = QB_MEMORY_R_OK,
+        .code = QB_DATA_R_OK,
         .value = array,
         .next_addr = addr
     };
@@ -130,7 +130,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         case qb::Type::VOID:
         {
            return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Void(),
                 .next_addr = (qb::code_addr_t) (addr)
             };
@@ -146,42 +146,9 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
             addr += 1;
             ASSERT_N_BYTES(length);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Error(code, (uint16_t) length, (char*) bytes+addr),
                 .next_addr = (qb::code_addr_t) (addr + length)
-            };
-        }
-
-        case qb::Type::PTR:
-        {
-            ASSERT_N_BYTES(1);
-            qb::device_t device = bytes[addr];
-            addr += 1;
-            ASSERT_N_BYTES(1);
-            qb::port_t port = bytes[addr];
-            addr += 1;
-            ASSERT_N_BYTES(2);
-            qb::index_t index = (bytes[addr] << 8) + bytes[addr+1];
-            addr += 2;
-            return {
-                .code = QB_MEMORY_R_OK,
-                .value = new qb::node::Pointer(device, port, index),
-                .next_addr = (qb::code_addr_t) (addr)
-            };
-        }
-
-        case qb::Type::PTR_SHORT:
-        {
-            ASSERT_N_BYTES(1);
-            qb::device_t device = bytes[addr];
-            addr += 1;
-            ASSERT_N_BYTES(1);
-            qb::port_t port = bytes[addr];
-            addr += 1;
-            return {
-                .code = QB_MEMORY_R_OK,
-                .value = new qb::node::Pointer(device, port),
-                .next_addr = (qb::code_addr_t) (addr)
             };
         }
 
@@ -189,7 +156,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(1);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<bool>(qb::Type::BOOL, bytes[addr]),
                 .next_addr = (qb::code_addr_t) (addr+1)
             };
@@ -199,7 +166,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(1);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<uint8_t>(qb::Type::UINT8, bytes[addr]),
                 .next_addr = (qb::code_addr_t) (addr+1)
             };
@@ -209,7 +176,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(1);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<int8_t>(qb::Type::INT8, bytes[addr]),
                 .next_addr = (qb::code_addr_t) (addr+1)
             };
@@ -219,7 +186,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(2);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<uint16_t>(qb::Type::UINT16, (bytes[addr] << 8) + bytes[addr+1]),
                 .next_addr = (qb::code_addr_t) (addr+2)
             };
@@ -229,7 +196,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(2);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<int16_t>(qb::Type::INT16, (bytes[addr] << 8) + bytes[addr+1]),
                 .next_addr = (qb::code_addr_t) (addr+2)
             };
@@ -239,7 +206,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(4);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<uint32_t>(qb::Type::UINT32, (bytes[addr] << 24) + (bytes[addr+1] << 16) + (bytes[addr+2] << 8) + bytes[addr+3]),
                 .next_addr = (qb::code_addr_t) (addr+4)
             };
@@ -249,7 +216,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(4);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<int32_t>(qb::Type::INT32, (bytes[addr] << 24) + (bytes[addr+1] << 16) + (bytes[addr+2] << 8) + bytes[addr+3]),
                 .next_addr = (qb::code_addr_t) (addr+4)
             };
@@ -259,7 +226,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
         {
             ASSERT_N_BYTES(4);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::Numeric<float>(qb::Type::FLOAT32, (bytes[addr] << 24) + (bytes[addr+1] << 16) + (bytes[addr+2] << 8) + bytes[addr+3]),
                 .next_addr = (qb::code_addr_t) (addr+4)
             };
@@ -272,7 +239,7 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
             addr += 2;
             ASSERT_N_BYTES(length);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::String(length, (char*) bytes+addr),
                 .next_addr = (qb::code_addr_t) (addr+length)
             };
@@ -285,28 +252,36 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
             addr += 1;
             ASSERT_N_BYTES(length);
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = new qb::node::String((uint16_t) length, (char*) bytes+addr),
                 .next_addr = (qb::code_addr_t) (addr+length)
             };
         }
 
         case qb::Type::ARRAY:
+        case qb::Type::ARRAY_SHORT:
         {
             ASSERT_N_BYTES(1);
             qb::type_t item_type = bytes[addr];
             addr += 1;
-            ASSERT_N_BYTES(2);
-            uint16_t length = (bytes[addr] << 8) + bytes[addr+1];
-            addr += 2;
+
+            uint16_t length = 0;
+            if (type == qb::Type::ARRAY) {
+                ASSERT_N_BYTES(2);
+                length = (bytes[addr] << 8) + bytes[addr+1];
+                addr += 2;
+            }
+            else {
+                ASSERT_N_BYTES(1);
+                length = bytes[addr];
+                addr += 1;
+            }
 
             qb::node::res_t array_res;
             switch (item_type) {
                 case qb::Type::VOID:
                 case qb::Type::ERROR:
-                case qb::Type::PTR:
-                case qb::Type::PTR_SHORT:
-                    return { .code = QB_MEMORY_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY, .next_addr = 0xFFFF };
+                    return { .code = QB_DATA_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY, .next_addr = 0xFFFF };
                 case qb::Type::BOOL:
                     array_res = parse_array<bool>(item_type, length, bytes, code_len, addr); break;
                 case qb::Type::UINT8:
@@ -328,27 +303,75 @@ qb::node::res_t qb::Node::parse(qb::type_t type, qb::code_t* bytes, qb::code_add
                     array_res = parse_array<std::string>(item_type, length, bytes, code_len, addr); break;
                 case qb::Type::ARRAY:
                 case qb::Type::ARRAY_SHORT:
-                    return { .code = QB_MEMORY_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY, .next_addr = 0xFFFF };
+                case qb::Type::REF:
+                case qb::Type::REF_SHORT:
+                    return { .code = QB_DATA_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY, .next_addr = 0xFFFF };
                 default:
-                    return { .code = QB_MEMORY_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY, .next_addr = 0xFFFF };
+                    return { .code = QB_DATA_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY, .next_addr = 0xFFFF };
+            }
+
+            if (array_res.code != QB_DATA_R_OK) {
+                return array_res;
             }
 
             return {
-                .code = QB_MEMORY_R_OK,
+                .code = QB_DATA_R_OK,
                 .value = array_res.value,
                 .next_addr = (qb::code_addr_t) (array_res.next_addr)
             };
         }
+
+        case qb::Type::REF:
+        {
+            ASSERT_N_BYTES(1);
+            qb::device_t device = bytes[addr];
+            addr += 1;
+            ASSERT_N_BYTES(1);
+            qb::port_t port = bytes[addr];
+            addr += 1;
+            return {
+                .code = QB_DATA_R_OK,
+                .value = new qb::node::Reference(device, port),
+                .next_addr = (qb::code_addr_t) (addr)
+            };
+        }
+
+        case qb::Type::REF_IDX:
+        {
+            ASSERT_N_BYTES(1);
+            qb::device_t device = bytes[addr];
+            addr += 1;
+            ASSERT_N_BYTES(1);
+            qb::port_t port = bytes[addr];
+            addr += 1;
+
+            qb::node::res_t index = qb::Node::from_bytes(bytes, code_len, addr);
+            addr = index.next_addr;
+
+            return {
+                .code = QB_DATA_R_OK,
+                .value = new qb::node::Reference(device, port, index.value),
+                .next_addr = (qb::code_addr_t) (addr)
+            };
+        }
+
     }
 
     return {
-        .code = QB_MEMORY_R_PARSE_FAILED_UNKNOWN_TYPE,
+        .code = QB_DATA_R_PARSE_FAILED_UNKNOWN_TYPE,
         .next_addr = 0xFFFF
     };
 }
 
 /*
-    Public Static
+    From Bytes:
+
+    0xPRIMITIVE 0x00 0x00 ...
+    0xERR 0xCODE 0xLEN 'a' 'b' ...
+    0xSTR 0xLEN 0xLEN 'a' 'b' ...
+    0xSTR_SHORT 0xLEN 'a' 'b' ...
+    0xARR 0xTYPE 0xLEN 0xLEN 0x00 0x00 ...
+    0xARR_SHORT 0xTYPE 0xLEN 0xLEN 0x00 0x00 ...
 */
 
 qb::node::res_t qb::Node::from_bytes(qb::code_t* bytes, qb::code_addr_t code_len, qb::code_addr_t addr) {

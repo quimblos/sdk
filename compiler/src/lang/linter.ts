@@ -42,10 +42,9 @@ export const make_quimblos_linter = (kernel: Kernel) => {
         identifier.type.name = 'u8'; // TODO
         return identifier;
     }
-    function check_script_node(script: quimblos.Script, ref: quimblos.Reference): quimblos.VariableStatement | quimblos.PointerStatement {
+    function check_script_node(script: quimblos.Script, ref: quimblos.Reference): quimblos.VariableStatement {
         const node = script.statements.find(d =>
-            (d instanceof quimblos.VariableStatement
-            || d instanceof quimblos.PointerStatement)
+            (d instanceof quimblos.VariableStatement)
             && d.identifier.name === ref.node
         );
         if (!node) {
@@ -254,9 +253,6 @@ export const make_quimblos_linter = (kernel: Kernel) => {
                 }
             }
         })
-        .rule(quimblos.PointerStatement, (ast, { root, error }) => {
-            ast.identifier.type = ast.ref.ref?.type;
-        })
         .rule(quimblos.AssignStatement, (ast, { root, error }) => {
             if (!ast.target.ref) return;
             if (ast.target.ref.type.arr_length) {
@@ -304,7 +300,7 @@ export const make_quimblos_linter = (kernel: Kernel) => {
         .rule(quimblos.Identifier, (ast, { error }) => {
             if (ast.type) {
                 const type = quimblos_types[ast.type.name];
-                if (['void','err','ptr'].includes(ast.type.name as string) || !type) {
+                if (['void','err'].includes(ast.type.name as string) || !type) {
                     error(CST.first(ast.cst, 'identifier_type')!, `Invalid type '${ast.type.name}'`);
                 }
             }
@@ -327,7 +323,7 @@ export const make_quimblos_linter = (kernel: Kernel) => {
 
             for (const statement of script.statements) {
                 const block0 = stack[0]!;
-                if (statement.cst.tab) {
+                if (statement.cst.tab != null) {
                     if (statement.cst.tab > block0.depth) {
                         const parent = block0.statements.at(-1) as ParentStatement;
                         
@@ -340,7 +336,7 @@ export const make_quimblos_linter = (kernel: Kernel) => {
                     else if (statement.cst.tab < block0.depth) {
                         if (block0.depth === 0) throw new Error(`Identation error passed through linter, weird situation.`);
                         while (stack[0]!.depth > statement.cst.tab) {
-                            stack.shift();
+                            stack.shift()!;
                         }
                     }
                 }

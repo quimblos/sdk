@@ -21,14 +21,13 @@ comment ::= '//' [#x20-#xD7FF]* eol
 macro ::= macro_use
 macro_use ::= '#use' ws identifier_device eol
 
-statement ::= statement_var | statement_ptr | statement_function | statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
+statement ::= statement_var | statement_function | statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
 
 /*
     Declarations
 */
 
 statement_var ::= kw_var ws typed_identifier ws? (op_assign ws? expression)? eol
-statement_ptr ::= kw_ptr ws identifier ws? ':' ws? ref_no_idx (ws? op_assign ws? expression)? eol
 
 statement_function ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? typed_identifier? ')' ws? ':' eol
 
@@ -47,7 +46,7 @@ statement_else ::= kw_else ws? ':' eol
 statement_while ::= kw_while ws expression ws? (':' eol)
 
 statement_log ::= kw_log ws expression eol
-statement_sleep ::= kw_sleep ws unsigned_integer eol
+statement_sleep ::= kw_sleep ws expression eol
 statement_return ::= kw_return (ws expression)? eol
 statement_reset ::= kw_reset eol
 statement_reboot ::= kw_reboot eol
@@ -125,7 +124,6 @@ iden ::= ws?
 */
 
 kw_var ::= 'var'
-kw_ptr ::= 'ptr'
 
 kw_hold ::= 'hold'
 kw_release ::= 'release'
@@ -136,10 +134,11 @@ kw_else ::= 'else'
 kw_while ::= 'while'
 kw_and ::= 'and'
 kw_or ::= 'or'
+kw_xor ::= 'xor'
 kw_break ::= 'break'
 kw_continue ::= 'continue'
 
-kw_log ::= 'log'
+kw_log ::= 'out'
 kw_sleep ::= 'sleep'
 kw_return ::= 'return'
 kw_reset ::= 'reset'
@@ -155,8 +154,8 @@ op_div ::= '/'
 op_mod ::= '%'
 op_pow ::= '^'
 
-op_bool ::= op_compare | kw_and | kw_or
-op_compare ::= op_eq | op_neq | op_gt | op_lt | op_gteq | op_lteq
+op_bool ::= op_compare | kw_and | kw_or | kw_xor
+op_compare ::= op_gteq | op_lteq | op_neq | op_eq | op_gt | op_lt
 op_eq ::= '=='
 op_neq ::= '!='
 op_gt ::= '>'
