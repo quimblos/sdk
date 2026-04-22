@@ -1,11 +1,14 @@
 #include "program.h"
 #include <iostream>
+#include <sstream>
 
 qb::Program::Program(
     std::string name,
     std::vector<qb::Instruction*> instructions,
     std::vector<program::Port> ports
-) {
+):
+    name(name)
+{
     for (const auto it : instructions) {
         if (it->type == qb::InstructionType::USE_DEVICE) {
             auto instr = (qb::instruction::UseDevice*) it;
@@ -61,4 +64,29 @@ qb::program::res_t qb::Program::make(std::string name, code_t* bytes, code_addr_
         .error_addr = 0
     };
 
+}
+
+qb::program::res_t qb::Program::make(std::string name, std::string hex) {
+    auto bytecode = qb::hex_to_bytecode(hex);
+    auto res = qb::Program::make(name, bytecode.bytes, bytecode.length);
+    delete[] bytecode.bytes;
+    return res;
+}
+
+std::string qb::Program::describe() {
+    std::stringstream ss;
+    ss << "[program: " << this->name << "]" << std::endl;
+    ss << " #devices" << std::endl;
+    for (port_t i = 0; i < this->devices.size(); i++) {
+        ss << "  " << +i << ": " << this->devices.at(i) << std::endl;
+    }
+    ss << " #variables" << std::endl;
+    for (port_t i = 0; i < this->variables.size(); i++) {
+        ss << "  " << +i << ": " << this->variables.at(i)->to_str() << std::endl;
+    }
+    ss << " #instructions" << std::endl;
+    for (port_t i = 0; i < this->instructions.size(); i++) {
+        ss << "  " << +i << ": " << this->instructions.at(i)->to_str() << std::endl;
+    }
+    return ss.str();
 }

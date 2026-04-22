@@ -263,20 +263,19 @@ qb::data::res_t qb::Data::make(qb::type_t type, qb::code_t* bytes, qb::code_addr
         //     };
         // }
 
-        // case qb::DataType::REF:
-        // {
-        //     ASSERT_N_BYTES(1);
-        //     qb::device_t device = bytes[addr];
-        //     addr += 1;
-        //     ASSERT_N_BYTES(1);
-        //     qb::port_t port = bytes[addr];
-        //     addr += 1;
-        //     return {
-        //         .code = QB_DATA_R_PARSE_OK,
-        //         .data = new qb::data::Reference(device, port),
-        //         .next_addr = (qb::code_addr_t) (addr)
-        //     };
-        // }
+        case qb::DataType::REF:
+        {
+            ASSERT_N_BYTES(1);
+            bool deref = (bytes[addr] >> 7);
+            qb::device_t device = bytes[addr] & 0b01111111;
+            ASSERT_N_BYTES(1);
+            qb::port_t port = bytes[addr+1];
+            return {
+                .code = QB_DATA_R_PARSE_OK,
+                .data = new qb::data::Reference(deref, device, port, 0),
+                .next_addr = (qb::code_addr_t) (addr+2)
+            };
+        }
 
         // case qb::DataType::REF_IDX:
         // {
@@ -373,3 +372,22 @@ qb::data::res_t qb::Data::make(qb::type_t type, qb::code_t* bytes, qb::code_addr
 //         .next_addr = addr
 //     };
 // }
+
+// (Unsafe) cast
+
+qb::data::Null* qb::data::as_null(qb::Data* data) { return (qb::data::Null*) data; }
+qb::data::Error* qb::data::as_error(qb::Data* data) { return (qb::data::Error*) data; }
+qb::data::Numeric<bool>* qb::data::as_bool(qb::Data* data) { return (qb::data::Numeric<bool>*) data; }
+qb::data::Numeric<uint8_t>* qb::data::as_u8(qb::Data* data) { return (qb::data::Numeric<uint8_t>*) data; }
+qb::data::Numeric<int8_t>* qb::data::as_i8(qb::Data* data) { return (qb::data::Numeric<int8_t>*) data; }
+qb::data::Numeric<uint16_t>* qb::data::as_u16(qb::Data* data) { return (qb::data::Numeric<uint16_t>*) data; }
+qb::data::Numeric<int16_t>* qb::data::as_i16(qb::Data* data) { return (qb::data::Numeric<int16_t>*) data; }
+qb::data::Numeric<uint32_t>* qb::data::as_u32(qb::Data* data) { return (qb::data::Numeric<uint32_t>*) data; }
+qb::data::Numeric<int32_t>* qb::data::as_i32(qb::Data* data) { return (qb::data::Numeric<int32_t>*) data; }
+qb::data::Numeric<float>* qb::data::as_f32(qb::Data* data) { return (qb::data::Numeric<float>*) data; }
+qb::data::String* qb::data::as_str(qb::Data* data) { return (qb::data::String*) data; }
+
+template <typename T>
+qb::data::Array<T>* qb::data::as_arr(qb::Data* data) { return (qb::data::Array<T>*) data; }
+
+qb::data::Reference* qb::data::as_ref(qb::Data* data) { return (qb::data::Reference*) data; }

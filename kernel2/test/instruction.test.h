@@ -255,6 +255,13 @@ qb_suite(test_instruction, "instruction", {
             delete instr;
         })
 
+        qb_test("NOT", {
+            PARSE_INSTRUCTION(Arithmetic, 5, { qb::InstructionType::NOT, 0b01111111, 0x12, qb::DataType::BOOL, true })
+            qb_assert(instr->type == qb::InstructionType::NOT);
+            ASSERT_TARGET()
+            qb_assert(instr->data->type == qb::DataType::BOOL);
+            delete instr;
+        })
         qb_test("AND", {
             PARSE_INSTRUCTION(Arithmetic, 5, { qb::InstructionType::AND, 0b01111111, 0x12, qb::DataType::UINT8, 0xAB })
             qb_assert(instr->type == qb::InstructionType::AND);
@@ -279,20 +286,6 @@ qb_suite(test_instruction, "instruction", {
         qb_test("OR*", {
             PARSE_INSTRUCTION(Arithmetic, 7, { qb::InstructionType::OR, 0xFF, 0x12, 0x00, 0x02, qb::DataType::UINT8, 0xAB })
             qb_assert(instr->type == qb::InstructionType::OR);
-            ASSERT_TARGET_DEREF()
-            qb_assert(instr->data->type == qb::DataType::UINT8);
-            delete instr;
-        })
-        qb_test("XOR", {
-            PARSE_INSTRUCTION(Arithmetic, 5, { qb::InstructionType::XOR, 0b01111111, 0x12, qb::DataType::UINT8, 0xAB })
-            qb_assert(instr->type == qb::InstructionType::XOR);
-            ASSERT_TARGET()
-            qb_assert(instr->data->type == qb::DataType::UINT8);
-            delete instr;
-        })
-        qb_test("XOR*", {
-            PARSE_INSTRUCTION(Arithmetic, 7, { qb::InstructionType::XOR, 0xFF, 0x12, 0x00, 0x02, qb::DataType::UINT8, 0xAB })
-            qb_assert(instr->type == qb::InstructionType::XOR);
             ASSERT_TARGET_DEREF()
             qb_assert(instr->data->type == qb::DataType::UINT8);
             delete instr;

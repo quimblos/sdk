@@ -60,6 +60,42 @@
         qb::_operator::delete_data(target); \
     })
 
+#define TEST_COMPARE_EQ(TYPE, CTYPE, V1, V2) \
+    qb_test(#TYPE " == " #TYPE, { \
+        auto v1 = new qb::data_t({ .type = qb::DataType::TYPE, .value = new CTYPE(V1) }); \
+        auto v2 = new qb::data_t({ .type = qb::DataType::TYPE, .value = new CTYPE(V2) }); \
+        auto res_true = qb::_operator::compare(v1, v1); \
+        qb_assert(*(int8_t*) res_true.data->value == 0); \
+        auto res_false = qb::_operator::compare(v1, v2); \
+        qb_assert(*(int8_t*) res_false.data->value != 0); \
+        qb::_operator::clean_heap(&res_true); \
+        qb::_operator::clean_heap(&res_false); \
+        qb::_operator::delete_data(v1); \
+        qb::_operator::delete_data(v2); \
+    })
+
+#define TEST_COMPARE_LT(TYPE, CTYPE, V1, V2) \
+    qb_test(#TYPE " < " #TYPE, { \
+        auto v1 = new qb::data_t({ .type = qb::DataType::TYPE, .value = new CTYPE(V1) }); \
+        auto v2 = new qb::data_t({ .type = qb::DataType::TYPE, .value = new CTYPE(V2) }); \
+        auto res = qb::_operator::compare(v1, v2); \
+        qb_assert(*(int8_t*) res.data->value > 0); \
+        qb::_operator::clean_heap(&res); \
+        qb::_operator::delete_data(v1); \
+        qb::_operator::delete_data(v2); \
+    })
+
+#define TEST_COMPARE_GT(TYPE, CTYPE, V1, V2) \
+    qb_test(#TYPE " > " #TYPE, { \
+        auto v1 = new qb::data_t({ .type = qb::DataType::TYPE, .value = new CTYPE(V1) }); \
+        auto v2 = new qb::data_t({ .type = qb::DataType::TYPE, .value = new CTYPE(V2) }); \
+        auto res = qb::_operator::compare(v2, v1); \
+        qb_assert(*(int8_t*) res.data->value < 0); \
+        qb::_operator::clean_heap(&res); \
+        qb::_operator::delete_data(v1); \
+        qb::_operator::delete_data(v2); \
+    })
+
 qb_suite(test_operator, "operator", {
 
     qb_describe("cast", {
@@ -231,6 +267,35 @@ qb_suite(test_operator, "operator", {
         TEST_ASSIGN(STRING, std::string)
         // TEST_ASSIGN(ARRAY, ...)
         // TEST_ASSIGN(REF, ...)
+    })
+
+    qb_describe("compare", {
+        // TEST_COMPARE_EQ(_NULL)
+        TEST_COMPARE_EQ(BOOL, bool, true, false)
+        TEST_COMPARE_EQ(UINT8, uint8_t, 3, 7)
+        TEST_COMPARE_LT(UINT8, uint8_t, 3, 7)
+        TEST_COMPARE_GT(UINT8, uint8_t, 3, 7)
+        TEST_COMPARE_EQ(INT8, int8_t, -7, 3)
+        TEST_COMPARE_LT(INT8, int8_t, -7, 3)
+        TEST_COMPARE_GT(INT8, int8_t, -7, 3)
+        TEST_COMPARE_EQ(UINT16, uint16_t, 333, 777)
+        TEST_COMPARE_LT(UINT16, uint16_t, 333, 777)
+        TEST_COMPARE_GT(UINT16, uint16_t, 333, 777)
+        TEST_COMPARE_EQ(INT16, int16_t, -777, 333)
+        TEST_COMPARE_LT(INT16, int16_t, -777, 333)
+        TEST_COMPARE_GT(INT16, int16_t, -777, 333)
+        TEST_COMPARE_EQ(UINT32, uint32_t, 333333, 777777)
+        TEST_COMPARE_LT(UINT32, uint32_t, 333333, 777777)
+        TEST_COMPARE_GT(UINT32, uint32_t, 333333, 777777)
+        TEST_COMPARE_EQ(INT32, int32_t, -777777, 333333)
+        TEST_COMPARE_LT(INT32, int32_t, -777777, 333333)
+        TEST_COMPARE_GT(INT32, int32_t, -777777, 333333)
+        TEST_COMPARE_EQ(FLOAT32, float, -12.34, 56.78)
+        TEST_COMPARE_LT(FLOAT32, float, -12.34, 56.78)
+        TEST_COMPARE_GT(FLOAT32, float, -12.34, 56.78)
+        TEST_COMPARE_EQ(STRING, std::string, "test", "test2")
+        // TEST_COMPARE_EQ(ARRAY, ...)
+        // TEST_COMPARE_EQ(REF, ...)
     })
     
 })

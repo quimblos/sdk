@@ -1,6 +1,8 @@
 #pragma once
+#include <iostream>
 #include <vector>
 #include "data.h"
+#include "cli.h"
 
 namespace qb {
     
@@ -8,33 +10,45 @@ namespace qb {
     
         protected:
             const std::string name;
-            const std::vector<Data*> variables;
+            const std::vector<std::pair<std::string, Data*>> variables;
 
             bool held = false;
 
             virtual void tick() {}
 
         public:
-            Device(std::string name, std::vector<Data*> variables);
-            ~Device() {
-                for (qb::Data* var : this->variables) {
-                    delete var;
-                }
-            }
+            Device(std::string name, std::vector<std::pair<std::string, Data*>> variables);
+            ~Device();
+
+            static void tick(Device& device);
 
             void hold();
-            void release();           
+            void release();       
 
-            bool is_held() const {
-                return this->held;
+            // Virtual Behaviors
+
+            virtual void log(Data* data) {
+                std::cout << COLOR_GRAY << "[" << this->name << "] " << data->to_str() << COLOR_NC << std::endl;
             }
-            std::string get_name() const {
-                return this->name;
+
+            virtual void on_tick() {
+                std::cout << COLOR_GRAY;
+                std::cout << "[" << this->name << "]" << std::endl;
+                for (size_t i = 0; i < this->variables.size(); i++) {
+                    auto var = this->variables.at(i);
+                    std::cout << i << " | " <<  var.first << " " << var.second->to_str() << std::endl;
+                }
+                std::cout << COLOR_NC;
             }
-            Data* get_variable(port_t port) const {
-                if (port >= this->variables.size()) return nullptr;
-                return this->variables.at(port);
-            }
+
+            // Getters
+
+            bool is_held() const;
+            std::string get_name() const;
+
+            std::vector<std::pair<std::string, Data*>> get_variables() const;
+            Data* get_variable(port_t port) const;
+            std::string get_variable_name(port_t port) const;
     };
     
 }

@@ -328,4 +328,27 @@ namespace qb {
 
         Reference* ref(bool deref, device_t device, port_t port, uint16_t index);
     }
+
+    /*
+        (Unsafe) Data Casting
+    */
+
+    namespace data {
+        Null* as_null(qb::Data* data);
+        Error* as_error(qb::Data* data);
+        Numeric<bool>* as_bool(qb::Data* data);
+        Numeric<uint8_t>* as_u8(qb::Data* data);
+        Numeric<int8_t>* as_i8(qb::Data* data);
+        Numeric<uint16_t>* as_u16(qb::Data* data);
+        Numeric<int16_t>* as_i16(qb::Data* data);
+        Numeric<uint32_t>* as_u32(qb::Data* data);
+        Numeric<int32_t>* as_i32(qb::Data* data);
+        Numeric<float>* as_f32(qb::Data* data);
+        String* as_str(qb::Data* data);
+        
+        template <typename T>
+        Array<T>* as_arr(qb::Data* data);
+        
+        Reference* as_ref(qb::Data* data);
+    }
 }

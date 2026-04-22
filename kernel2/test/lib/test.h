@@ -44,6 +44,7 @@ namespace test {
 
 #define qb_assert(CODE) \
   if (!(CODE)) { \
+    std::cout << "    - \033[31m" << #CODE << NC << std::endl; \
     ok = false; \
     break; \
   }
@@ -54,3 +55,4 @@ namespace test {
   std::cout << __OK << "    : " << test::ok << std::endl; \
   std::cout << __ERROR << " : " << test::error << std::endl; \
   std::cout << std::endl;
+  

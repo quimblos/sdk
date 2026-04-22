@@ -1,5 +1,6 @@
 #include "instruction.h"
 #define QB_PARSER_DEBUG
+#include <iostream>
 
 using namespace qb;
 
@@ -114,17 +115,22 @@ qb::instruction::res_t qb::Instruction::make(qb::code_t* bytes, qb::code_addr_t 
         case qb::InstructionType::SET_IF_LT:
         {
             PARSE_TARGET()
+            std::cout << "target ok" << std::endl;
             PARSE_DATA(left)
+            std::cout << "left ok" << std::endl;
             PARSE_DATA(right)
+            std::cout << "right ok" << std::endl;
             PARSE_DATA(data_true)
+            std::cout << "data_true ok" << std::endl;
             PARSE_DATA(data_false)
+            std::cout << "data_false ok" << std::endl;
             OK(new qb::instruction::ConditionalSet((qb::InstructionType) type, &target, left, right, data_true, data_false))
         }
 
         // Arithmetic
+        case qb::InstructionType::NOT:
         case qb::InstructionType::AND:
         case qb::InstructionType::OR:
-        case qb::InstructionType::XOR:
         case qb::InstructionType::ADD:
         case qb::InstructionType::SUB:
         case qb::InstructionType::MULT:

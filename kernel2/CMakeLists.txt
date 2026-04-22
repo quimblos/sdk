@@ -16,6 +16,7 @@ set(SOURCES
     src/device.cpp
     src/runner.cpp
     src/engine.cpp
+    src/hex.cpp
 )
 
 # WASM
@@ -54,4 +55,16 @@ else()
         PUBLIC quimblos
     )
 
+    # Sandbox
+
+    add_executable(sandbox examples/sandbox.cpp)
+
+    target_include_directories(sandbox
+        PRIVATE ${PROJECT_SOURCE_DIR}/include
+    )
+
+    target_link_libraries(sandbox
+        PUBLIC quimblos
+    )
+    
 endif()

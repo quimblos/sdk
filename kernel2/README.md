@@ -53,7 +53,7 @@ Then, you instantiate your `Device` and add it to ehe engine:
 
 ```cpp
 MyDevice device;
-engine.put_device(device);
+engine.link_device(device);
 ```
 
 ###  1.2. <a name='Constants'></a>Constants

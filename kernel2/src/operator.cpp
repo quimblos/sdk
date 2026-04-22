@@ -312,7 +312,7 @@ qb::_operator::res_t qb::_operator::cast(qb::type_t type, qb::data_t* source) {
             return ERROR("Cast to REF not allowed.");
         }
         default:
-            return { .data = new data_t(UNRESOLVED) };
+            return { .data = new data_t(UNRESOLVED_DATA) };
     }
 }
 
@@ -348,30 +348,80 @@ qb::_operator::res_t qb::_operator::compare(qb::data_t* target, qb::data_t* sour
     auto cast_res = cast(target->type, source);
     ASSERT_NO_ERROR(cast_res);
 
-    uint8_t diff = 0;
+    int8_t diff = 0;
 
     switch (target->type) {
         case qb::DataType::_NULL: break;
         case qb::DataType::ERROR: return ERROR("Comparing ERRORs is not allowed.");
-        case qb::DataType::BOOL: diff = (*((bool*) cast_res.data->value) ? 1 : 0) - (*((bool*) target->value) ? 1 : 0); break;
-        case qb::DataType::UINT8: diff = *((uint8_t*) cast_res.data->value) - *((uint8_t*) target->value); break;
-        case qb::DataType::INT8: diff = *((int8_t*) cast_res.data->value) - *((int8_t*) target->value); break;
-        case qb::DataType::UINT16: diff = *((uint16_t*) cast_res.data->value) - *((uint16_t*) target->value); break;
-        case qb::DataType::INT16: diff = *((int16_t*) cast_res.data->value) - *((int16_t*) target->value); break;
-        case qb::DataType::UINT32: diff = *((uint32_t*) cast_res.data->value) - *((uint32_t*) target->value); break;
-        case qb::DataType::INT32: diff = *((int32_t*) cast_res.data->value) - *((int32_t*) target->value); break;
-        case qb::DataType::FLOAT32: diff = *((float*) cast_res.data->value) - *((float*) target->value); break;
-        case qb::DataType::STRING:
-            diff = (*((std::string*) target->value) == *((std::string*) cast_res.data->value)) ? 0 : -1;
+        case qb::DataType::BOOL: {
+            bool l = *((bool*) target->value);
+            bool r = *((bool*) cast_res.data->value);
+            if (l != r) diff = r ? 1 : -1;
             break;
+        }
+        case qb::DataType::UINT8: {
+            uint8_t l = *((uint8_t*) target->value);
+            uint8_t r = *((uint8_t*) cast_res.data->value);
+            if (r > l) diff = 1;
+            else if (l > r) diff = -1;
+            break;
+        }
+        case qb::DataType::INT8: {
+            int8_t l = *((int8_t*) target->value);
+            int8_t r = *((int8_t*) cast_res.data->value);
+            if (r > l) diff = 1;
+            else if (l > r) diff = -1;
+            break;
+        }
+        case qb::DataType::UINT16: {
+            uint16_t l = *((uint16_t*) target->value);
+            uint16_t r = *((uint16_t*) cast_res.data->value);
+            if (r > l) diff = 1;
+            else if (l > r) diff = -1;
+            break;
+        }
+        case qb::DataType::INT16: {
+            int16_t l = *((int16_t*) target->value);
+            int16_t r = *((int16_t*) cast_res.data->value);
+            if (r > l) diff = 1;
+            else if (l > r) diff = -1;
+            break;
+        }
+        case qb::DataType::UINT32: {
+            uint32_t l = *((uint32_t*) target->value);
+            uint32_t r = *((uint32_t*) cast_res.data->value);
+            if (r > l) diff = 1;
+            else if (l > r) diff = -1;
+            break;
+        }
+        case qb::DataType::INT32: {
+            int32_t l = *((int32_t*) target->value);
+            int32_t r = *((int32_t*) cast_res.data->value);
+            if (r > l) diff = 1;
+            else if (l > r) diff = -1;
+            break;
+        }
+        case qb::DataType::FLOAT32: {
+            float l = *((float*) target->value);
+            float r = *((float*) cast_res.data->value);
+            if (r > l) diff = 1;
+            else if (l > r) diff = -1;
+            break;
+        }
+        case qb::DataType::STRING: {
+            std::string l = *((std::string*) target->value);
+            std::string r = *((std::string*) cast_res.data->value);
+            if (l != r) diff = -1;
+            break;
+        }
         case qb::DataType::ARRAY: return ERROR("Comparing ARRAYs is not allowed.");
         case qb::DataType::REF: {
-            auto ref_source = (qb::data::Reference*) cast_res.data->value;
-            auto ref_target = (qb::data::Reference*) target->value;
-            diff = (ref_source->deref == ref_target->deref) \
-                && (ref_source->device == ref_target->device) \
-                && (ref_source->port == ref_target->port) \
-                && (ref_source->index == ref_target->index);
+            auto l = (qb::data::Reference*) target->value;
+            auto r = (qb::data::Reference*) cast_res.data->value;
+            diff = (l->deref == r->deref) \
+                && (l->device == r->device) \
+                && (l->port == r->port) \
+                && (l->index == r->index);
             break;
         }
     }
@@ -383,5 +433,166 @@ qb::_operator::res_t qb::_operator::compare(qb::data_t* target, qb::data_t* sour
             .value = (void*) new uint8_t(diff),
             .heap = true
         })
+    };
+}
+
+qb::_operator::res_t qb::_operator::arithmetic_bool(qb::InstructionType type, qb::data_t* target, qb::data_t* source) {
+
+    bool v_target = false;
+    if (type != qb::InstructionType::NOT) {
+        auto cast_target_res = cast(qb::DataType::BOOL, target);
+        ASSERT_NO_ERROR(cast_target_res);
+        v_target = *(bool*) cast_target_res.data->value;
+        qb::_operator::clean_heap(&cast_target_res);
+    }
+
+    auto cast_source_res = cast(qb::DataType::BOOL, source);
+    ASSERT_NO_ERROR(cast_source_res);
+    bool v_source = *(bool*) cast_source_res.data->value;
+    qb::_operator::clean_heap(&cast_source_res);
+
+    bool out = false;
+    switch (type) {
+        case qb::InstructionType::NOT:
+            out = !v_source;
+            break;
+        case qb::InstructionType::AND:
+            out = v_target && v_source;
+            break;
+        case qb::InstructionType::OR:
+            out = v_target || v_source;
+            break;
+    }
+    
+    qb::_operator::assign(target, new data_t({
+        .type = qb::DataType::BOOL,
+        .value = new bool(out),
+        .heap = true
+    }));
+
+    return {
+        .data = target
+    };
+}
+
+qb::_operator::res_t qb::_operator::arithmetic(qb::InstructionType type, qb::data_t* target, qb::data_t* source) {
+
+    auto cast_res = cast(target->type, source);
+    ASSERT_NO_ERROR(cast_res);
+    
+    switch (type) {
+        case qb::InstructionType::ADD: {
+            switch (target->type) {
+                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
+                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
+                case qb::DataType::BOOL: *((bool*) target->value) += *((bool*) cast_res.data->value); break;
+                case qb::DataType::UINT8: *((uint8_t*) target->value) += *((uint8_t*) cast_res.data->value); break;
+                case qb::DataType::INT8: *((int8_t*) target->value) += *((int8_t*) cast_res.data->value); break;
+                case qb::DataType::UINT16: *((uint16_t*) target->value) += *((uint16_t*) cast_res.data->value); break;
+                case qb::DataType::INT16: *((int16_t*) target->value) += *((int16_t*) cast_res.data->value); break;
+                case qb::DataType::UINT32: *((uint32_t*) target->value) += *((uint32_t*) cast_res.data->value); break;
+                case qb::DataType::INT32: *((int32_t*) target->value) += *((int32_t*) cast_res.data->value); break;
+                case qb::DataType::FLOAT32: *((float*) target->value) += *((float*) cast_res.data->value); break;
+                case qb::DataType::STRING: *((std::string*) target->value) += *((std::string*) cast_res.data->value); break;
+                case qb::DataType::ARRAY: /* TODO */ break;
+                case qb::DataType::REF: /* TODO */ break;
+            }
+            break;
+        }            
+        case qb::InstructionType::SUB: {
+            switch (target->type) {
+                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
+                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
+                case qb::DataType::BOOL: *((bool*) target->value) -= *((bool*) cast_res.data->value); break;
+                case qb::DataType::UINT8: *((uint8_t*) target->value) -= *((uint8_t*) cast_res.data->value); break;
+                case qb::DataType::INT8: *((int8_t*) target->value) -= *((int8_t*) cast_res.data->value); break;
+                case qb::DataType::UINT16: *((uint16_t*) target->value) -= *((uint16_t*) cast_res.data->value); break;
+                case qb::DataType::INT16: *((int16_t*) target->value) -= *((int16_t*) cast_res.data->value); break;
+                case qb::DataType::UINT32: *((uint32_t*) target->value) -= *((uint32_t*) cast_res.data->value); break;
+                case qb::DataType::INT32: *((int32_t*) target->value) -= *((int32_t*) cast_res.data->value); break;
+                case qb::DataType::FLOAT32: *((float*) target->value) -= *((float*) cast_res.data->value); break;
+                case qb::DataType::STRING: return ERROR("Subtraction with STRING not allowed.");
+                case qb::DataType::ARRAY: /* TODO */ break;
+                case qb::DataType::REF: /* TODO */ break;
+            }
+            break;
+        }            
+        case qb::InstructionType::MULT: {
+            switch (target->type) {
+                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
+                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
+                case qb::DataType::BOOL: *((bool*) target->value) *= *((bool*) cast_res.data->value); break;
+                case qb::DataType::UINT8: *((uint8_t*) target->value) *= *((uint8_t*) cast_res.data->value); break;
+                case qb::DataType::INT8: *((int8_t*) target->value) *= *((int8_t*) cast_res.data->value); break;
+                case qb::DataType::UINT16: *((uint16_t*) target->value) *= *((uint16_t*) cast_res.data->value); break;
+                case qb::DataType::INT16: *((int16_t*) target->value) *= *((int16_t*) cast_res.data->value); break;
+                case qb::DataType::UINT32: *((uint32_t*) target->value) *= *((uint32_t*) cast_res.data->value); break;
+                case qb::DataType::INT32: *((int32_t*) target->value) *= *((int32_t*) cast_res.data->value); break;
+                case qb::DataType::FLOAT32: *((float*) target->value) *= *((float*) cast_res.data->value); break;
+                case qb::DataType::STRING: return ERROR("Multiplication with STRING not allowed.");
+                case qb::DataType::ARRAY: /* TODO */ break;
+                case qb::DataType::REF: /* TODO */ break;
+            }
+            break;
+        }            
+        case qb::InstructionType::DIV: {
+            switch (target->type) {
+                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
+                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
+                case qb::DataType::BOOL: *((bool*) target->value) /= *((bool*) cast_res.data->value); break;
+                case qb::DataType::UINT8: *((uint8_t*) target->value) /= *((uint8_t*) cast_res.data->value); break;
+                case qb::DataType::INT8: *((int8_t*) target->value) /= *((int8_t*) cast_res.data->value); break;
+                case qb::DataType::UINT16: *((uint16_t*) target->value) /= *((uint16_t*) cast_res.data->value); break;
+                case qb::DataType::INT16: *((int16_t*) target->value) /= *((int16_t*) cast_res.data->value); break;
+                case qb::DataType::UINT32: *((uint32_t*) target->value) /= *((uint32_t*) cast_res.data->value); break;
+                case qb::DataType::INT32: *((int32_t*) target->value) /= *((int32_t*) cast_res.data->value); break;
+                case qb::DataType::FLOAT32: *((float*) target->value) /= *((float*) cast_res.data->value); break;
+                case qb::DataType::STRING: return ERROR("Division with STRING not allowed.");
+                case qb::DataType::ARRAY: /* TODO */ break;
+                case qb::DataType::REF: /* TODO */ break;
+            }
+            break;
+        }            
+        case qb::InstructionType::MOD: {
+            switch (target->type) {
+                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
+                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
+                case qb::DataType::BOOL: *((bool*) target->value) %= *((bool*) cast_res.data->value); break;
+                case qb::DataType::UINT8: *((uint8_t*) target->value) %= *((uint8_t*) cast_res.data->value); break;
+                case qb::DataType::INT8: *((int8_t*) target->value) %= *((int8_t*) cast_res.data->value); break;
+                case qb::DataType::UINT16: *((uint16_t*) target->value) %= *((uint16_t*) cast_res.data->value); break;
+                case qb::DataType::INT16: *((int16_t*) target->value) %= *((int16_t*) cast_res.data->value); break;
+                case qb::DataType::UINT32: *((uint32_t*) target->value) %= *((uint32_t*) cast_res.data->value); break;
+                case qb::DataType::INT32: *((int32_t*) target->value) %= *((int32_t*) cast_res.data->value); break;
+                case qb::DataType::FLOAT32: *((float*) target->value) = std::fmod(*((float*) target->value), *((float*) cast_res.data->value)); break;
+                case qb::DataType::STRING: return ERROR("Modulo with STRING not allowed.");
+                case qb::DataType::ARRAY: /* TODO */ break;
+                case qb::DataType::REF: /* TODO */ break;
+            }
+            break;
+        }            
+        case qb::InstructionType::POW: {
+            switch (target->type) {
+                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
+                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
+                case qb::DataType::BOOL: *((bool*) target->value) = std::pow(*((bool*) target->value), *((bool*) cast_res.data->value)); break;
+                case qb::DataType::UINT8: *((uint8_t*) target->value) = std::pow(*((uint8_t*) target->value), *((uint8_t*) cast_res.data->value)); break;
+                case qb::DataType::INT8: *((int8_t*) target->value) = std::pow(*((int8_t*) target->value), *((int8_t*) cast_res.data->value)); break;
+                case qb::DataType::UINT16: *((uint16_t*) target->value) = std::pow(*((uint16_t*) target->value), *((uint16_t*) cast_res.data->value)); break;
+                case qb::DataType::INT16: *((int16_t*) target->value) = std::pow(*((int16_t*) target->value), *((int16_t*) cast_res.data->value)); break;
+                case qb::DataType::UINT32: *((uint32_t*) target->value) = std::pow(*((uint32_t*) target->value), *((uint32_t*) cast_res.data->value)); break;
+                case qb::DataType::INT32: *((int32_t*) target->value) = std::pow(*((int32_t*) target->value), *((int32_t*) cast_res.data->value)); break;
+                case qb::DataType::FLOAT32: *((float*) target->value) = std::pow(*((float*) target->value), *((float*) cast_res.data->value)); break;
+                case qb::DataType::STRING: return ERROR("Exponential with STRING not allowed.");
+                case qb::DataType::ARRAY: /* TODO */ break;
+                case qb::DataType::REF: /* TODO */ break;
+            }
+            break;
+        }            
+    }
+
+    qb::_operator::clean_heap(&cast_res);
+    return {
+        .data = target
     };
 }

@@ -26,9 +26,9 @@ namespace qb {
         SET_IF_LT = 0x31,     // {target:ref} {left:any} {right:any} {true:any} {false:any}
         SET_IF_GT = 0x32,     // {target:ref} {left:any} {right:any} {true:any} {false:any}
         // 0x4* -> Boolean Arithmetic 
-        AND = 0x40,           // {target:reg} {source:any}
-        OR = 0x41,            // {target:reg} {source:any}
-        XOR = 0x42,           // {target:reg} {source:any}
+        NOT = 0x40,           // {target:reg} {source:any}
+        AND = 0x41,           // {target:reg} {source:any}
+        OR = 0x42,            // {target:reg} {source:any}
         // 0x5* -> Arithmetic 
         ADD = 0x50,           // {target:reg} {source:any}
         SUB = 0x51,           // {target:reg} {source:any}
@@ -242,7 +242,19 @@ namespace qb {
 
             std::string to_str() const {
                 std::stringstream ss;
-                ss << this->type << this->target.to_str() << " <- " << this->data->to_str();
+                ss << this->target.to_str();
+                switch (this->type) {
+                    case qb::InstructionType::NOT: ss << " = !"; break;
+                    case qb::InstructionType::AND: ss << " &&= "; break;
+                    case qb::InstructionType::OR: ss << " ||= "; break;
+                    case qb::InstructionType::ADD: ss << " += "; break;
+                    case qb::InstructionType::SUB: ss << " -= "; break;
+                    case qb::InstructionType::MULT: ss << " *= "; break;
+                    case qb::InstructionType::DIV: ss << " /= "; break;
+                    case qb::InstructionType::MOD: ss << " %= "; break;
+                    case qb::InstructionType::POW: ss << " ^= "; break;
+                }
+                ss << this->data->to_str();
                 return ss.str();
             }
         };

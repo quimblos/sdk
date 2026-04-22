@@ -1,13 +1,14 @@
 #include "runner.h"
 
-#define QB_RUNNER_DEBUG
+// #define QB_RUNNER_DEBUG
+#define QB_RUNNER_TICK_DEBUG
 
 #ifdef QB_RUNNER_DEBUG
     #include <iostream>
 #endif
 
 #define ASSERT_TARGET() \
-    if (target.type == qb::DataType::VOID) { \
+    if (target.data.type == qb::DataType::VOID) { \
         return this->_return(qb::data::error(0, "Unresolved target reference")); \
     }
 
@@ -21,8 +22,8 @@
         return this->_return(qb::data::error(0, *RES.error)); \
     }
 
-qb::Runner::Runner(qb::Engine& engine, std::string name, qb::Program* program):
-    engine(&engine),
+qb::Runner::Runner(qb::Engine* engine, std::string name, const qb::Program* program):
+    engine(engine),
     name(name),
     program(program),
     length(program->instructions.size())
@@ -105,9 +106,16 @@ bool qb::Runner::tick() {
 
     qb::code_addr_t next = this->run_instruction(instr);
 
+    // Program is ending
     if (next >= this->length) {
+        // Was running, end with success, no output
         if (this->state == runner::State::RUNNING) {
             this->state = runner::State::OK;
+        }
+        // Started sleeping, advance and wait
+        else if (this->state == runner::State::SLEEPING) {
+            this->cursor = next;
+            return true;
         }
         return false;
     }
@@ -132,50 +140,57 @@ qb::data_t qb::Runner::resolve_data(const qb::Data* data) const {
         case DataType::FLOAT32: value = &((qb::data::Numeric<float>*) data)->value; break;
         case DataType::STRING: value = &((qb::data::String*) data)->value; break;
         case DataType::ARRAY: value = (void*) data; break;
-        case DataType::REF: return this->resolve_ref((qb::data::Reference*) data);
-        default: return UNRESOLVED;
+        case DataType::REF: return this->resolve_ref((qb::data::Reference*) data).data;
+        default: return UNRESOLVED_DATA;
     }
 
     return { .type = data->type, .value = value };
 }
 
-qb::data_t qb::Runner::resolve_ref(const qb::data::Reference* ref) const {
+qb::runner::device_data_t qb::Runner::resolve_ref(const qb::data::Reference* ref) const {
 
+    qb::Device* device = nullptr;
     qb::Data* data;
     // Runner Variable
     if (ref->device == DEVICE_RUNNER) {
-        if (ref->port >= this->variables.size()) return UNRESOLVED;
+        if (ref->port >= this->variables.size()) return UNRESOLVED_DEVICE_DATA;
         data = this->variables.at(ref->port);
     }
     // Device Variable
     else {
-        qb::Device* device = this->devices.at(ref->device);
+        device = this->devices.at(ref->device);
         data = device->get_variable(ref->port);
-        if (data == nullptr) return UNRESOLVED;
+        if (data == nullptr) return UNRESOLVED_DEVICE_DATA;
     }
 
     // Array
     if (data->type == qb::DataType::ARRAY) {
         auto array = (qb::data::Array<void>*) data;
-        if (ref->index >= array->length) return UNRESOLVED;
+        if (ref->index >= array->length) return UNRESOLVED_DEVICE_DATA;
 
         void* item = array->ptr_at(ref->index);
 
         // Dereference Array Item
         if (ref->deref) {
-            if (array->item_type != qb::DataType::REF) return UNRESOLVED;
+            if (array->item_type != qb::DataType::REF) return UNRESOLVED_DEVICE_DATA;
             return this->resolve_ref((qb::data::Reference*) item);
         }
-        return { .type = array->item_type, .value = item };
+        return {
+            .device = device,
+            .data = { .type = array->item_type, .value = item }
+        };
     }
 
     // Dereference
     if (ref->deref) {
-        if (data->type != qb::DataType::REF) return UNRESOLVED;
+        if (data->type != qb::DataType::REF) return UNRESOLVED_DEVICE_DATA;
         return this->resolve_ref((qb::data::Reference*) data);
     }
 
-    return this->resolve_data(data);
+    return {
+        .device = device,
+        .data = this->resolve_data(data)
+    };
 }
 
 qb::code_addr_t qb::Runner::run_instruction(qb::Instruction* instr) {
@@ -189,8 +204,19 @@ qb::code_addr_t qb::Runner::run_instruction(qb::Instruction* instr) {
             ASSERT_TARGET()
             auto source = this->resolve_data(it->data);
             ASSERT_SOURCE(source)
-            auto res = qb::_operator::assign(&target, &source);
+            auto res = qb::_operator::assign(&target.data, &source);
             ASSERT_OPERATOR_RES(res)
+            #ifdef QB_RUNNER_TICK_DEBUG
+                std::cout << COLOR_GRAY;
+                for (size_t i = 0; i < this->variables.size(); i++) {
+                    auto var = this->variables.at(i);
+                    std::cout << i << " | " <<  var->to_str() << std::endl;
+                }
+                std::cout << COLOR_NC;
+            #endif
+            if (target.device != nullptr) {
+                qb::Device::tick(*target.device);
+            }
             return this->cursor + 1;
         }
 
@@ -244,37 +270,86 @@ qb::code_addr_t qb::Runner::run_instruction(qb::Instruction* instr) {
             ASSERT_SOURCE(data_false)
             auto compare_res = qb::_operator::compare(&left, &right);
             ASSERT_OPERATOR_RES(compare_res)
-            uint8_t diff = *(uint8_t*) compare_res.data->value;
+            int8_t diff = *(int8_t*) compare_res.data->value;
             qb::_operator::clean_heap(&compare_res);
-
-            std::cout << "left: " << it->left->to_str() << std::endl;
-            std::cout << "left: " << +(*(uint8_t*) left.value) << std::endl;
-            std::cout << "right: " << it->right->to_str() << std::endl;
-            std::cout << "right: " << +(*(uint8_t*) right.value) << std::endl;
-            std::cout << "diff: " << +diff << std::endl;
 
             bool cond = false;
             if (instr->type == qb::InstructionType::SET_IF_EQ) {
                 cond = diff == 0;
             }
+            else if (instr->type == qb::InstructionType::SET_IF_LT) {
+                cond = diff == 1;
+            }
+            else if (instr->type == qb::InstructionType::SET_IF_GT) {
+                cond = diff == -1;
+            }
 
-            auto assign_res = qb::_operator::assign(&target, cond ? &data_true : &data_false);
+            auto assign_res = qb::_operator::assign(&target.data, cond ? &data_true : &data_false);
             ASSERT_OPERATOR_RES(assign_res)
+
+            #ifdef QB_RUNNER_TICK_DEBUG
+                std::cout << COLOR_GRAY;
+                for (size_t i = 0; i < this->variables.size(); i++) {
+                    auto var = this->variables.at(i);
+                    std::cout << i << " | " <<  var->to_str() << std::endl;
+                }
+                std::cout << COLOR_NC;
+            #endif
+            if (target.device != nullptr) {
+                qb::Device::tick(*target.device);
+            }
             return this->cursor + 1;
         }
 
         // Arithmetic
 
+        case qb::InstructionType::NOT:
         case qb::InstructionType::AND:
-        case qb::InstructionType::OR:
-        case qb::InstructionType::XOR:
+        case qb::InstructionType::OR: {
+            auto it = (qb::instruction::Arithmetic*) instr;
+            auto target = this->resolve_ref(&it->target);
+            ASSERT_TARGET()
+            auto source = this->resolve_data(it->data);
+            ASSERT_SOURCE(source)
+            auto res = qb::_operator::arithmetic_bool(it->type, &target.data, &source);
+            ASSERT_OPERATOR_RES(res)
+            #ifdef QB_RUNNER_TICK_DEBUG
+                std::cout << COLOR_GRAY;
+                for (size_t i = 0; i < this->variables.size(); i++) {
+                    auto var = this->variables.at(i);
+                    std::cout << i << " | " <<  var->to_str() << std::endl;
+                }
+                std::cout << COLOR_NC;
+            #endif
+            if (target.device != nullptr) {
+                qb::Device::tick(*target.device);
+            }
+            return this->cursor + 1;
+        }
         case qb::InstructionType::ADD:
         case qb::InstructionType::SUB:
         case qb::InstructionType::MULT:
         case qb::InstructionType::DIV:
         case qb::InstructionType::MOD:
         case qb::InstructionType::POW: {
-            // TODO
+            auto it = (qb::instruction::Arithmetic*) instr;
+            auto target = this->resolve_ref(&it->target);
+            ASSERT_TARGET()
+            auto source = this->resolve_data(it->data);
+            ASSERT_SOURCE(source)
+            auto res = qb::_operator::arithmetic(it->type, &target.data, &source);
+            ASSERT_OPERATOR_RES(res)
+            #ifdef QB_RUNNER_TICK_DEBUG
+                std::cout << COLOR_GRAY;
+                for (size_t i = 0; i < this->variables.size(); i++) {
+                    auto var = this->variables.at(i);
+                    std::cout << i << " | " <<  var->to_str() << std::endl;
+                }
+                std::cout << COLOR_NC;
+            #endif
+            if (target.device != nullptr) {
+                qb::Device::tick(*target.device);
+            }
             return this->cursor + 1;
         }
 

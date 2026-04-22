@@ -4,6 +4,7 @@
 #include "types.h"
 #include "data.h"
 #include "instruction.h"
+#include "hex.h"
 
 /*
     Program
@@ -50,6 +51,9 @@ namespace qb {
 
         // Builds a program from a byte sequence
         static program::res_t make(std::string name, code_t* bytes, code_addr_t code_len);
+        static program::res_t make(std::string name, std::string hex);
+
+        std::string describe();
     };
 
 }
