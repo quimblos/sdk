@@ -88,8 +88,7 @@ export class QuimblosCompiler {
         f32: 0x4A,
         str: 0xF0,
         str_short: 0xF0,
-        arr: 0xE0,
-        arr_short: 0xE1,
+        vec: 0xE0,
     };
 
     public static compile(kernel: Kernel, ast: AST) {

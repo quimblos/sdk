@@ -33,7 +33,7 @@ describe('VariableDeclaration', () => {
             var abc:u8[3]
         `);
         expect(compiled.nodes).toEqual({
-            'abc': { name: 'abc', type: { name: 'arr', item: 'u8', length: 3 }}
+            'abc': { name: 'abc', type: { name: 'vec', item: 'u8', length: 3 }}
         })
     })
 
@@ -42,7 +42,7 @@ describe('VariableDeclaration', () => {
             var abc:f32[3]
         `);
         expect(compiled.nodes).toEqual({
-            'abc': { name: 'abc', type: { name: 'arr', item: 'f32', length: 3 }}
+            'abc': { name: 'abc', type: { name: 'vec', item: 'f32', length: 3 }}
         })
     })
 
@@ -51,7 +51,7 @@ describe('VariableDeclaration', () => {
             var abc:str[3]
         `);
         expect(compiled.nodes).toEqual({
-            'abc': { name: 'abc', type: { name: 'arr', item: 'str', length: 3 }}
+            'abc': { name: 'abc', type: { name: 'vec', item: 'str', length: 3 }}
         })
     })
 })

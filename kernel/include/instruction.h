@@ -142,7 +142,7 @@ namespace qb {
 
             std::string to_str() const {
                 std::stringstream ss;
-                ss << "hold " << this->device;
+                ss << "hold " << +this->device;
                 return ss.str();
             }
         };

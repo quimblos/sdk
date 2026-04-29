@@ -12,10 +12,12 @@ namespace qb {
     typedef uint8_t port_t;
     typedef uint16_t index_t;
 
+    typedef std::vector<std::pair<index_t, index_t>> slice_t;
+
     // value is either:
     // - (null) nullptr
     // - (numeric, string) a pointer to the memory allocated by the qb::Data object
-    // - (error, array or ref) a pointer to the qb::Data object
+    // - (error, vector or ref) a pointer to the qb::Data object
     struct data_t {
         type_t type;
         void* value;
@@ -33,7 +35,8 @@ namespace qb {
 #define QB_DATA_R_PARSE_OK 00
 #define QB_DATA_R_PARSE_FAILED_UNEXPECTED_EOF 01
 #define QB_DATA_R_PARSE_FAILED_UNKNOWN_TYPE 10
-#define QB_DATA_R_PARSE_ARRAY_FAILED_UNKNOWN_ARRAY 20
+#define QB_DATA_R_PARSE_VECTOR_FAILED_UNKNOWN_ITEM_TYPE 20
+#define QB_DATA_R_PARSE_REF_FAILED_INVALID_INDEX 21
 
 #define QB_CODE_R_PARSE_OK 0
 #define QB_CODE_R_PARSE_FAILED_UNEXPECTED_EOF 1

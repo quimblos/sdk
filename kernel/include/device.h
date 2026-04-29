@@ -1,97 +1,55 @@
 #pragma once
-#include <vector>
 #include <iostream>
-#include <string>
-#include <stdint.h>
-#include "memory.h"
-
-#define COLOR_GRAY "\033[30m"
-#define COLOR_NC "\033[0m"
+#include <vector>
+#include "data.h"
+#include "cli.h"
 
 namespace qb {
     
-    /**
-     * Device
-     */
-    
     class Device {
+    
         protected:
-            std::string name;
-            std::vector<std::pair<std::string, qb::Node*>> nodes;
+            const std::string name;
+            const std::vector<std::pair<std::string, Data*>> variables;
+
             bool held = false;
-        
+
+            virtual void tick() {}
+
         public:
-            Device(std::string name):
-                name(name)
-            {};
+            Device(std::string name, std::vector<std::pair<std::string, Data*>> variables);
+            ~Device();
 
-            ~Device() {
-                for (auto node : this->nodes) {
-                    delete node.second;
+            static void tick(Device& device);
+
+            void hold();
+            void release();       
+
+            // Virtual Behaviors
+
+            virtual void log(Data* data) {
+                std::cout << COLOR_GRAY << "[" << this->name << "] " << data->to_str() << COLOR_NC << std::endl;
+            }
+
+            virtual void on_tick() {
+                std::cout << COLOR_GRAY;
+                std::cout << "[" << this->name << "]" << std::endl;
+                for (size_t i = 0; i < this->variables.size(); i++) {
+                    auto var = this->variables.at(i);
+                    std::cout << i << " | " <<  var.first << " " << var.second->to_str() << std::endl;
                 }
-            }
-            
-            const std::string& get_name() const {
-                return this->name;
+                std::cout << COLOR_NC;
             }
 
-            // Nodes
+            // Getters
 
-            bool has_node(port_t port) const {
-                return port < this->nodes.size();
-            }
+            bool is_held() const;
+            std::string get_name() const;
 
-            std::vector<std::pair<std::string, qb::Node*>> get_nodes() const {
-                return this->nodes;
-            }
-
-            qb::Node* get_node(port_t port) const {
-                return this->nodes.at(port).second;
-            }
-            
-            std::string get_node_alias(port_t port) const {
-                return this->nodes.at(port).first;
-            }
-
-            // Runner methods
-
-            static void tick(Device& device) {
-                if (device.held) return;
-                device.update();
-            }
-
-            virtual void log(Node* node) {
-                std::cout << COLOR_GRAY << "[" << this->name << "] " << node->to_str() << COLOR_NC << std::endl;
-            }
-
-            void hold() {
-                this->held = true;
-            }
-
-            void release() {
-                this->held = false;
-            }
-
-            virtual void update() {
-                std::stringstream ss;
-                ss << COLOR_GRAY;
-
-                ss << "[" << this->name << "]" << std::endl;
-                for (size_t i = 0; i < this->nodes.size(); i++) {
-                    auto node = this->nodes.at(i);
-                    ss << i << " | " <<  node.first << " " << node.second->to_str() << std::endl;
-                }
-
-                ss << COLOR_NC;
-                std::cout << ss.str();
-            }
-        
-        protected:
-
-            void add_node(std::string name, qb::Node* node) {
-                this->nodes.push_back(std::pair(name, node));
-            }
-
+            std::vector<std::pair<std::string, Data*>> get_variables() const;
+            Data* get_variable(port_t port) const;
+            bool has_variable(port_t port) const;
+            std::string get_variable_name(port_t port) const;
     };
     
 }

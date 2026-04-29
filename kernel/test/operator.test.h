@@ -12,7 +12,7 @@
 #define DATA_INT32 { .type = qb::DataType::INT32, .value = new int32_t(0), .heap = false }
 #define DATA_FLOAT32 { .type = qb::DataType::FLOAT32, .value = new float(0), .heap = false }
 #define DATA_STRING { .type = qb::DataType::STRING, .value = new std::string("test"), .heap = false }
-#define DATA_ARRAY { .type = qb::DataType::ARRAY, .value = qb::data::arr<uint8_t>(qb::DataType::UINT8, 5), .heap = false }
+#define DATA_VECTOR { .type = qb::DataType::VECTOR, .value = qb::data::vec<uint8_t>(qb::DataType::UINT8, { 5 }), .heap = false }
 #define DATA_REF { .type = qb::DataType::REF, .value = qb::data::ref(false, 0, 0, 0), .heap = false }
 
 #define DATA2__NULL { .type = qb::DataType::_NULL, .value = nullptr, .heap = false }
@@ -26,25 +26,29 @@
 #define DATA2_INT32 { .type = qb::DataType::INT32, .value = new int32_t(1), .heap = false }
 #define DATA2_FLOAT32 { .type = qb::DataType::FLOAT32, .value = new float(1), .heap = false }
 #define DATA2_STRING { .type = qb::DataType::STRING, .value = new std::string("test2"), .heap = false }
-#define DATA2_ARRAY { .type = qb::DataType::ARRAY, .value = qb::data::arr<uint8_t>(qb::DataType::UINT8, 6), .heap = false }
+#define DATA2_VECTOR { .type = qb::DataType::VECTOR, .value = qb::data::vec<uint8_t>(qb::DataType::UINT8, { 6 }), .heap = false }
 #define DATA2_REF { .type = qb::DataType::REF, .value = qb::data::ref(true, 1, 1, 1), .heap = false }
 
 #define TEST_CAST_OK(TO, FROM) \
     qb_test(#TO " <- " #FROM, { \
+        auto target = new qb::data_t(DATA_##TO); \
         auto source = new qb::data_t(DATA_##FROM); \
-        auto res = qb::_operator::cast(qb::DataType::TO, source); \
+        auto res = qb::_operator::cast(target, source); \
         auto error = res.error; \
         qb::_operator::clean_heap(&res); \
+        qb::_operator::delete_data(target); \
         qb::_operator::delete_data(source); \
         qb_assert(error == nullptr); \
     })
 
 #define TEST_CAST_FAIL(TO, FROM) \
     qb_test(#TO " <- " #FROM " (should fail)", { \
+        auto target = new qb::data_t(DATA_##TO); \
         auto source = new qb::data_t(DATA_##FROM); \
-        auto res = qb::_operator::cast(qb::DataType::TO, source); \
+        auto res = qb::_operator::cast(target, source); \
         auto error = res.error; \
         qb::_operator::clean_heap(&res); \
+        qb::_operator::delete_data(target); \
         qb::_operator::delete_data(source); \
         qb_assert(error != nullptr); \
     })
@@ -110,8 +114,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_FAIL(_NULL, INT32)
         TEST_CAST_FAIL(_NULL, FLOAT32)
         TEST_CAST_FAIL(_NULL, STRING)
-        // TEST_CAST_FAIL(_NULL, ARRAY)
-        // TEST_CAST_FAIL(_NULL, REF)
+        TEST_CAST_FAIL(_NULL, VECTOR)
+        TEST_CAST_FAIL(_NULL, REF)
         
         TEST_CAST_FAIL(ERROR, _NULL)
         TEST_CAST_OK(ERROR, ERROR)
@@ -124,8 +128,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_FAIL(ERROR, INT32)
         TEST_CAST_FAIL(ERROR, FLOAT32)
         TEST_CAST_OK(ERROR, STRING)
-        // TEST_CAST_FAIL(ERROR, ARRAY)
-        // TEST_CAST_FAIL(ERROR, REF)
+        TEST_CAST_FAIL(ERROR, VECTOR)
+        TEST_CAST_FAIL(ERROR, REF)
         
         TEST_CAST_FAIL(BOOL, _NULL)
         TEST_CAST_FAIL(BOOL, ERROR)
@@ -138,8 +142,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_OK(BOOL, INT32)
         TEST_CAST_OK(BOOL, FLOAT32)
         TEST_CAST_FAIL(BOOL, STRING)
-        // TEST_CAST_FAIL(BOOL, ARRAY)
-        // TEST_CAST_FAIL(BOOL, REF)
+        TEST_CAST_FAIL(BOOL, VECTOR)
+        TEST_CAST_FAIL(BOOL, REF)
         
         TEST_CAST_FAIL(UINT8, _NULL)
         TEST_CAST_FAIL(UINT8, ERROR)
@@ -152,8 +156,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_FAIL(UINT8, INT32)
         TEST_CAST_FAIL(UINT8, FLOAT32)
         TEST_CAST_FAIL(UINT8, STRING)
-        // TEST_CAST_FAIL(UINT8, ARRAY)
-        // TEST_CAST_FAIL(UINT8, REF)
+        TEST_CAST_FAIL(UINT8, VECTOR)
+        TEST_CAST_FAIL(UINT8, REF)
         
         TEST_CAST_FAIL(INT8, _NULL)
         TEST_CAST_FAIL(INT8, ERROR)
@@ -166,8 +170,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_FAIL(INT8, INT32)
         TEST_CAST_FAIL(INT8, FLOAT32)
         TEST_CAST_FAIL(INT8, STRING)
-        // TEST_CAST_FAIL(INT8, ARRAY)
-        // TEST_CAST_FAIL(INT8, REF)
+        TEST_CAST_FAIL(INT8, VECTOR)
+        TEST_CAST_FAIL(INT8, REF)
         
         TEST_CAST_FAIL(UINT16, _NULL)
         TEST_CAST_FAIL(UINT16, ERROR)
@@ -180,8 +184,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_FAIL(UINT16, INT32)
         TEST_CAST_FAIL(UINT16, FLOAT32)
         TEST_CAST_FAIL(UINT16, STRING)
-        // TEST_CAST_FAIL(UINT16, ARRAY)
-        // TEST_CAST_FAIL(UINT16, REF)
+        TEST_CAST_FAIL(UINT16, VECTOR)
+        TEST_CAST_FAIL(UINT16, REF)
         
         TEST_CAST_FAIL(INT16, _NULL)
         TEST_CAST_FAIL(INT16, ERROR)
@@ -194,8 +198,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_FAIL(INT16, INT32)
         TEST_CAST_FAIL(INT16, FLOAT32)
         TEST_CAST_FAIL(INT16, STRING)
-        // TEST_CAST_FAIL(INT16, ARRAY)
-        // TEST_CAST_FAIL(INT16, REF)
+        TEST_CAST_FAIL(INT16, VECTOR)
+        TEST_CAST_FAIL(INT16, REF)
         
         TEST_CAST_FAIL(UINT32, _NULL)
         TEST_CAST_FAIL(UINT32, ERROR)
@@ -208,8 +212,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_FAIL(UINT32, INT32)
         TEST_CAST_FAIL(UINT32, FLOAT32)
         TEST_CAST_FAIL(UINT32, STRING)
-        // TEST_CAST_FAIL(UINT16, ARRAY)
-        // TEST_CAST_FAIL(UINT16, REF)
+        TEST_CAST_FAIL(UINT16, VECTOR)
+        TEST_CAST_FAIL(UINT16, REF)
         
         TEST_CAST_FAIL(INT32, _NULL)
         TEST_CAST_FAIL(INT32, ERROR)
@@ -222,8 +226,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_OK(INT32, INT32)
         TEST_CAST_FAIL(INT32, FLOAT32)
         TEST_CAST_FAIL(INT32, STRING)
-        // TEST_CAST_FAIL(INT32, ARRAY)
-        // TEST_CAST_FAIL(INT32, REF)
+        TEST_CAST_FAIL(INT32, VECTOR)
+        TEST_CAST_FAIL(INT32, REF)
         
         TEST_CAST_FAIL(FLOAT32, _NULL)
         TEST_CAST_FAIL(FLOAT32, ERROR)
@@ -236,8 +240,8 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_OK(FLOAT32, INT32)
         TEST_CAST_OK(FLOAT32, FLOAT32)
         TEST_CAST_FAIL(FLOAT32, STRING)
-        // TEST_CAST_FAIL(FLOAT32, ARRAY)
-        // TEST_CAST_FAIL(FLOAT32, REF)
+        TEST_CAST_FAIL(FLOAT32, VECTOR)
+        TEST_CAST_FAIL(FLOAT32, REF)
         
         TEST_CAST_FAIL(STRING, _NULL)
         TEST_CAST_OK(STRING, ERROR)
@@ -250,8 +254,36 @@ qb_suite(test_operator, "operator", {
         TEST_CAST_OK(STRING, INT32)
         TEST_CAST_OK(STRING, FLOAT32)
         TEST_CAST_OK(STRING, STRING)
-        // TEST_CAST_FAIL(STRING, ARRAY)
-        // TEST_CAST_FAIL(STRING, REF)
+        TEST_CAST_FAIL(STRING, VECTOR)
+        TEST_CAST_FAIL(STRING, REF)
+        
+        TEST_CAST_FAIL(VECTOR, _NULL)
+        TEST_CAST_FAIL(VECTOR, ERROR)
+        TEST_CAST_FAIL(VECTOR, BOOL)
+        TEST_CAST_FAIL(VECTOR, UINT8)
+        TEST_CAST_FAIL(VECTOR, INT8)
+        TEST_CAST_FAIL(VECTOR, UINT16)
+        TEST_CAST_FAIL(VECTOR, INT16)
+        TEST_CAST_FAIL(VECTOR, UINT32)
+        TEST_CAST_FAIL(VECTOR, INT32)
+        TEST_CAST_FAIL(VECTOR, FLOAT32)
+        TEST_CAST_FAIL(VECTOR, STRING)
+        TEST_CAST_OK(VECTOR, VECTOR)
+        TEST_CAST_FAIL(VECTOR, REF)
+        
+        TEST_CAST_FAIL(REF, _NULL)
+        TEST_CAST_FAIL(REF, ERROR)
+        TEST_CAST_FAIL(REF, BOOL)
+        TEST_CAST_FAIL(REF, UINT8)
+        TEST_CAST_FAIL(REF, INT8)
+        TEST_CAST_FAIL(REF, UINT16)
+        TEST_CAST_FAIL(REF, INT16)
+        TEST_CAST_FAIL(REF, UINT32)
+        TEST_CAST_FAIL(REF, INT32)
+        TEST_CAST_FAIL(REF, FLOAT32)
+        TEST_CAST_FAIL(REF, STRING)
+        TEST_CAST_FAIL(REF, VECTOR)
+        TEST_CAST_OK(REF, REF)
     })
 
     qb_describe("assign", {
@@ -265,8 +297,8 @@ qb_suite(test_operator, "operator", {
         TEST_ASSIGN(INT32, int32_t)
         TEST_ASSIGN(FLOAT32, float)
         TEST_ASSIGN(STRING, std::string)
-        // TEST_ASSIGN(ARRAY, ...)
-        // TEST_ASSIGN(REF, ...)
+        // TEST_ASSIGN(VECTOR, ...) TODO
+        // TEST_ASSIGN(REF, ...) TODO
     })
 
     qb_describe("compare", {
@@ -294,8 +326,8 @@ qb_suite(test_operator, "operator", {
         TEST_COMPARE_LT(FLOAT32, float, -12.34, 56.78)
         TEST_COMPARE_GT(FLOAT32, float, -12.34, 56.78)
         TEST_COMPARE_EQ(STRING, std::string, "test", "test2")
-        // TEST_COMPARE_EQ(ARRAY, ...)
-        // TEST_COMPARE_EQ(REF, ...)
+        // TEST_COMPARE_EQ(VECTOR, ...) TODO
+        // TEST_COMPARE_EQ(REF, ...) TODO
     })
     
 })

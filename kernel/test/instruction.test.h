@@ -10,8 +10,7 @@
 #define ASSERT_TARGET() \
     qb_assert(instr->target.deref == false); \
     qb_assert(instr->target.device == 0b01111111); \
-    qb_assert(instr->target.port == 0x12); \
-    qb_assert(instr->target.index == 0);
+    qb_assert(instr->target.port == 0x12);
 
 #define ASSERT_TARGET_DEREF() \
     qb_assert(instr->target.deref == true); \

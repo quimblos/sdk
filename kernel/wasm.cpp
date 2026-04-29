@@ -3,62 +3,119 @@
 #include <chrono>
 #include <signal.h>
 #include <emscripten/bind.h>
-#include "sdk.h"
+#include "engine.h"
 
-struct WASMDeviceNode {
+emscripten::val as_emval(qb::Data* data) {
+    switch (data->type) {
+        case qb::DataType::VOID:
+            return emscripten::val::undefined();
+            break;
+        case qb::DataType::_NULL:
+            return emscripten::val::null();
+            break;
+        case qb::DataType::ERROR: {
+            auto error = qb::data::as_error(data);
+            auto val = emscripten::val::object();
+            val.set("code", emscripten::val(error->code));
+            val.set("message", emscripten::val(error->message));
+            return val;
+        }
+        case qb::DataType::BOOL:
+            return emscripten::val(qb::data::as_bool(data)->value);
+        case qb::DataType::UINT8:
+            return emscripten::val(qb::data::as_u8(data)->value);
+        case qb::DataType::INT8:
+            return emscripten::val(qb::data::as_i8(data)->value);
+        case qb::DataType::UINT16:
+            return emscripten::val(qb::data::as_u16(data)->value);
+        case qb::DataType::INT16:
+            return emscripten::val(qb::data::as_i16(data)->value);
+        case qb::DataType::UINT32:
+            return emscripten::val(qb::data::as_u32(data)->value);
+        case qb::DataType::INT32:
+            return emscripten::val(qb::data::as_i32(data)->value);
+        case qb::DataType::FLOAT32:
+            return emscripten::val(qb::data::as_f32(data)->value);
+        case qb::DataType::STRING:
+            return emscripten::val(qb::data::as_str(data)->value);
+        case qb::DataType::VECTOR:
+            return emscripten::val::null();
+        case qb::DataType::REF: {
+            auto ref = qb::data::as_ref(data);
+            auto val = emscripten::val::object();
+            val.set("deref", emscripten::val(ref->deref));
+            val.set("device", emscripten::val((qb::device_t) ref->device));
+            val.set("port", emscripten::val(ref->port));
+            val.set("index", emscripten::val(ref->index));
+            return val;
+        }
+    }
+}
+
+struct WASMDeviceData {
     std::string name;
-    std::string type;
-    uint16_t arr_length;
+    std::vector<qb::code_t> bytes;
 };
 
 class WASMDevice : public qb::Device {
     private:
         emscripten::val jsDevice = emscripten::val::undefined();
-
-    public:    
-
-    WASMDevice(
-        std::string name,
-        std::vector<WASMDeviceNode> nodes
-    ): qb::Device(name) {
-        for (const auto& it : nodes) {
-            if (it.type == "u8") {
-                this->add_node(it.name, qb::node::u8());
-            }
-        }
-    }
-
-    void bind(emscripten::val jsDevice) {
-        this->jsDevice = jsDevice;
-    }
-
-    bool has_i(uint8_t node) {
-        return node < this->nodes.size();
-    }
+        WASMDevice(std::string name, std::vector<std::pair<std::string, qb::Data*>> variables): qb::Device(name, variables) {};
     
-    void update() {
-        auto val = emscripten::val::object();
-        for (size_t i = 0; i < this->nodes.size(); i++) {
-            qb::Node* node = this->nodes.at(i).second;
-            if (node->type == qb::Type::UINT8) {
-                uint8_t value = qb::node::as_u8(node);
-                val.set(i, emscripten::val(value));
+    // protected:
+    //     std::vector<std::pair<std::string, qb::Data*>> variables;
+
+    public:
+
+        static WASMDevice make(
+            std::string name,
+            std::vector<WASMDeviceData> data
+        ) {
+            std::vector<std::pair<std::string, qb::Data*>> variables;
+            for (const auto& it : data) {
+                auto res = qb::Data::parse(it.bytes.data(), it.bytes.size(), 0);
+                variables.push_back(std::make_pair(it.name, res.data->copy()));
+                delete res.data;
             }
+            return WASMDevice(name, variables);
         }
-        this->jsDevice.call<void>("update", val);
-    }
+
+        void bind(emscripten::val jsDevice) {
+            this->jsDevice = jsDevice;
+        }
+
+        // bool has_i(uint8_t node) {
+        //     return node < this->nodes.size();
+        // }
+        
+        void log(qb::Data* data) {
+            this->jsDevice.call<void>("update", as_emval(data));
+        }
+
+        void on_tick() {
+            auto data = emscripten::val::object();
+            for (size_t i = 0; i < this->variables.size(); i++) {
+                auto val = emscripten::val::object();
+                qb::Data* var = this->variables.at(i).second;
+                val.set("index", emscripten::val(i));
+                val.set("value", as_emval(var));
+                data.set(this->variables.at(i).first, val);
+            }
+            this->jsDevice.call<void>("on_tick", data);
+        }      
 };
 
 class WASMRunner : public qb::Runner {
     
     public:
-        WASMRunner(qb::Engine& engine, std::string name, const qb::Script* script)
-            : qb::Runner(engine, name, script) {};
+        // WASMRunner(qb::Engine& engine, std::string name, const Program* script)
+        //     : qb::Runner(engine, name, script) {};
             
-        void destroy() {}
+        // void destroy() {}
 
-        qb::runner::State getState() { return this->state; }
-        uint32_t getSleep() { return this->sleep; }
+        qb::runner::State get_state() { return this->state; }
+        qb::code_addr_t get_cursor() { return this->cursor; }
+        uint32_t get_sleep() { return this->sleep; }
         
         void start() {
             qb::Runner::start();
@@ -77,55 +134,48 @@ class WASMRunner : public qb::Runner {
 
 class WASMEngine : public qb::Engine {
     public:
-        qb::engine::res_t<void> put_device(WASMDevice& device) {
-            return qb::Engine::put_device(device);
+        qb::engine::res_t link_device(WASMDevice& device) {
+            return qb::Engine::link_device(&device);
+        }
+        WASMDevice& get_device(std::string name) {
+            return *(WASMDevice*)qb::Engine::get_device(name);
+        }
+        void delete_device(std::string name) {
+            qb::Engine::delete_device(name);
         }
 
-    int8_t make_runner(std::string name, std::string hex) {
-        auto parser_res = qb::parser::parse(*this, name, hex);
-        if (parser_res.code > 0) {
-            std::cout << "[error] parser:" << +parser_res.code << std::endl;
-            return -1;
+        qb::engine::res_t make_runner(std::string name, std::string hex) {
+            auto res = qb::Program::make(name, hex);
+            if (res.code != 0) return {
+                .ok = false,
+                .message = "Failed to parse bytecode"
+            };
+            qb::Runner* runner = new qb::Runner(this, name, res.program);
+            return qb::Engine::link_runner(runner);
         }
-        // auto checker_res = qb::static_checker::check(*this, parser_res.script);
-        // if (checker_res.code > 0) {
-        //     std::cout << "[error] checker:" << +checker_res.code << std::endl;
-        //     return -1;
-        // }
-
-        auto runner_res = qb::Engine::make_runner<WASMRunner>(name, parser_res.script);
-        if (!runner_res.ok) {
-            std::cout << "[error] runner:" << runner_res.message << std::endl;
-            return -1;
+        WASMRunner& get_runner(std::string name) {
+            return *(WASMRunner*)this->runners.at(name);
         }
-        return 0;
-    }
-
-    WASMRunner& get_runner(std::string name) {
-        return *(WASMRunner*)this->runners.at(name);
-    }
-
-    qb::engine::res_t<void> delete_runner(std::string name) {
-        return qb::Engine::delete_runner(name);
-    }
+        void delete_runner(std::string name) {
+            qb::Engine::delete_runner(name);
+        }
 };
 
 using namespace emscripten;
 
 EMSCRIPTEN_BINDINGS(my_module) {
     // STL
-    register_vector<std::string>("VectorString");
-    register_vector<WASMDeviceNode>("VectorDeviceNode");
+    register_vector<qb::code_t>("VectorCode");
+    register_vector<WASMDeviceData>("VectorDeviceData");
 
     // Structs
-    value_object<qb::engine::res_t<void>>("res_Engine")
-        .field("ok", &qb::engine::res_t<void>::ok)
-        .field("message", &qb::engine::res_t<void>::message);
+    value_object<qb::engine::res_t>("res_Engine")
+        .field("ok", &qb::engine::res_t::ok)
+        .field("message", &qb::engine::res_t::message);
         
-    value_object<WASMDeviceNode>("DeviceNode")
-        .field("name", &WASMDeviceNode::name)
-        .field("type", &WASMDeviceNode::type)
-        .field("arr_length", &WASMDeviceNode::arr_length);
+    value_object<WASMDeviceData>("DeviceData")
+        .field("name", &WASMDeviceData::name)
+        .field("bytes", &WASMDeviceData::bytes);
 
     enum_<qb::runner::State>("RunnerState")
         .value("IDLE", qb::runner::State::IDLE)
@@ -137,23 +187,31 @@ EMSCRIPTEN_BINDINGS(my_module) {
     // Engine
     class_<WASMEngine>("Engine")
         .constructor()
-        .function("put_device", &WASMEngine::put_device)
+        .function("link_device", &WASMEngine::link_device)
+        .function("get_device", &WASMEngine::get_device)
+        .function("delete_device", &WASMEngine::delete_device)
         .function("make_runner", &WASMEngine::make_runner)
         .function("get_runner", &WASMEngine::get_runner)
         .function("delete_runner", &WASMEngine::delete_runner);
 
     // Runner
     class_<WASMRunner>("Runner")
-        .function("getState", &WASMRunner::getState)
-        .function("getSleep", &WASMRunner::getSleep)
         .function("start", &WASMRunner::start)
-        .function("tick", &WASMRunner::tick)
         .function("reset", &WASMRunner::reset)
-        .function("wakeup", &WASMRunner::wakeup);
+        .function("wakeup", &WASMRunner::wakeup)
+        .function("tick", &WASMRunner::tick)
+        .function("get_state", &WASMRunner::get_state)
+        .function("get_cursor", &WASMRunner::get_cursor)
+        .function("get_sleep", &WASMRunner::get_sleep)
+        // .function("get_output", &qb::Runner::get_output)
+        .function("get_name", &qb::Runner::get_name)
+        .function("get_devices", &qb::Runner::get_devices)
+        .function("get_variables", &qb::Runner::get_variables);
 
     // Device
     class_<WASMDevice>("Device")
-        .constructor<std::string, std::vector<WASMDeviceNode>>()
-        .function("has_i", &WASMDevice::has_i)
-        .function("bind", &WASMDevice::bind);
+        .class_function("make", &WASMDevice::make)
+        .function("bind", &WASMDevice::bind)
+        .function("has_variable", &qb::Device::has_variable);
+
 }

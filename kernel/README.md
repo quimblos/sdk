@@ -53,7 +53,7 @@ Then, you instantiate your `Device` and add it to ehe engine:
 
 ```cpp
 MyDevice device;
-engine.put_device(device);
+engine.link_device(device);
 ```
 
 ###  1.2. <a name='Constants'></a>Constants
@@ -121,7 +121,7 @@ Below are the valid _Type Bytes_.
 
 ```c
 // 0 bytes
-VOID = 0x01
+NULL = 0x01
 
 // 1 byte
 UINT8 = 0x10

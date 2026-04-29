@@ -4,9 +4,9 @@ import { Kernel } from "./kernel";
 
 export type TypeName = quimblos.TypeIdentifier['name']
 export type Type =
-    { name: Exclude<TypeName, 'arr'> }
+    { name: Exclude<TypeName, 'vec'> }
     | { name: 'ref' }
-    | { name: 'arr', item: TypeName, length: number } 
+    | { name: 'vec', item: TypeName, length: number } 
 
 export type Value = boolean|number|string|boolean[]|number[]|string[]
 export type Ref = {
@@ -492,7 +492,7 @@ export class QuimblosCompiler {
     }
 
     private type_from_identifier(node: quimblos.TypeIdentifier): Type {
-        if (node.arr_length != null) return { name: 'arr', item: node.name, length: node.arr_length }
+        if (node.arr_length != null) return { name: 'vec', item: node.name, length: node.arr_length }
         else return { name: node.name } as Type
     }
 

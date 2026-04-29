@@ -41,7 +41,7 @@ export namespace qasm {
         i32: 0x41,
         f32: 0x4A,
         str: 0xA0,
-        array: 0xB0,
+        vec: 0xB0,
         ref: 0xF0
     };
     export type Type = typeof Type;

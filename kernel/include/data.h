@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <sstream>
+#include <vector>
 #include "types.h"
 #include "float.h"
 
@@ -30,13 +31,11 @@ namespace qb {
         STRING = 0xA0,          // + 0xLEN 0xLEN
         STRING_SHORT = 0xA1,    // + 0xLEN        (converted to STRING on parse, used to reduce payload)
 
-        // Arrays
-        ARRAY = 0xB0,           // + 0xTYPE 0xLEN 0xLEN
-        ARRAY_SHORT = 0xB1,     // + 0xTYPE 0xLEN  (converted to ARRAY on parse, used to reduce payload)
+        // Vectors
+        VECTOR = 0xB0,           // 
 
         // References
-        REF = 0xF0,             // + 0xDEVICE 0xPORT
-        REF_IDX = 0xF1,         // + 0xDEVICE 0xPORT {index:any}    (converted to REF on parse)
+        REF = 0xF0,             // + 0xDEVICE 0xPORT (0xINDEX 0xINDEX) - if deref device
     };
 
     /*
@@ -77,7 +76,7 @@ namespace qb {
         // Builds a data from a byte sequence
         static data::res_t parse(const code_t* bytes, code_addr_t code_len, code_addr_t addr);
 
-        // Build a data from a given type and a it's bytes
+        // Builds a data from a given type and a byte sequence
         static data::res_t make(type_t type, const code_t* bytes, code_addr_t code_len, code_addr_t addr);
     };
 
@@ -91,8 +90,12 @@ namespace qb {
             Null():
                 Data(DataType::_NULL)
             {}
+            
+            Null(uint8_t from_int):
+                Data(DataType::_NULL)
+            {}
 
-            Data* copy() const {
+            Null* copy() const {
                 return new Null();
             }
 
@@ -105,6 +108,12 @@ namespace qb {
             uint8_t code;
             std::string message;
 
+            Error():
+                Data(DataType::ERROR), code(0) {}
+
+            Error(uint8_t code):
+                Data(DataType::ERROR), code(code) {}
+
             Error(uint8_t code, index_t length, const char* bytes):
                 Data(DataType::ERROR), code(code) {
                 this->message = std::string(bytes, length);
@@ -113,7 +122,7 @@ namespace qb {
             Error(uint8_t code, std::string message):
                 Data(DataType::ERROR), code(code), message(message) {}
 
-            Data* copy() const {
+            Error* copy() const {
                 return new Error(this->code, this->message.size(), this->message.c_str());
             }
 
@@ -131,11 +140,12 @@ namespace qb {
 
         template <typename T>
         struct Numeric: public Data {
-            T value;
+            T value = (T) 0;
+
             Numeric(type_t type, T value):
                 Data(type), value(value) {}
 
-            Data* copy() const {
+            Numeric<T>* copy() const {
                 return new Numeric<T>(this->type, this->value);
             }
 
@@ -164,6 +174,12 @@ namespace qb {
         struct String: public Data {
             std::string value;
 
+            String():
+                Data(DataType::STRING) {}
+
+            String(uint8_t from_int):
+                Data(DataType::STRING) {}
+
             String(index_t length, const char* bytes):
                 Data(DataType::STRING)
             {
@@ -173,7 +189,7 @@ namespace qb {
             String(std::string value):
                 Data(DataType::ERROR), value(value) {}
 
-            Data* copy() const {
+            String* copy() const {
                 return new String(this->value.size(), this->value.c_str());
             }
 
@@ -188,56 +204,132 @@ namespace qb {
             };
         };
 
+        struct Slice {
+            uint8_t dims = 0;
+            index_t* start = nullptr;
+            index_t* end = nullptr;
+
+            Slice(uint8_t dims) {
+                this->dims = dims;
+                this->start = new index_t[dims];
+                this->end = new index_t[dims];
+            }
+
+            ~Slice() {
+                delete[] this->start;
+                delete[] this->end;
+            }
+
+            static Slice* from_vec(slice_t vec) {
+                auto slice = new Slice(vec.size());
+                for (uint8_t i = 0; i < slice->dims; i++) {
+                    slice->start[i] = vec[i].first;
+                    slice->end[i] = vec[i].second;
+                }
+                return slice;
+            }
+
+            Slice* copy() {
+                auto slice = new Slice(this->dims);
+                for (uint8_t i = 0; i < slice->dims; i++) {
+                    slice->start[i] = this->start[i];
+                    slice->end[i] = this->end[i];
+                }
+                return slice;
+            }
+        };
+
         struct Reference: public Data {
+            device_t device = 0xFF;
+            port_t port = 0;
             bool deref = false;
-            device_t device : 7;
-            port_t port;
-            uint16_t index;
+            Slice* slice = nullptr;
 
-            Reference(bool deref, device_t device, port_t port, uint16_t index):
-                Data(DataType::REF), deref(deref), device(device), port(port), index(index) {}
+            Reference():
+                Data(DataType::REF) {}
 
-            Data* copy() const {
-                return new Reference(this->deref, this->device, this->port, this->index);
+            Reference(uint8_t port):
+                Data(DataType::REF), port(port) {}
+
+            Reference(device_t device, port_t port, bool deref, Slice* slice):
+                Data(DataType::REF), device(device), port(port), deref(deref), slice(slice) {}
+
+            Reference* copy() const {
+                Slice* slice = this->slice != nullptr ? this->slice->copy() : nullptr;
+                return new Reference(this->deref, this->device, this->port, slice);
+            }
+
+            ~Reference() {
+                if (this->slice != nullptr) {
+                    delete this->slice;
+                }
             }
 
             void clear() {
+                this->deref = false;
                 this->device = 0;
                 this->port = 0;
-                this->index = 0;
+                this->slice = nullptr;
             }
 
             const std::string to_str() const {
                 std::stringstream ss;
-                ss << "<ref:" << +(this->device) << "#" << +(this->port) << "[" << this->index << "]" << ">";
+                ss << "<";
+                if (this->deref) {
+                    ss << "*";
+                }
+                ss << "ref:" << +(this->device) << "#" << +(this->port);
+                if (this->slice != nullptr) {
+                    ss << "[";
+                    for (uint8_t i = 0; i < this->slice->dims; i++) {
+                        ss << this->slice->start[i] << ":" << this->slice->end[i] << (i < this->slice->dims-1 ? "," : "");
+                    }
+                    ss << "]";
+                }
+                ss << ">";
                 return ss.str();
             };
         };
 
         template <typename T>
-        struct Array: public Data {
+        struct Vector: public Data {
             type_t item_type;
-            index_t length = 0;
+            uint8_t dims = 0;
+            index_t* shape = nullptr;
+            index_t size = 0;
             T* items = nullptr;
 
-            Array(type_t item_type, index_t length):
-                Data(DataType::ARRAY), item_type(item_type), length(length) {
-                this->items = new T[length];
+            Vector(type_t item_type, uint8_t dims, index_t* shape):
+                Data(DataType::VECTOR), item_type(item_type), dims(dims) {
+                this->shape = new index_t[dims];
+                for (uint8_t i = 0; i < dims; i++) {
+                    this->shape[i] = shape[i];
+                }
+
+                this->size = 1;
+                for (uint8_t i = 0; i < dims; i++) {
+                    this->size *= shape[i];
+                }
+
+                this->items = new T[this->size];
+                this->clear();
             }
-            ~Array() {
+
+            ~Vector() {
+                delete[] this->shape;
                 delete[] this->items;
             }
 
-            Data* copy() const {
-                auto copy = new Array<T>(this->item_type, this->length);
-                for (uint16_t i = 0; i < this->length; i++) {
+            Vector<T>* copy() const {
+                auto copy = new Vector<T>(this->item_type, this->dims, this->shape);
+                for (uint16_t i = 0; i < this->size; i++) {
                     copy->items[i] = this->items[i];
                 }
                 return copy;
             }
 
             void clear() {
-                for (uint16_t i = 0; i < this->length; i++) {
+                for (uint16_t i = 0; i < this->size; i++) {
                     this->items[i] = (T) 0;
                 }
             }
@@ -255,7 +347,7 @@ namespace qb {
                     case DataType::INT32: return ((int32_t*)this->items) + index;
                     case DataType::FLOAT32: return ((float*)this->items) + index;
                     case DataType::STRING: return ((std::string*)this->items) + index;
-                    case DataType::ARRAY: return ((Array*)this->items) + index;
+                    case DataType::VECTOR: return ((Vector*)this->items) + index;
                     case DataType::REF: return ((Reference*)this->items) + index;
                     default: return nullptr;
                 }
@@ -276,11 +368,11 @@ namespace qb {
                     case DataType::INT32: ss << "i32"; break;
                     case DataType::FLOAT32: ss << "f32"; break;
                     case DataType::STRING: ss << "str"; break;
-                    case DataType::ARRAY: ss << "arr"; break;
+                    case DataType::VECTOR: ss << "vec"; break;
                     case DataType::REF: ss << "ref"; break;
                 }
-                ss << "[" << this->length << "]:";
-                for (uint16_t i = 0; i < this->length; i++) {
+                ss << "[" << this->size << "]:";
+                for (uint16_t i = 0; i < this->size; i++) {
                     switch (this->item_type) {
                         case DataType::_NULL: ss << "void"; break;
                         case DataType::ERROR: ss << ((Error*)this->items)[i].message; break;
@@ -293,10 +385,10 @@ namespace qb {
                         case DataType::INT32: ss << ((int32_t*)this->items)[i]; break;
                         case DataType::FLOAT32: ss << ((float*)this->items)[i]; break;
                         case DataType::STRING: ss << ((std::string*)this->items)[i]; break;
-                        case DataType::ARRAY: ss << ((Array*)this->items)[i].to_str(); break;
+                        case DataType::VECTOR: ss << ((Vector*)this->items)[i].to_str(); break;
                         case DataType::REF: ss << ((Reference*)this->items)[i].to_str(); break;
                     }
-                    if (i < this->length - 1) ss << ',';
+                    if (i < this->size - 1) ss << ',';
                 }
                 ss << ">";
                 return ss.str();
@@ -322,11 +414,15 @@ namespace qb {
         String* str(std::string val);
 
         template <typename T>
-        Array<T>* arr(DataType item_type, index_t length) {
-            return new Array<T>(item_type, length);
+        Vector<T>* vec(DataType item_type, uint8_t dims, index_t* shape) {
+            return new Vector<T>(item_type, dims, shape);
+        }
+        template <typename T>
+        Vector<T>* vec(DataType item_type, std::vector<index_t> shape) {
+            return new Vector<T>(item_type, shape.size(), shape.data());
         }
 
-        Reference* ref(bool deref, device_t device, port_t port, uint16_t index);
+        Reference* ref(device_t device, port_t port, bool deref, slice_t slice);
     }
 
     /*
@@ -347,7 +443,7 @@ namespace qb {
         String* as_str(qb::Data* data);
         
         template <typename T>
-        Array<T>* as_arr(qb::Data* data);
+        Vector<T>* as_vec(qb::Data* data);
         
         Reference* as_ref(qb::Data* data);
     }

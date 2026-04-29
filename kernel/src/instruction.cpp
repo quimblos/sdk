@@ -29,18 +29,19 @@ using namespace qb;
     bool deref = false; \
     PARSE_U8(device); \
     PARSE_U8(port); \
-    uint16_t index = 0; \
-    if (device >> 7) { \
-        deref = true; \
-        ASSERT_N_BYTES(2) \
-        index = parse_u16(bytes+addr); \
-        addr += 2; \
+    PARSE_U8(flags); \
+    bool flag_deref = flags & 0b00000001; \
+    bool flag_slice = flags & 0b00000010; \
+    qb::data::Slice* slice; \
+    if (flag_slice) { \
+        PARSE_U8(dims); \
+        slice = new qb::data::Slice(dims); \
     } \
     qb::data::Reference target = { \
-        deref = (device >> 7), \
         device = device, \
         port = port, \
-        index = index \
+        deref = flag_deref, \
+        slice = slice \
     };
 
 #define PARSE_DATA(VAR) \
@@ -115,15 +116,10 @@ qb::instruction::res_t qb::Instruction::make(qb::code_t* bytes, qb::code_addr_t 
         case qb::InstructionType::SET_IF_LT:
         {
             PARSE_TARGET()
-            std::cout << "target ok" << std::endl;
             PARSE_DATA(left)
-            std::cout << "left ok" << std::endl;
             PARSE_DATA(right)
-            std::cout << "right ok" << std::endl;
             PARSE_DATA(data_true)
-            std::cout << "data_true ok" << std::endl;
             PARSE_DATA(data_false)
-            std::cout << "data_false ok" << std::endl;
             OK(new qb::instruction::ConditionalSet((qb::InstructionType) type, &target, left, right, data_true, data_false))
         }
 

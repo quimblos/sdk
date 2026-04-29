@@ -117,8 +117,8 @@ export class QuimblosLinker {
     }
 
     private data(type: Type, value?: Value|Ref, include_type?: boolean): Bytecode {
-        if (type.name === 'arr') {
-            throw new Error(`Value of array not implemented yet`)
+        if (type.name === 'vec') {
+            throw new Error(`Value of vector not implemented yet`)
         }
         else switch (type.name) {
             case "err": return this.err(value as string ?? '', include_type);
@@ -164,47 +164,47 @@ export class QuimblosLinker {
     private u16 (val: number, type?: boolean): Bytecode {
         if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u16`);
         if (val > 2**16) throw new Error(`Number ${val} is too large, cannot be compiled to u16`);
-        const arr = new ArrayBuffer(2);
-        const view = new DataView(arr);
+        const vec = new ArrayBuffer(2);
+        const view = new DataView(vec);
         view.setUint16(0, val, false);
-        const blob = new Uint8Array(arr);
+        const blob = new Uint8Array(vec);
         if (type) return [qasm.Type.u16, ...blob];
         return [...blob];
     }
 
     private i16 (val: number, type?: boolean): Bytecode {
-        const arr = new ArrayBuffer(2);
-        const view = new DataView(arr);
+        const vec = new ArrayBuffer(2);
+        const view = new DataView(vec);
         view.setUint16(0, val, false);
-        const blob = new Uint8Array(arr);
+        const blob = new Uint8Array(vec);
         if (type) return [qasm.Type.i16, ...blob];
         return [...blob];
     }
 
     private u32 (val: number, type?: boolean): Bytecode {
         if (val < 0) throw new Error(`Negative number ${val} cannot be compiled to u32`);
-        const arr = new ArrayBuffer(4);
-        const view = new DataView(arr);
+        const vec = new ArrayBuffer(4);
+        const view = new DataView(vec);
         view.setUint32(0, val, false);
-        const blob = new Uint8Array(arr);
+        const blob = new Uint8Array(vec);
         if (type) return [qasm.Type.u32, ...blob];
         return [...blob];
     }
 
     private i32 (val: number, type?: boolean): Bytecode {
-        const arr = new ArrayBuffer(4);
-        const view = new DataView(arr);
+        const vec = new ArrayBuffer(4);
+        const view = new DataView(vec);
         view.setInt32(0, val, false);
-        const blob = new Uint8Array(arr);
+        const blob = new Uint8Array(vec);
         if (type) return [qasm.Type.i32, ...blob];
         return [...blob];
     }
 
     private f32 (val: number, type?: boolean): Bytecode {
-        const arr = new ArrayBuffer(4);
-        const view = new DataView(arr);
+        const vec = new ArrayBuffer(4);
+        const view = new DataView(vec);
         view.setFloat32(0, val, false);
-        const blob = new Uint8Array(arr);
+        const blob = new Uint8Array(vec);
         if (type) return [qasm.Type.f32, ...blob];
         return [...blob];
     }
@@ -234,9 +234,9 @@ export class QuimblosLinker {
         ];
     }
 
-    private arr (item_type: quimblos.Type, length: number, type?: boolean): Bytecode {
+    private vec (item_type: quimblos.Type, length: number, type?: boolean): Bytecode {
         return [
-            ...(type ? [qasm.Type.array] : []),
+            ...(type ? [qasm.Type.vec] : []),
             qasm.Type[item_type],
             ...this.u16(length)
         ];

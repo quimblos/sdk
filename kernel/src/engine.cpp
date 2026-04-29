@@ -1,17 +1,22 @@
 #include "engine.h"
-#include "parser.h"
 
-const std::unordered_map<std::string, qb::Device*>& qb::Engine::get_devices() const {
-    return this->devices;
-}
-const std::unordered_map<std::string, qb::Node*>& qb::Engine::get_constants() const {
-    return this->constants;
-}
-const std::unordered_map<std::string, qb::Runner*>& qb::Engine::get_runners() const {
-    return this->runners;
-}
+// Devices
 
-/* Device */
+qb::engine::res_t qb::Engine::link_device(qb::Device* device) {
+    auto name = device->get_name();
+    if (this->devices.contains(name))
+    {
+        return {
+            .ok = false,
+            .message = "There's already a Device with the same name"
+        };
+    }
+    this->devices.emplace(name, device);
+    return {
+        .ok = true,
+        .message = "Device added"
+    };
+}
 
 qb::Device* qb::Engine::get_device(std::string name) const {
     if (this->devices.contains(name))
@@ -21,106 +26,69 @@ qb::Device* qb::Engine::get_device(std::string name) const {
     return nullptr;
 }
 
-qb::engine::res_t<void> qb::Engine::put_device(qb::Device& device) {
-    auto name = device.get_name();
-    this->devices.emplace(name, &device);
-    return {
-        .ok = true,
-        .message = "Device updated",
-        .runner = nullptr
-    };
-}
-qb::engine::res_t<void> qb::Engine::delete_device(std::string name) {
+qb::engine::res_t qb::Engine::delete_device(std::string name) {
     if (!this->devices.contains(name)) {
         return {
             .ok = false,
-            .message = "Device doesn't exist",
-            .runner = nullptr
+            .message = "Device doesn't exist"
         };
     }
+    
+    qb::Device* device = this->devices.at(name);
+    delete device;
     this->devices.erase(name);
+
     return {
         .ok = true,
-        .message = "Device deleted",
-        .runner = nullptr
+        .message = "Device deleted"
     };
 }
 
-/* Constant */
+const std::unordered_map<std::string, qb::Device*>& qb::Engine::get_devices() const {
+    return this->devices;
+}
 
-const qb::Node* qb::Engine::get_constant(std::string name) const {
-    if (this->constants.contains(name))
+// Runners
+
+qb::engine::res_t qb::Engine::link_runner(qb::Runner* runner) {
+    auto name = runner->get_name();
+    if (this->runners.contains(name)) {
+        return {
+            .ok = false,
+            .message = "There's already a Runner with the same name"
+        };
+    }
+    this->runners.emplace(name, runner);
+    return {
+        .ok = true,
+        .message = "Runner added"
+    };
+}
+
+qb::Runner* qb::Engine::get_runner(std::string name) const {
+    if (this->runners.contains(name))
     {
-        return this->constants.at(name);
+        return this->runners.at(name);
     }
     return nullptr;
 }
 
-qb::engine::res_t<void> qb::Engine::put_constant(std::string name, qb::Node* data) {
-    if (this->constants.contains(name)) {
-        return {
-            .ok = false,
-            .message = "Constant already exists",
-            .runner = nullptr
-        };
-    }
-    this->constants.emplace(
-        std::piecewise_construct,
-        std::forward_as_tuple(name),
-        std::forward_as_tuple(data)
-    );
-    return {
-        .ok = true,
-        .message = "Constant updated",
-        .runner = nullptr
-    };
-}
-
-qb::engine::res_t<void> qb::Engine::delete_constant(std::string name) {
-    if (!this->constants.contains(name)) {
-        return {
-            .ok = false,
-            .message = "Constant doesn't exist",
-            .runner = nullptr
-        };
-    }
-    this->devices.erase(name);
-    return {
-        .ok = true,
-        .message = "Constant deleted",
-        .runner = nullptr
-    };
-}
-
-/* Runner */
-
-qb::engine::res_t<qb::Runner> qb::Engine::get_runner(std::string name) {
+qb::engine::res_t qb::Engine::delete_runner(std::string name) {
     if (!this->runners.contains(name)) {
         return {
             .ok = false,
-            .message = "Runner doesn't exist",
-            .runner = nullptr
+            .message = "Runner doesn't exist"
         };
     }
-    Runner* runner = this->runners.at(name);
-    return {
-        .ok = true,
-        .runner = runner
-    };
-}
-
-qb::engine::res_t<void> qb::Engine::delete_runner(std::string name) {
-    if (!this->runners.contains(name)) {
-        return {
-            .ok = false,
-            .message = "Runner doesn't exist",
-            .runner = nullptr
-        };
-    }
+    qb::Runner* runner = this->runners.at(name);
+    delete runner;
     this->runners.erase(name);
     return {
         .ok = true,
-        .message = "Runner deleted",
-        .runner = nullptr
+        .message = "Runner deleted"
     };
+}
+
+const std::unordered_map<std::string, qb::Runner*>& qb::Engine::get_runners() const {
+    return this->runners;
 }

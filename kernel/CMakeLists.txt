@@ -9,13 +9,14 @@ project (quimblos-sdk)
 # Static Lib (lquimblos.a)
 
 set(SOURCES
+    src/data.cpp
+    src/instruction.cpp
+    src/program.cpp
+    src/operator.cpp
+    src/device.cpp
+    src/runner.cpp
     src/engine.cpp
     src/hex.cpp
-    src/memory.cpp
-    src/operator.cpp
-    src/parser.cpp
-    src/runner.cpp
-    src/static_checker.cpp
 )
 
 # WASM
@@ -44,7 +45,7 @@ else()
 
     # Tests
 
-    add_executable(test test/main.cpp)
+    add_executable(test test/lib/main.cpp)
 
     target_include_directories(test
         PRIVATE ${PROJECT_SOURCE_DIR}/include
@@ -56,7 +57,7 @@ else()
 
     # Sandbox
 
-    add_executable(sandbox examples/0-blink.cpp)
+    add_executable(sandbox examples/sandbox.cpp)
 
     target_include_directories(sandbox
         PRIVATE ${PROJECT_SOURCE_DIR}/include
@@ -65,4 +66,5 @@ else()
     target_link_libraries(sandbox
         PUBLIC quimblos
     )
+    
 endif()

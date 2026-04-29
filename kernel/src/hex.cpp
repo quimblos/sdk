@@ -1,12 +1,7 @@
-#include <sstream>
-#include <iostream>
-#include <iomanip>
 #include "hex.h"
 
-using namespace qb;
-
-Bytecode qb::hex_to_bytecode(std::string hex) {
-    size_t length = hex.length()/2;
+qb::Bytecode qb::hex_to_bytecode(std::string hex) {
+    code_addr_t length = hex.length()/2;
     std::string s2;
     std::istringstream ss (hex);
 
@@ -26,7 +21,7 @@ Bytecode qb::hex_to_bytecode(std::string hex) {
     };
 }
 
-std::string qb::bytecode_to_hex(Bytecode) {
+std::string qb::bytecode_to_hex(qb::Bytecode) {
     // TODO
     return "";
 }
