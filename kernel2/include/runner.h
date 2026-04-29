@@ -65,8 +65,10 @@ namespace qb {
             code_addr_t get_cursor() { return this->cursor; }
             code_addr_t get_sleep() { return this->sleep; }
             Data* get_output() { return this->output; }
+
             std::string get_name() { return this->name; }
             std::vector<Device*> get_devices() { return this->devices; }
+            
             std::vector<Data*> get_variables() { return this->variables; }
         
         protected:

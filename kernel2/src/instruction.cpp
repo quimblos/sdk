@@ -146,7 +146,7 @@ qb::instruction::res_t qb::Instruction::make(qb::code_t* bytes, qb::code_addr_t 
         // Runner
         case qb::InstructionType::SLEEP:
         {
-            PARSE_U32(time)
+            PARSE_DATA(time)
             OK(new qb::instruction::Sleep(time))
         }
         case qb::InstructionType::LOG:

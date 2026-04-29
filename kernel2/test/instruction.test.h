@@ -117,9 +117,13 @@ qb_suite(test_instruction, "instruction", {
         })
 
         qb_test("Sleep", {
-            auto instr = qb::instruction::Sleep(0xFFFFFFFF);
+            auto time = qb::data::u32(0xFFFFFFFF);
+            auto instr = qb::instruction::Sleep(time);
             qb_assert(instr.type == qb::InstructionType::SLEEP);
-            qb_assert(instr.time == 0xFFFFFFFF);
+            auto data = instr.time->copy();
+            qb_assert(data->type == qb::DataType::UINT32);
+            qb_assert(qb::data::as_u32(data)->value == 0xFFFFFFFF);
+            delete data;
         })
         qb_test("Log", {
             auto data = qb::data::str("Hello!");
@@ -377,9 +381,12 @@ qb_suite(test_instruction, "instruction", {
         })
 
         qb_test("SLEEP", {
-            PARSE_INSTRUCTION(Sleep, 5, { qb::InstructionType::SLEEP, 0x01, 0x23, 0x45, 0x67 })
+            PARSE_INSTRUCTION(Sleep, 6, { qb::InstructionType::SLEEP, qb::DataType::UINT32, 0x01, 0x23, 0x45, 0x67 })
             qb_assert(instr->type == qb::InstructionType::SLEEP);
-            qb_assert(instr->time == 0x01234567);
+            qb_assert(instr->time->type == qb::DataType::UINT32);
+            auto time = instr->time->copy();
+            qb_assert(qb::data::as_u32(time)->value == 0x01234567);
+            delete time;
             delete instr;
         })
         qb_test("LOG", {

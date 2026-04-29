@@ -10,7 +10,7 @@ export type Type =
 
 export type Value = boolean|number|string|boolean[]|number[]|string[]
 export type Ref = {
-    device?: string|undefined
+    device: string
     node: string
 }
 
@@ -27,7 +27,7 @@ export type CodeAddr = [string, number] // name, offset
 
 export type Instruction = 
     { $addr?: string, op: 'USE_DEVICE', name: string }
-    | { $addr?: string, op: 'USE_NODE', name: string, type: Type }
+    | { $addr?: string, op: 'USE_VAR', name: string, type: Type }
 
     | { $addr?: string, op: 'SET', target: Node, source: Node }
     | { $addr?: string, op: 'HOLD', device: string }
@@ -40,9 +40,9 @@ export type Instruction =
     | { $addr?: string, op: 'SET_IF_LT', target: Node, left: Node, right: Node, true_source: Node, false_source: Node }
     | { $addr?: string, op: 'SET_IF_GT', target: Node, left: Node, right: Node, true_source: Node, false_source: Node }
 
+    | { $addr?: string, op: 'NOT', target: Node, source: Node }
     | { $addr?: string, op: 'AND', target: Node, source: Node }
     | { $addr?: string, op: 'OR', target: Node, source: Node }
-    | { $addr?: string, op: 'XOR', target: Node, source: Node }
 
     | { $addr?: string, op: 'ADD', target: Node, source: Node }
     | { $addr?: string, op: 'SUB', target: Node, source: Node }
@@ -52,7 +52,10 @@ export type Instruction =
     | { $addr?: string, op: 'MOD', target: Node, source: Node }
     
     | { $addr?: string, op: 'SLEEP', time: Node }
-    | { $addr?: string, op: 'LOG', device: string, source: Node }
+    | { $addr?: string, op: 'LOG', source: Node }
+
+    | { $addr?: string, op: 'RETURN', device: string, source: Node }
+    | { $addr?: string, op: 'RESET' }
     | { $addr?: string, op: 'STOP' }
 
 
@@ -72,6 +75,7 @@ export class QuimblosCompiler {
     private nodes: Record<string, NodeSpec> = {};
     private code_addresses = 0;
 
+    private macros: Instruction[] = [];
     private code: Instruction[] = [];
 
     private constructor(
@@ -82,21 +86,24 @@ export class QuimblosCompiler {
 
     public static compile(kernel: Kernel, ast: AST) {
         const compiler = new QuimblosCompiler(ast);
-        const code = compiler.compile();
-        return { nodes: compiler.nodes, code };
+        return compiler.compile();
     }
 
     public compile() {
         this.code = [];
         for (const node of this.root.macros) {
             if (node instanceof quimblos.UseDeviceMacro) {
-                this.code.push(this._use_device(node.device))
+                this.macros.push(this._use_device(node.device))
             }
         }
         for (const block of this.root.blocks) {
             this.code.push(...this.compile_block(block));
         }
-        return this.code;
+        return {
+            macros: this.macros,
+            nodes: this.nodes,
+            code: this.code
+        }
     }
 
     private compile_block(node: quimblos.Block): Instruction[] {
@@ -105,16 +112,20 @@ export class QuimblosCompiler {
         for (const statement of node.statements) {
             if (statement instanceof quimblos.VariableStatement) {
                 const type = this.type_from_identifier(statement.identifier.type);
-                this.make_node(statement.identifier.name, type)
+                this.make_var(statement.identifier.name, type)
             }
             else if (statement instanceof quimblos.AssignStatement) {
                 code.push(...this.compile_assign(statement.target, statement.source))
             }
             else if (statement instanceof quimblos.IfStatement) {
-                code.push(...this.compile_if(statement.expression, statement.block))
+                if (statement.block) {
+                    code.push(...this.compile_if(statement.expression, statement.block))
+                }
             }
             else if (statement instanceof quimblos.WhileStatement) {
-                code.push(...this.compile_while(statement.expression, statement.block))
+                if (statement.block) {
+                    code.push(...this.compile_while(statement.expression, statement.block))
+                }
             }
             else if (statement instanceof quimblos.SleepStatement) {
                 code.push(...this.compile_sleep(statement.time))
@@ -231,7 +242,7 @@ export class QuimblosCompiler {
 
         code.push({
             op: 'LOG',
-            device,
+            // device,
             source: source_chunk.out
         })
 
@@ -246,7 +257,7 @@ export class QuimblosCompiler {
                 prepare: [],
                 out: {
                     type: { name: 'ref' },
-                    value: { device: node.device, node: node.node }
+                    value: { device: node.device ?? '_$_', node: node.node }
                 }
             }
         }
@@ -255,7 +266,7 @@ export class QuimblosCompiler {
             prepare: index.prepare,
             out: {
                 type: { name: 'ref' },
-                value: { device: node.device, node: node.node },
+                value: { device: node.device ?? '_$_', node: node.node },
                 index: index.out
             }
         }
@@ -318,9 +329,9 @@ export class QuimblosCompiler {
                     if (resolved.has(part.left) && node.type.name === 'bool')
                         bool_value = left.value as Ref;
                     else
-                        bool_value = this.make_node(undefined, { name: 'bool' });
+                        bool_value = this.make_var(undefined, { name: 'bool' });
                 }
-                else bool_value = this.make_node(undefined, { name: 'bool' });
+                else bool_value = this.make_var(undefined, { name: 'bool' });
                 
                 bool_target = bool_value ? { type: { name: 'ref' as const }, value: bool_value } : undefined;
                 target = left
@@ -331,10 +342,10 @@ export class QuimblosCompiler {
                     if (resolved.has(part.left)) value = left.value;
                     else {
                         const node = this.nodes[(left.value as Ref).node]!;
-                        value = this.make_node(undefined, node.type);
+                        value = this.make_var(undefined, node.type);
                     }
                 }
-                else value = this.make_node(undefined, left.type);
+                else value = this.make_var(undefined, left.type);
 
                 target = { type: { name: 'ref' }, value: value as Ref };
             }
@@ -347,12 +358,14 @@ export class QuimblosCompiler {
             const _false: Node = { type: { name: 'bool' }, value: false };
 
             switch (part.op) {
+                case "not":
+                    prepare.push(this._not(target, right)); break;
                 case "and":
                     prepare.push(this._and(target, right)); break;
                 case "or":
                     prepare.push(this._or(target, right)); break;
-                case "xor":
-                    prepare.push(this._xor(target, right)); break;
+                // case "xor":
+                //     prepare.push(this._xor(target, right)); break;
                 case "==":
                     prepare.push(this._set_eq(bool_target!, target!, right, _true, _false)); break;
                 case "!=":
@@ -421,17 +434,20 @@ export class QuimblosCompiler {
     private _use_device(name: string): Instruction {
         return { op: 'USE_DEVICE', name }
     }
+    private _use_var(name: string, type: Type): Instruction {
+        return { op: 'USE_VAR', name, type }
+    }
     private _set(target: Node, source: Node): Instruction {
         return { op: 'SET', target, source }
+    }
+    private _not(target: Node, source: Node): Instruction {
+        return { op: 'NOT', target, source }
     }
     private _and(target: Node, source: Node): Instruction {
         return { op: 'AND', target, source }
     }
     private _or(target: Node, source: Node): Instruction {
         return { op: 'OR', target, source }
-    }
-    private _xor(target: Node, source: Node): Instruction {
-        return { op: 'XOR', target, source }
     }
     private _set_eq(target: Node, left: Node, right: Node, source: Node, source_else: Node): Instruction {
         return { op: 'SET_IF_EQ', target, left, right, true_source: source, false_source: source_else }
@@ -461,15 +477,15 @@ export class QuimblosCompiler {
         return { op: 'POW', target, source }
     }
     private _log(device: string, source: Node): Instruction {
-        return { op: 'LOG', device, source }
+        return { op: 'LOG'/*, device*/, source }
     }
 
     // Internal Helpers
 
-    private make_node(name: string|undefined, type: Type): Ref {
+    private make_var(name: string|undefined, type: Type): Ref {
         name ??= '_v_'+Object.keys(this.nodes).length;
         this.nodes[name] = { name, type };
-        return { node: name };
+        return { device: '_$_', node: name };
     }
     private make_code_addr(offset = 0): CodeAddr {
         return [`_${this.code_addresses++}`, offset];
@@ -492,9 +508,13 @@ export class QuimblosCompiler {
             case "Float":
                 return { name: 'f32' as const }
             case "UnsignedInteger":
-                return { name: 'u32' as const }
+                if (node.value <= 0xFF) return { name: 'u8' as const }
+                else if (node.value <= 0xFFFF) return { name: 'u16' as const }
+                else return { name: 'u32' as const }
             case "Integer":
-                return { name: 'i32' as const }
+                if (Math.abs(node.value) <= 0xFF) return { name: 'i8' as const }
+                else if (Math.abs(node.value) <= 0xFFFF) return { name: 'i16' as const }
+                else return { name: 'i32' as const }
             case "String":
                 return { name: 'str' as const }
         }

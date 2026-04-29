@@ -5,7 +5,7 @@ import { quimblos } from '@quimblos/compiler/src/lang/semantics';
 
 export class Engine {
     private static instance?: Engine;
-    public __qb: wasm.Engine;
+    public __wasm: wasm.Engine;
 
     private devices: Device[] = []
     private runners: Record<string, Runner> = {};
@@ -16,7 +16,7 @@ export class Engine {
     private kernel: Kernel
     private boot(kernel: Kernel) {
         this.kernel = kernel;
-        this.__qb = new kernel.Engine();
+        this.__wasm = new kernel.Engine();
     }
 
     public static async init() {
@@ -32,13 +32,28 @@ export class Engine {
         (window as any).wasm = wasm;
         (window as any).qb = engine;
 
+        wasm.VectorCode.from = (items) => {
+            const vec = new wasm.VectorCode();
+            for (const item of items) {
+                vec.push_back(item);
+            }
+            return vec;
+        }
+        wasm.VectorDeviceData.from = (items) => {
+            const vec = new wasm.VectorDeviceData();
+            for (const item of items) {
+                vec.push_back(item);
+            }
+            return vec;
+        }
+
         engine.boot(wasm);
         return engine;
     }
 
-    public put_device(device: Device) {
+    public link_device(device: Device) {
         this.devices.push(device);
-        this.__qb.put_device((device as any).__qb);
+        this.__wasm.link_device((device as any).__wasm);
     }
 
     public make_runner(name: string, hex: string, remake = true) {
@@ -53,12 +68,13 @@ export class Engine {
     public delete_runner(name: string) {
         if (!(name in this.runners)) return;
         const runner = this.runners[name];
-        this.__qb.delete_runner(name);
+        this.__wasm.delete_runner(name);
         delete this.runners[name];
         return runner;
     }
 
     private _log(msg: string) {
+        console.log(msg);
         this.target.dispatchEvent(new CustomEvent('log', {
             detail: msg
         }));
@@ -81,7 +97,7 @@ export class Engine {
 
 
 export class Runner {
-    public __qb: wasm.Runner;
+    public __wasm: wasm.Runner;
     private running = false;
     private waitTimeout?: any;
 
@@ -90,28 +106,29 @@ export class Runner {
         public name: string,
         public hex: string
     ) {
-        if (engine.__qb.make_runner(name, hex) != 0) {
-            throw new Error('Failed to create runner');
+        const res = engine.__wasm.make_runner(name, hex);
+        if (!res.ok) {
+            throw new Error(res.message);
         }
-        this.__qb = engine.__qb.get_runner(name);
+        this.__wasm = engine.__wasm.get_runner(name);
     }
 
     public get state(): keyof typeof wasm.RunnerState {
-        const v = this.__qb.getState().value;
+        const v = this.__wasm.get_state().value;
         return Object.entries(wasm.RunnerState).find(e => (e[1] as any)?.value === v)[0] as any;
     }
 
     public get sleep(): number {
-        return this.__qb.getSleep();
+        return this.__wasm.get_sleep();
     }
 
     public async run() {
         this.running = true;
-        this.__qb.start();
-        while (this.__qb.tick() && this.running) {
+        this.__wasm.start();
+        while (this.__wasm.tick() && this.running) {
             if (this.state === 'SLEEPING') {
                 await this.wait(this.sleep);
-                this.__qb.wakeup();
+                this.__wasm.wakeup();
             }
         }
         this.running = false;
@@ -119,7 +136,7 @@ export class Runner {
 
     public stop() {
         this.running = false;
-        this.__qb.reset();
+        this.__wasm.reset();
         if (this.waitTimeout) {
             clearTimeout(this.waitTimeout)
         }
@@ -132,34 +149,36 @@ export class Runner {
     }
 }
 
+export type DeviceDataOut = Record<string, {
+    index: number
+    value: any
+}>
+
 export abstract class Device<T = {}> {
-    public __qb: wasm.Device;
+    public __wasm: wasm.Device;
     protected webc: Record<string, GooWebComponent & T> = {};
 
-    public nodes: quimblos.Identifier[] = []
+    public variables: quimblos.Identifier[] = []
 
     protected constructor(
         public name: string,
         public webc_name: string,
-        nodes: wasm.DeviceNode[]
+        nodes: wasm.DeviceData[]
     ) {
-        const regs = new wasm.VectorDeviceNode();
+        const variables = new wasm.VectorDeviceData();
         for (const node of nodes) {
-            regs.push_back({
-                name: node.name,
-                type: node.type,
-                arr_length: node.arr_length ?? 0
-            });
-                        
+            variables.push_back(node);
+
             const identifier = new quimblos.Identifier();
             identifier.name = node.name;
+
             identifier.type = new quimblos.TypeIdentifier();
-            identifier.type.name = node.type;
-            identifier.type.arr_length = node.arr_length;
-            this.nodes.push(identifier);
+            identifier.type.name = 'u8';
+            identifier.type.arr_length = 0;
+            this.variables.push(identifier);
         }
-        this.__qb = new wasm.Device(name, regs);
-        this.__qb.bind(this);
+        this.__wasm = wasm.Device.make(name, variables);
+        this.__wasm.bind(this);
     }
 
     public makeWebc(name: string, parent: HTMLElement) {
@@ -183,6 +202,7 @@ export abstract class Device<T = {}> {
     }
 
     public abstract setup(): void;
-    public abstract update(value: any): void;
+    public abstract log(value: DeviceDataOut[string]): void;
+    public abstract on_tick(data: DeviceDataOut): void;
 }
 

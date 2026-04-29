@@ -262,16 +262,20 @@ namespace qb {
         // Runner
 
         struct Sleep: public Instruction {
-            const uint32_t time;
+            const Data* time;
 
-            Sleep(uint32_t time):
+            Sleep(Data* time):
                 Instruction(InstructionType::SLEEP),
                 time(time)
             {}
 
+            ~Sleep() {
+                delete this->time;
+            }
+
             std::string to_str() const {
                 std::stringstream ss;
-                ss << "sleep " << this->time;
+                ss << "sleep " << this->time->to_str();
                 return ss.str();
             }
         };

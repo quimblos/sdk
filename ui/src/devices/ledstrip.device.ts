@@ -1,5 +1,5 @@
 import './ledstrip-device.goo'
-import { Device } from "../../lib/kernel";
+import { Device, DeviceDataOut } from "../../lib/kernel";
 
 export class LedStripDevice extends Device<{
     name: string,
@@ -10,7 +10,7 @@ export class LedStripDevice extends Device<{
         private length = 10
     ) {
         super(name, 'ledstrip-device', [
-            { name: 'data', type: 'u8', arr_length: length*3 }
+            { name: 'data', bytes: wasm.VectorCode.from([0x10, 0x00]) }
         ]);
     }
 
@@ -20,8 +20,12 @@ export class LedStripDevice extends Device<{
             webc.bytes = Array.from({ length: this.length*3 }).map(() => 0);
         }
     }
+    
+    public log(value: DeviceDataOut[string]) {
+        return;
+    }
 
-    public update(regs: any) {
+    public on_tick(data: DeviceDataOut) {
         // const leds = Array.from({ length: 8 }, (_, i) => Boolean((regs[0] >> (7 - i)) & 1));
         // if (!this.webc) return;
         // this.webc.leds = leds;

@@ -138,7 +138,7 @@ kw_xor ::= 'xor'
 kw_break ::= 'break'
 kw_continue ::= 'continue'
 
-kw_log ::= 'out'
+kw_log ::= 'log'
 kw_sleep ::= 'sleep'
 kw_return ::= 'return'
 kw_reset ::= 'reset'

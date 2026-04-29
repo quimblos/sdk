@@ -1,6 +1,6 @@
 namespace sandbox {
     std::string accumulator = HEX({
-        // HEADER_QUIMBLOS,
+        HEADER_QUIMBLOS,
         qb::InstructionType::USE_DEVICE, 0x04, 'L', 'E', 'D', '8',
         qb::InstructionType::USE_VAR, qb::DataType::BOOL, 0x00,
         qb::InstructionType::USE_VAR, qb::DataType::UINT8, 0x00,

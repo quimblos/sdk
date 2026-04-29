@@ -48,6 +48,7 @@ namespace qb {
 
             std::vector<std::pair<std::string, Data*>> get_variables() const;
             Data* get_variable(port_t port) const;
+            bool has_variable(port_t port) const;
             std::string get_variable_name(port_t port) const;
     };
     

@@ -75,10 +75,10 @@ namespace qb {
         virtual const std::string to_str() const = 0;
 
         // Builds a data from a byte sequence
-        static data::res_t parse(code_t* bytes, code_addr_t code_len, code_addr_t addr);
+        static data::res_t parse(const code_t* bytes, code_addr_t code_len, code_addr_t addr);
 
         // Build a data from a given type and a it's bytes
-        static data::res_t make(type_t type, code_t* bytes, code_addr_t code_len, code_addr_t addr);
+        static data::res_t make(type_t type, const code_t* bytes, code_addr_t code_len, code_addr_t addr);
     };
 
     /*

@@ -1,6 +1,6 @@
 #include "runner.h"
 
-// #define QB_RUNNER_DEBUG
+#define QB_RUNNER_DEBUG
 #define QB_RUNNER_TICK_DEBUG
 
 #ifdef QB_RUNNER_DEBUG
@@ -358,7 +358,11 @@ qb::code_addr_t qb::Runner::run_instruction(qb::Instruction* instr) {
         case qb::InstructionType::SLEEP: {
             auto it = (qb::instruction::Sleep*) instr;
             this->state = qb::runner::State::SLEEPING;
-            this->sleep = it->time;
+            auto time = this->resolve_data(it->time);
+            ASSERT_SOURCE(time)
+            auto res = qb::_operator::cast(qb::DataType::UINT32, &time);
+            ASSERT_OPERATOR_RES(res)
+            this->sleep = *(uint32_t*) res.data->value;
             return this->cursor + 1;
         }
 

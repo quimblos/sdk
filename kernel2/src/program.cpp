@@ -2,6 +2,12 @@
 #include <iostream>
 #include <sstream>
 
+#define QB_PROGRAM_PARSE_DEBUG
+
+#ifdef QB_PROGRAM_PARSE_DEBUG
+    #include <iostream>
+#endif
+
 qb::Program::Program(
     std::string name,
     std::vector<qb::Instruction*> instructions,
@@ -39,19 +45,52 @@ qb::program::res_t qb::Program::make(std::string name, code_t* bytes, code_addr_
 
     std::vector<qb::Instruction*> instructions;
 
-    code_addr_t addr = 0;
+    #ifdef QB_PROGRAM_PARSE_DEBUG
+        std::cout << "parser length: " << code_len << std::endl;
+    #endif
+
+    if (code_len < 4) {
+        #ifdef QB_PROGRAM_PARSE_DEBUG
+            std::cout << "parser invalid header" << std::endl;
+        #endif
+        return {
+            .code = QB_CODE_R_PARSE_FAILED_INVALID_HEADER,
+            .error_addr = 0
+        };
+    }
+
+    if (bytes[0] != 'q' || bytes[1] != 'b' || bytes[2] != 0 || bytes[3] != 0) {
+        #ifdef QB_PROGRAM_PARSE_DEBUG
+            std::cout << "parser invalid header" << std::endl;
+        #endif
+        return {
+            .code = QB_CODE_R_PARSE_FAILED_INVALID_HEADER,
+            .error_addr = 0
+        };
+    }
+
+    code_addr_t addr = 4;
     while (addr < code_len) {
+        #ifdef QB_PROGRAM_PARSE_DEBUG
+            std::cout << "parser@" << addr << " = " << +bytes[addr] << std::endl;
+        #endif
         auto res = qb::Instruction::make(bytes, code_len, addr);
         if (res.code > 0) {
+            #ifdef QB_PROGRAM_PARSE_DEBUG
+                std::cout << "parser error@" << addr << ", code: " << +res.code << std::endl;
+            #endif
             for (qb::Instruction* it: instructions) {
                 delete it;
             }
             return {
-                .code = 1,
+                .code = res.code,
                 .error_addr = addr
             };
         }
 
+        #ifdef QB_PROGRAM_PARSE_DEBUG
+            std::cout << res.instr->to_str() << std::endl;
+        #endif
         instructions.push_back(res.instr);
         addr = res.next_addr;
     }

@@ -58,14 +58,14 @@ qb::data::Reference* qb::data::ref(bool deref, device_t device, port_t port, uin
     0xARR_SHORT 0xTYPE 0xLEN 0xLEN 0x00 0x00 ...
 */
 
-qb::data::res_t qb::Data::parse(qb::code_t* bytes, qb::code_addr_t code_len, qb::code_addr_t addr) {
+qb::data::res_t qb::Data::parse(const qb::code_t* bytes, qb::code_addr_t code_len, qb::code_addr_t addr) {
     ASSERT_N_BYTES(1);
     code_t type = bytes[addr];
     addr += 1;
     return make(type, bytes, code_len, addr);
 }
 
-qb::data::res_t qb::Data::make(qb::type_t type, qb::code_t* bytes, qb::code_addr_t code_len, qb::code_addr_t addr) {
+qb::data::res_t qb::Data::make(qb::type_t type, const qb::code_t* bytes, qb::code_addr_t code_len, qb::code_addr_t addr) {
     
     switch (type) {
         case qb::DataType::_NULL:

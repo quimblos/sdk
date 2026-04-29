@@ -1,5 +1,5 @@
 import './sling2d-device.goo'
-import { Device } from "../../lib/kernel";
+import { Device, DeviceDataOut } from "../../lib/kernel";
 
 export class Sling2DDevice extends Device<{
     name: string,
@@ -7,8 +7,8 @@ export class Sling2DDevice extends Device<{
 }> {
     constructor(name = 'SLING2D') {
         super(name, 'sling2d-device', [
-            { name: 'x', type: 'u8' },
-            { name: 'y', type: 'u8' }
+            { name: 'x', bytes: wasm.VectorCode.from([0x10, 0x00]) },
+            { name: 'y', bytes: wasm.VectorCode.from([0x10, 0x00]) }
         ]);
     }
 
@@ -17,8 +17,12 @@ export class Sling2DDevice extends Device<{
             webc.name = this.name;
         }
     }
+    
+    public log(value: DeviceDataOut[string]) {
+        return;
+    }
 
-    public update(regs: any) {
+    public on_tick(data: DeviceDataOut) {
         // const leds = Array.from({ length: 8 }, (_, i) => Boolean((regs[0] >> (7 - i)) & 1));
         // if (!this.webc) return;
         // this.webc.leds = leds;

@@ -1,6 +1,6 @@
 export type Device = {
     name: string
-    nodes: {
+    variables: {
         name: string
     }[]
 }

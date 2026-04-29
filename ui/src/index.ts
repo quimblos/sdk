@@ -34,9 +34,9 @@ async function setup() {
   // Quimblos Engine
 
   const engine = await Engine.init();
-  engine.put_device(new LedBarDevice());
-  engine.put_device(new Sling2DDevice());
-  engine.put_device(new LedStripDevice());
+  engine.link_device(new LedBarDevice());
+  engine.link_device(new Sling2DDevice());
+  engine.link_device(new LedStripDevice());
   
   (window as any).qbstyle = quimblos_style;
   (window as any).qbcompile = make_compiler(qb);

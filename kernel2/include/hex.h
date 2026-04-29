@@ -2,6 +2,7 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <sstream>
 #include "types.h"
 
 #define HEX(...) qb::vector_to_hex(std::vector<qb::code_t>(__VA_ARGS__))

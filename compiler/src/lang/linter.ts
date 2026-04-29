@@ -29,7 +29,7 @@ export const make_quimblos_linter = (kernel: Kernel) => {
         return kernel.get_device(device_name);
     }
     function check_device_node(device: Device, ref: quimblos.Reference): quimblos.Identifier {
-        const port = device.nodes.findIndex(n => n.name === ref.node);
+        const port = device.variables.findIndex(n => n.name === ref.node);
         if (port < 0) {
             throw `Device '${device.name}' does not contain a node named '${ref.node}'`
         }

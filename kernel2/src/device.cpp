@@ -37,6 +37,9 @@ qb::Data* qb::Device::get_variable(port_t port) const {
     if (port >= this->variables.size()) return nullptr;
     return this->variables.at(port).second;
 }
+bool qb::Device::has_variable(port_t port) const {
+    return port < this->variables.size();
+}
 std::string qb::Device::get_variable_name(port_t port) const {
     if (port >= this->variables.size()) return nullptr;
     return this->variables.at(port).first;

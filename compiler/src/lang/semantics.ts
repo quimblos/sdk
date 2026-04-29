@@ -77,7 +77,7 @@ export namespace quimblos {
     export class RebootStatement extends ASTNode {}
 
     // Expressions
-    export type BoolOp = 'and'|'or'|'xor'|'=='|'!='|'>'|'<'|'>='|'<='
+    export type BoolOp = 'not'|'and'|'or'|'xor'|'=='|'!='|'>'|'<'|'>='|'<='
     export type MathOp = '+'|'-'|'*'|'/'|'%'|'^'
     export class Expression extends ASTNode {
         terms!: ExpressionTerm[]
@@ -101,7 +101,7 @@ export namespace quimblos {
     // Identifiers
 
     export class TypeIdentifier extends ASTNode {
-        name!: 'err' | 'bool' | 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32' | 'f32' | 'str'
+        name!: 'err' | 'null' | 'void' | 'bool' | 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32' | 'f32' | 'str'
         arr_length?: number
     }
     export class Identifier extends ASTNode {

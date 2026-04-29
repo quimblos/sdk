@@ -2,25 +2,24 @@ import { quimblos } from "@quimblos/compiler/src/lang/semantics"
 import { Engine } from "./kernel"
 
 declare global {
-    
     namespace wasm {
-        class VectorString {
-            public push_back(val: string): void;    
+        class VectorCode {
+            static from(items: number[]): VectorCode;
+            public push_back(val: number): void;    
         }
-        class VectorDeviceNode {
-            public push_back(val: DeviceNode): void;    
+        class VectorDeviceData {
+            static from(items: DeviceData[]): VectorDeviceData;
+            public push_back(val: DeviceData): void;
         }
 
         type res_Engine = {
             ok: boolean
             message: string
-            runner?: any
         }
 
-        type DeviceNode = {
+        type DeviceData = {
             name: string
-            type: quimblos.Type
-            arr_length?: number
+            bytes: VectorCode
         }
 
         enum RunnerState {
@@ -33,25 +32,29 @@ declare global {
 
         class Engine {
             public constructor();
-            public put_device(device: Device): res_Engine;
-            public make_runner(name: string, hex: string): number;
+            public link_device(device: Device): res_Engine;
+            public get_device(name: string): Device;
+            public delete_device(name: string): void;
+            public make_runner(name: string, hex: string): res_Engine;
             public get_runner(name: string): Runner;
-            public delete_runner(name: string): res_Engine;
+            public delete_runner(name: string): void;
         }
 
         class Runner {
-            public getState(): { value: number };
-            public getSleep(): number;
             public start(): void
-            public tick(): boolean
             public reset(): void
             public wakeup(): void
+            public tick(): boolean
+            public get_state(): { value: RunnerState };
+            public get_cursor(): number;
+            public get_sleep(): number;
+            public get_name(): string;
         }
 
         class Device {
-            public constructor(name: string, regs: VectorDeviceNode);
-            public has_i(port: number): boolean;
+            static make(name: string, variables: VectorDeviceData): Device;
             public bind(device: any): void;
+            public has_variable(port: number): boolean;
         }
 
     }
@@ -60,7 +63,8 @@ declare global {
 }
 
 type Kernel = {
-    VectorString: typeof wasm.VectorString,
+    VectorCode: typeof wasm.VectorCode,
+    VectorDeviceData: typeof wasm.VectorDeviceData,
     Engine: typeof wasm.Engine,
     Device: typeof wasm.Device,
 }

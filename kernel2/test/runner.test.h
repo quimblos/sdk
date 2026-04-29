@@ -600,7 +600,7 @@ qb_suite(test_runner, "runner", {
 
         qb_test("Sleep", {
             MAKE_RUNNER(
-                new qb::instruction::Sleep(1000),
+                new qb::instruction::Sleep(qb::data::u32(1000)),
             )
 
             qb_assert(runner->get_state() == qb::runner::State::IDLE);

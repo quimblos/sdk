@@ -17,12 +17,12 @@ export function make_compiler(kernel: Kernel) {
         ast.update(cst);
         linter.lint(ast);
 
-        // const compiled = QuimblosCompiler.compile(kernel, ast);
-        // const bytecode = QuimblosLinker.link(compiled.nodes, compiled.code);
+        const compiled = QuimblosCompiler.compile(kernel, ast);
+        const bytecode = QuimblosLinker.link(kernel, compiled.macros, compiled.nodes, compiled.code);
         
-        // const hex = QuimblosLinker.to_hex(bytecode)
+        const hex = QuimblosLinker.to_hex(bytecode)
         const html = to_html(input, ast, quimblos_style);
-        // return { ast, ir: compiled.code, hex, html };
-        return { ast, ir: [] as any[], hex: '', html };
+        return { ast, ir: compiled.code, hex, html };
+        // return { ast, ir: [] as any[], hex: '', html };
     }
 }

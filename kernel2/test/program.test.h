@@ -49,7 +49,7 @@ qb_suite(test_program, "program", {
                 new qb::instruction::UseVar(qb::data::u8(0xAB)),
                 new qb::instruction::Log(qb::data::u8(0x12)),
                 new qb::instruction::UseVar(qb::data::u16(0xABCD)),
-                new qb::instruction::Sleep(0x01234567),
+                new qb::instruction::Sleep(qb::data::u32(0x01234567)),
             )
             qb_assert(program.instructions.size() == 3);
             qb_assert(program.instructions[0]->type == qb::InstructionType::SET);
@@ -62,7 +62,8 @@ qb_suite(test_program, "program", {
     qb_describe("parse", {
 
         qb_test("devices", {
-            PARSE_PROGRAM(10, {
+            PARSE_PROGRAM(14, {
+                HEADER_QUIMBLOS,
                 qb::InstructionType::USE_DEVICE, 0x03, 'l', 'e', 'd',
                 qb::InstructionType::USE_DEVICE, 0x03, 'f', 'a', 'n',
             })
@@ -73,7 +74,8 @@ qb_suite(test_program, "program", {
         })
 
         qb_test("variables", {
-            PARSE_PROGRAM(17, {
+            PARSE_PROGRAM(21, {
+                HEADER_QUIMBLOS,
                 qb::InstructionType::USE_VAR, qb::DataType::INT16, 0xCF, 0xC7,
                 qb::InstructionType::USE_VAR, qb::DataType::STRING, 0x00, 0x09, 's','o','m','e',' ','t','e','x','t'
             })
@@ -88,7 +90,8 @@ qb_suite(test_program, "program", {
         })
 
         qb_test("instructions", {
-            PARSE_PROGRAM(9, {
+            PARSE_PROGRAM(13, {
+                HEADER_QUIMBLOS,
                 qb::InstructionType::SET, 0xFF, 0x12, 0x00, 0x02, qb::DataType::UINT8, 0xAB,
                 qb::InstructionType::HOLD, 0xFF
             })
