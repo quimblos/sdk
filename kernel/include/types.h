@@ -12,17 +12,7 @@ namespace qb {
     typedef uint8_t port_t;
     typedef uint16_t index_t;
 
-    typedef std::vector<std::pair<index_t, index_t>> slice_t;
-
-    // value is either:
-    // - (null) nullptr
-    // - (numeric, string) a pointer to the memory allocated by the qb::Data object
-    // - (error, vector or ref) a pointer to the qb::Data object
-    struct data_t {
-        type_t type;
-        void* value;
-        bool heap = false;
-    };
+    typedef std::vector<std::pair<index_t, index_t>> slice_init_t;
 
 }
 

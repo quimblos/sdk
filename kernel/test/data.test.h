@@ -107,10 +107,10 @@ qb_suite(test_data, "data", {
         })
 
         qb_test("Reference", {
-            auto data = qb::data::Reference(0xFF, 1, true, qb::data::Slice::from_vec({{0,1}}));
+            auto data = qb::data::Reference(0xFF, 1, 0b00000011, qb::data::Slice::init({{0,1}}));
             qb_assert(data.device == 0xFF);
             qb_assert(data.port == 1);
-            qb_assert(data.deref == true);
+            qb_assert(data.flags == 0b00000011);
             qb_assert(data.slice->dims == 1);
             qb_assert(data.slice->start[0] == 0);
             qb_assert(data.slice->end[0] == 1);
@@ -176,7 +176,7 @@ qb_suite(test_data, "data", {
         qb_test("Vector (1D) - C Shape", {
             uint8_t dims = 1;
             qb::index_t shape[dims] = { 10 };
-            auto data = qb::data::vec<uint16_t>(qb::DataType::UINT16, dims, shape);
+            auto data = qb::data::vec(qb::DataType::UINT16, dims, shape);
             qb_assert(data->item_type == qb::DataType::UINT16);
             qb_assert(data->dims == 1);
             qb_assert(data->shape[0] == 10);
@@ -186,7 +186,7 @@ qb_suite(test_data, "data", {
         qb_test("Vector (2D) - C Shape", {
             uint8_t dims = 2;
             qb::index_t shape[dims] = { 10, 10 };
-            auto data = qb::data::vec<uint16_t>(qb::DataType::UINT16, dims, shape);
+            auto data = qb::data::vec(qb::DataType::UINT16, dims, shape);
             qb_assert(data->item_type == qb::DataType::UINT16);
             qb_assert(data->dims == 2);
             qb_assert(data->shape[0] == 10);
@@ -197,7 +197,7 @@ qb_suite(test_data, "data", {
         qb_test("Vector (3D) - C Shape", {
             uint8_t dims = 3;
             qb::index_t shape[dims] = { 3, 4, 5 };
-            auto data = qb::data::vec<uint16_t>(qb::DataType::UINT16, dims, shape);
+            auto data = qb::data::vec(qb::DataType::UINT16, dims, shape);
             qb_assert(data->item_type == qb::DataType::UINT16);
             qb_assert(data->dims == 3);
             qb_assert(data->shape[0] == 3);
@@ -207,7 +207,7 @@ qb_suite(test_data, "data", {
             delete data;
         })
         qb_test("Vector (1D) - C++ Shape", {
-            auto data = qb::data::vec<uint16_t>(qb::DataType::UINT16, { 10 });
+            auto data = qb::data::vec(qb::DataType::UINT16, { 10 });
             qb_assert(data->item_type == qb::DataType::UINT16);
             qb_assert(data->dims == 1);
             qb_assert(data->shape[0] == 10);
@@ -215,7 +215,7 @@ qb_suite(test_data, "data", {
             delete data;
         })
         qb_test("Vector (2D) - C++ Shape", {
-            auto data = qb::data::vec<uint16_t>(qb::DataType::UINT16, { 10, 10 });
+            auto data = qb::data::vec(qb::DataType::UINT16, { 10, 10 });
             qb_assert(data->item_type == qb::DataType::UINT16);
             qb_assert(data->dims == 2);
             qb_assert(data->shape[0] == 10);
@@ -224,7 +224,7 @@ qb_suite(test_data, "data", {
             delete data;
         })
         qb_test("Vector (3D) - C++ Shape", {
-            auto data = qb::data::vec<uint16_t>(qb::DataType::UINT16, { 3, 4, 5 });
+            auto data = qb::data::vec(qb::DataType::UINT16, { 3, 4, 5 });
             qb_assert(data->item_type == qb::DataType::UINT16);
             qb_assert(data->dims == 3);
             qb_assert(data->shape[0] == 3);
@@ -234,10 +234,10 @@ qb_suite(test_data, "data", {
             delete data;
         })
         qb_test("ref", {
-            auto data = qb::data::ref(0xFF, 1, true, {{0,1}});
+            auto data = qb::data::ref(0xFF, 1, 0b00000011, {{0,1}});
             qb_assert(data->device == 0xFF);
             qb_assert(data->port == 1);
-            qb_assert(data->deref == true);
+            qb_assert(data->flags == 0b00000011);
             qb_assert(data->slice->dims == 1);
             qb_assert(data->slice->start[0] == 0);
             qb_assert(data->slice->end[0] == 1);
@@ -477,7 +477,7 @@ qb_suite(test_data, "data", {
             auto data = (qb::data::Reference*) out.data;
             qb_assert(data->device == 0xFF);
             qb_assert(data->port == 12);
-            qb_assert(data->deref == false);
+            qb_assert(data->flags == 0b00000000);
             qb_assert(data->slice == nullptr);
             delete data;
         })
@@ -492,9 +492,9 @@ qb_suite(test_data, "data", {
             qb_assert(out.code == 0);
             
             auto data = (qb::data::Reference*) out.data;
-            qb_assert(data->deref == true);
             qb_assert(data->device == 0xFF);
             qb_assert(data->port == 12);
+            qb_assert(data->flags == 0b00000001);
             qb_assert(data->slice == nullptr);
             delete data;
         })
@@ -511,9 +511,9 @@ qb_suite(test_data, "data", {
             qb_assert(out.code == 0);
             
             auto data = (qb::data::Reference*) out.data;
-            qb_assert(data->deref == false);
             qb_assert(data->device == 0xFF);
             qb_assert(data->port == 12);
+            qb_assert(data->flags = 0b00000010);
             qb_assert(data->slice->dims == 1);
             qb_assert(data->slice->start[0] == 0);
             qb_assert(data->slice->end[0] == 1);
@@ -533,9 +533,9 @@ qb_suite(test_data, "data", {
             qb_assert(out.code == 0);
             
             auto data = (qb::data::Reference*) out.data;
-            qb_assert(data->deref == false);
             qb_assert(data->device == 0xFF);
             qb_assert(data->port == 12);
+            qb_assert(data->flags = 0b00000010);
             qb_assert(data->slice->dims == 2);
             qb_assert(data->slice->start[0] == 0);
             qb_assert(data->slice->end[0] == 1);
@@ -557,9 +557,9 @@ qb_suite(test_data, "data", {
             qb_assert(out.code == 0);
             
             auto data = (qb::data::Reference*) out.data;
-            qb_assert(data->deref == true);
             qb_assert(data->device == 0xFF);
             qb_assert(data->port == 12);
+            qb_assert(data->flags == 0b00000011);
             qb_assert(data->slice->dims == 2);
             qb_assert(data->slice->start[0] == 0);
             qb_assert(data->slice->end[0] == 1);

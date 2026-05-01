@@ -16,6 +16,7 @@ namespace qb {
         USE_VAR = 0x02,      // {source:any}
         // 0x1* -> Data manipulation
         SET = 0x10,           // {target:ref} {source:any}
+        SET_SLICE = 0x11,     // {target:ref} {dims:u8} ({start:u16} {end:u16})+
         HOLD = 0x1A,          // {device:u8}
         RELEASE = 0x1B,       // {device:u8}
         // 0x2* -> Flow control 
@@ -117,9 +118,9 @@ namespace qb {
             const data::Reference target;
             const Data* data;
 
-            Set(data::Reference* target, Data* data):
+            Set(data::Reference& target, Data* data):
                 Instruction(InstructionType::SET),
-                target(*target), data(data)
+                target(target), data(data)
             {}
             ~Set() {
                 delete this->data;
@@ -128,6 +129,33 @@ namespace qb {
             std::string to_str() const {
                 std::stringstream ss;
                 ss << this->target.to_str() << " = " << this->data->to_str();
+                return ss.str();
+            }
+        };
+        struct SetSlice: public Instruction {
+            const data::Reference target;
+            const uint8_t dims;
+            const Data** shape;
+
+            SetSlice(data::Reference& target, uint8_t dims, const Data** shape):
+                Instruction(InstructionType::SET_SLICE),
+                target(target), dims(dims), shape(shape)
+            {}
+            ~SetSlice() {
+                for (uint8_t i = 0; i < this->dims; i++) {
+                    delete this->shape[2*i];
+                    delete this->shape[2*i+1];
+                }
+                delete[] this->shape;
+            }
+
+            std::string to_str() const {
+                std::stringstream ss;
+                ss << "&" << this->target.to_str() << " = ";
+                for (uint8_t i = 0; i < this->dims; i++) {
+                    ss << this->shape[2*i]->to_str() << ':' << this->shape[2*i+1]->to_str();
+                    ss << ',';
+                }
                 return ss.str();
             }
         };

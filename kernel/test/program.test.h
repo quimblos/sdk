@@ -45,7 +45,7 @@ qb_suite(test_program, "program", {
             qb::data::Reference target(false, 0b01111111, 0, 0);
             MAKE_PROGRAM(
                 new qb::instruction::UseDevice("led"),
-                new qb::instruction::Set(&target, qb::data::u8(0x12)),
+                new qb::instruction::Set(target, qb::data::u8(0x12)),
                 new qb::instruction::UseVar(qb::data::u8(0xAB)),
                 new qb::instruction::Log(qb::data::u8(0x12)),
                 new qb::instruction::UseVar(qb::data::u16(0xABCD)),
@@ -90,9 +90,9 @@ qb_suite(test_program, "program", {
         })
 
         qb_test("instructions", {
-            PARSE_PROGRAM(13, {
+            PARSE_PROGRAM(17, {
                 HEADER_QUIMBLOS,
-                qb::InstructionType::SET, 0xFF, 0x12, 0x00, 0x02, qb::DataType::UINT8, 0xAB,
+                qb::InstructionType::SET, 0xFF, 0x12, 0b00000011, 0x01, 0x00, 0x02, 0x00, 0x03, qb::DataType::UINT8, 0xAB,
                 qb::InstructionType::HOLD, 0xFF
             })
             qb_assert(program->instructions.size() == 2);

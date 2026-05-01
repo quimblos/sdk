@@ -26,23 +26,14 @@ using namespace qb;
     addr += 4;
 
 #define PARSE_TARGET() \
-    bool deref = false; \
-    PARSE_U8(device); \
-    PARSE_U8(port); \
-    PARSE_U8(flags); \
-    bool flag_deref = flags & 0b00000001; \
-    bool flag_slice = flags & 0b00000010; \
-    qb::data::Slice* slice; \
-    if (flag_slice) { \
-        PARSE_U8(dims); \
-        slice = new qb::data::Slice(dims); \
-    } \
-    qb::data::Reference target = { \
-        device = device, \
-        port = port, \
-        deref = flag_deref, \
-        slice = slice \
-    };
+    auto target_res = qb::Data::make(qb::DataType::REF, bytes, code_len, addr); \
+    if (target_res.code > 0) return { \
+        .code = QB_CODE_R_PARSE_FAILED_TARGET, \
+        .next_addr = 0xFFFF \
+    }; \
+    auto target = *(qb::data::Reference*) target_res.data; \
+    delete target_res.data; \
+    addr = target_res.next_addr;
 
 #define PARSE_DATA(VAR) \
     qb::data::res_t VAR##_res = qb::Data::parse(bytes, code_len, addr); \
@@ -85,7 +76,20 @@ qb::instruction::res_t qb::Instruction::make(qb::code_t* bytes, qb::code_addr_t 
         {
             PARSE_TARGET()
             PARSE_DATA(data)
-            OK(new qb::instruction::Set(&target, data))
+            OK(new qb::instruction::Set(target, data))
+        }
+        case qb::InstructionType::SET_SLICE:
+        {
+            PARSE_TARGET()
+            PARSE_U8(dims)
+            auto shape = new const qb::Data*[dims*2];
+            for (uint8_t i = 0; i < dims; i++) {
+                PARSE_DATA(start)
+                PARSE_DATA(end)
+                shape[2*i] = start;
+                shape[2*i+1] = end;
+            }
+            OK(new qb::instruction::SetSlice(target, dims, shape))
         }
         case qb::InstructionType::HOLD:
         {

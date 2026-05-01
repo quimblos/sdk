@@ -43,10 +43,14 @@ emscripten::val as_emval(qb::Data* data) {
         case qb::DataType::REF: {
             auto ref = qb::data::as_ref(data);
             auto val = emscripten::val::object();
-            val.set("deref", emscripten::val(ref->deref));
             val.set("device", emscripten::val((qb::device_t) ref->device));
             val.set("port", emscripten::val(ref->port));
-            val.set("index", emscripten::val(ref->index));
+            val.set("flags", emscripten::val(ref->flags));
+            if (ref->slice != nullptr) {
+                auto slice = emscripten::val::object();
+                slice.set("dims", emscripten::val(ref->slice->dims));
+                val.set("slice", slice);
+            } 
             return val;
         }
     }

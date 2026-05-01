@@ -15,7 +15,8 @@ qb::data_t qb::U32_TARGET_TYPE = {
 void qb::_operator::clean_heap(qb::_operator::res_t* res) {
     if (res->data != nullptr) {
         if (res->data->heap) {
-            qb::_operator::delete_data(res->data);
+            qb::_operator::clean_data(res->data);
+            delete res->data;
         }
     }
     if (res->error != nullptr) {
@@ -23,7 +24,7 @@ void qb::_operator::clean_heap(qb::_operator::res_t* res) {
     }
 }
 
-void qb::_operator::delete_data(qb::data_t* data) {
+void qb::_operator::clean_data(qb::data_t* data) {
     switch (data->type) {
         case qb::DataType::_NULL: break;
         case qb::DataType::ERROR: delete ((qb::data::Error*) data->value); break;
@@ -53,10 +54,66 @@ void qb::_operator::delete_data(qb::data_t* data) {
             }
             break;
         };
+        case qb::DataType::VECTOR_SLICE: {
+            auto slice = (qb::data_slice_t*) data->value;
+            if (slice->heap) {
+                auto item_data = (qb::data_t*) data->value;
+                clean_data(item_data);
+            }
+            delete slice;
+            break;
+        };
         case qb::DataType::REF: delete (qb::data::Reference*) data->value; break;
     }
-    delete data;
 }
+
+// Vector / Slice helpers
+
+bool match_shape(qb::data::Vector<void>* vec0, qb::data::Vector<void>* vec1) {
+    if (vec0->dims != vec1->dims)
+        return false;
+    for (uint8_t i = 0; i < vec0->dims; i++) {
+        if (vec0->shape[i] != vec1->shape[i])
+            return false;
+    }
+    return true;
+}
+bool match_shape(qb::data_slice_t* vs, qb::data::Vector<void>* vec) {
+    if (vs->slice->dims != vec->dims)
+        return false;
+    for (uint8_t i = 0; i < vs->slice->dims; i++) {
+        qb::index_t vs_shape = vs->slice->start[i] - vs->slice->end[i];
+        if (vs_shape != vec->shape[i])
+            return false;
+    }
+    return true;
+}
+bool match_shape(qb::data_slice_t* vs0, qb::data_slice_t* vs1) {
+    if (vs0->slice->dims != vs1->slice->dims)
+        return false;
+    for (uint8_t i = 0; i < vs0->slice->dims; i++) {
+        qb::index_t vs0_shape = vs0->slice->start[i] - vs0->slice->end[i];
+        qb::index_t vs1_shape = vs1->slice->start[i] - vs1->slice->end[i];
+        if (vs0_shape != vs1_shape)
+            return false;
+    }
+    return true;
+}
+
+bool match_item_type(qb::data::Vector<void>* vec0, qb::data::Vector<void>* vec1) {
+    return vec0->item_type == vec1->item_type;
+}
+bool match_item_type(qb::data_slice_t* vs, qb::data::Vector<void>* vec) {
+    return vs->type == vec->item_type;
+}
+bool match_item_type(qb::data_slice_t* vs0, qb::data_slice_t* vs1) {
+    return vs0->type == vs1->type;
+}
+bool match_item_type(qb::data_slice_t* vs, qb::type_t type) {
+    return vs->type == type;
+}
+
+// Operators
 
 qb::_operator::res_t qb::_operator::cast(qb::data_t* target, qb::data_t* source) {
 
@@ -336,24 +393,76 @@ qb::_operator::res_t qb::_operator::cast(qb::data_t* target, qb::data_t* source)
                 case qb::DataType::VECTOR: {
                     auto target_vec = (qb::data::Vector<void>*) target->value;
                     auto source_vec = (qb::data::Vector<void>*) source->value;
-                    // Match vector shapes
-                    if (target_vec->dims != source_vec->dims)
-                        return ERROR("Cast to VECTOR only allowed from VECTOR with same number of dimensions.");
-                    for (uint8_t i = 0; i < target_vec->dims; i++) {
-                        if (target_vec->shape[i] != source_vec->shape[i])
-                            return ERROR("Cast to VECTOR only allowed from VECTOR with same shape.");
-                    }
-                    // Match vector item types
-                    qb::data_t target_item = { .type = target_vec->item_type, .value = nullptr };
-                    qb::data_t source_item = { .type = source_vec->item_type, .value = nullptr };
-                    auto item_cast_res = qb::_operator::cast(&target_item, &source_item);
-                    if (item_cast_res.error != nullptr) {
-                        return item_cast_res;
+                    if (!match_shape(target_vec, source_vec))
+                        return ERROR("Cast to VECTOR only allowed from VECTOR with same shape.");
+                    if (!match_item_type(target_vec, source_vec)) {
+                        return ERROR("Cast to VECTOR only allowed from VECTOR with same item type.");
                     }
                     return { .data = source };
                 }
                 default:
                     return ERROR("Cast to VECTOR only allowed from VECTOR.");
+            }
+        }
+        case qb::DataType::VECTOR_SLICE: {
+            auto target_vs = (qb::data_slice_t*) target->value;
+            switch (source->type) {
+                case qb::DataType::VECTOR: {
+                    auto source_vec = (qb::data::Vector<void>*) source->value;
+                    if (!match_shape(target_vs, source_vec))
+                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR with same shape.");
+                    if (!match_item_type(target_vs, source_vec))
+                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR with same item type.");
+                    return {
+                        .data = new data_t({
+                            .type = qb::DataType::VECTOR_SLICE,
+                            .value = new qb::data_slice_t({
+                                .type = qb::DataType::VECTOR,
+                                .value = source->value,
+                                .heap = source->heap,
+                                .slice = source_vec->full_slice()
+                            }),
+                            .heap = true
+                        })
+                    };
+                }
+                case qb::DataType::VECTOR_SLICE: {
+                    auto source_vs = (qb::data_slice_t*) source->value;
+                    if (!match_shape(target_vs, source_vs))
+                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR_SLICE with same shape.");
+                    if (!match_item_type(target_vs, source_vs))
+                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR_SLICE with same item type.");
+                    return {
+                        .data = source
+                    };
+                }
+                case qb::DataType::ERROR:
+                case qb::DataType::BOOL:
+                case qb::DataType::UINT8:
+                case qb::DataType::INT8:
+                case qb::DataType::UINT16:
+                case qb::DataType::INT16:
+                case qb::DataType::UINT32:
+                case qb::DataType::INT32:
+                case qb::DataType::FLOAT32:
+                case qb::DataType::STRING:
+                case qb::DataType::REF:
+                    if (!match_item_type(target_vs, source->type))
+                        return ERROR("Cast to VECTOR_SLICE only allowed from primitive of same type as the slice items.");
+                    return {
+                        .data = new data_t({
+                            .type = qb::DataType::VECTOR_SLICE,
+                            .value = new qb::data_slice_t({
+                                .type = source->type,
+                                .value = source->value,
+                                .heap = source->heap,
+                                .slice = target_vs->slice->copy()
+                            }),
+                            .heap = true
+                        })
+                    };
+                default:
+                    return ERROR("Cast to VECTOR_SLICE failed.");
             }
         }
         case qb::DataType::REF: {
@@ -472,9 +581,9 @@ qb::_operator::res_t qb::_operator::compare(qb::data_t* target, qb::data_t* sour
         case qb::DataType::REF: {
             auto l = (qb::data::Reference*) target->value;
             auto r = (qb::data::Reference*) cast_res.data->value;
-            diff = (l->deref == r->deref) \
-                && (l->device == r->device) \
-                && (l->port == r->port) \
+            diff = (l->device == r->device)
+                && (l->port == r->port)
+                && (l->flags == r->flags)
                 && (
                     (l->slice == nullptr && r->slice == nullptr)
                     || (

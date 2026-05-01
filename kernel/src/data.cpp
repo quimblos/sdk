@@ -61,11 +61,47 @@ qb::data::Numeric<int32_t>* qb::data::i32(int32_t val) {
 qb::data::Numeric<float>* qb::data::f32(float val) {
     return new qb::data::Numeric<float>(qb::DataType::FLOAT32, val);
 }
+qb::data::Vector<void>* vec(qb::type_t item_type, uint8_t dims, qb::index_t* shape) {
+    switch (item_type) {
+        case qb::DataType::VOID:
+        case qb::DataType::_NULL:
+            return nullptr;
+        case qb::DataType::ERROR:
+            return (qb::data::Vector<void>*) new qb::data::Vector<qb::data::Error>(item_type, dims, shape); break;
+        case qb::DataType::BOOL:
+            return (qb::data::Vector<void>*) new qb::data::Vector<bool>(item_type, dims, shape); break;
+        case qb::DataType::UINT8:
+            return (qb::data::Vector<void>*) new qb::data::Vector<uint8_t>(item_type, dims, shape); break;
+        case qb::DataType::INT8:
+            return (qb::data::Vector<void>*) new qb::data::Vector<int8_t>(item_type, dims, shape); break;
+        case qb::DataType::UINT16:
+            return (qb::data::Vector<void>*) new qb::data::Vector<qb::index_t>(item_type, dims, shape); break;
+        case qb::DataType::INT16:
+            return (qb::data::Vector<void>*) new qb::data::Vector<int16_t>(item_type, dims, shape); break;
+        case qb::DataType::UINT32:
+            return (qb::data::Vector<void>*) new qb::data::Vector<uint32_t>(item_type, dims, shape); break;
+        case qb::DataType::INT32:
+            return (qb::data::Vector<void>*) new qb::data::Vector<int32_t>(item_type, dims, shape); break;
+        case qb::DataType::FLOAT32:
+            return (qb::data::Vector<void>*) new qb::data::Vector<float>(item_type, dims, shape); break;
+        case qb::DataType::STRING:
+        case qb::DataType::STRING_SHORT:
+            return (qb::data::Vector<void>*) new qb::data::Vector<std::string>(item_type, dims, shape); break;
+        case qb::DataType::VECTOR:
+            return nullptr;
+        case qb::DataType::REF:
+            return (qb::data::Vector<void>*) new qb::data::Vector<qb::data::Reference>(item_type, dims, shape); break;
+    }
+    return nullptr;
+}
+qb::data::Vector<void>* vec(qb::type_t item_type, std::vector<qb::index_t> shape) {
+    return qb::data::vec(item_type, shape.size(), shape.data());
+}
 qb::data::String* qb::data::str(std::string val) {
     return new qb::data::String(val.length(), val.c_str());
 }
-qb::data::Reference* qb::data::ref(device_t device, port_t port, bool deref, slice_t slice) {
-    return new qb::data::Reference(device, port, deref, qb::data::Slice::from_vec(slice));
+qb::data::Reference* qb::data::ref(device_t device, port_t port, uint8_t flags, slice_init_t slice) {
+    return new qb::data::Reference(device, port, flags, qb::data::Slice::init(slice));
 }
 
 /*
@@ -224,42 +260,12 @@ qb::data::res_t qb::Data::make(qb::type_t type, const qb::code_t* bytes, qb::cod
 
             PARSE_U16(initializers);
 
-            qb::data::Vector<void>* vec = nullptr;
-            switch (item_type) {
-                case qb::DataType::VOID:
-                case qb::DataType::_NULL:
-                    return {
-                        .code = QB_DATA_R_PARSE_VECTOR_FAILED_UNKNOWN_ITEM_TYPE,
-                        .next_addr = 0xFFFF
-                    };
-                case qb::DataType::ERROR:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<qb::data::Error>(item_type, dims, shape); break;
-                case qb::DataType::BOOL:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<bool>(item_type, dims, shape); break;
-                case qb::DataType::UINT8:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<uint8_t>(item_type, dims, shape); break;
-                case qb::DataType::INT8:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<int8_t>(item_type, dims, shape); break;
-                case qb::DataType::UINT16:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<qb::index_t>(item_type, dims, shape); break;
-                case qb::DataType::INT16:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<int16_t>(item_type, dims, shape); break;
-                case qb::DataType::UINT32:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<uint32_t>(item_type, dims, shape); break;
-                case qb::DataType::INT32:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<int32_t>(item_type, dims, shape); break;
-                case qb::DataType::FLOAT32:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<float>(item_type, dims, shape); break;
-                case qb::DataType::STRING:
-                case qb::DataType::STRING_SHORT:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<std::string>(item_type, dims, shape); break;
-                case qb::DataType::VECTOR:
-                    return {
-                        .code = QB_DATA_R_PARSE_VECTOR_FAILED_UNKNOWN_ITEM_TYPE,
-                        .next_addr = 0xFFFF
-                    };
-                case qb::DataType::REF:
-                    vec = (qb::data::Vector<void>*) new qb::data::Vector<qb::data::Reference>(item_type, dims, shape); break;
+            qb::data::Vector<void>* vec = qb::data::vec(item_type, dims, shape);
+            if (vec == nullptr) {
+                return {
+                    .code = QB_DATA_R_PARSE_VECTOR_FAILED_UNKNOWN_ITEM_TYPE,
+                    .next_addr = 0xFFFF
+                };
             }
             delete[] shape;
 
@@ -312,11 +318,8 @@ qb::data::res_t qb::Data::make(qb::type_t type, const qb::code_t* bytes, qb::cod
             PARSE_U8(port);
             PARSE_U8(flags);
 
-            bool flag_deref = (flags & 0b00000001) > 0;
-            bool flag_slice = (flags & 0b00000010) > 0;
-
             qb::data::Slice* slice = nullptr;
-            if (flag_slice) {
+            if (FLAG_SLICE(flags)) {
                 PARSE_U8(dims);
                 slice = new qb::data::Slice(dims);
 
@@ -330,7 +333,7 @@ qb::data::res_t qb::Data::make(qb::type_t type, const qb::code_t* bytes, qb::cod
 
             return {
                 .code = QB_DATA_R_PARSE_OK,
-                .data = new qb::data::Reference(device, port, flag_deref, slice),
+                .data = new qb::data::Reference(device, port, flags, slice),
                 .next_addr = addr
             };
         }

@@ -3,8 +3,8 @@
 #include "operator.h"
 #include "device.h"
 
-#define DEVICE_RUNNER 0b01111111
-#define DEVICE_ENGINE 0b01111110
+#define DEVICE_RUNNER 0xFF
+#define DEVICE_ENGINE 0xFE
 
 namespace qb {
 

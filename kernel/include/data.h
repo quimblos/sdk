@@ -5,6 +5,9 @@
 #include "types.h"
 #include "float.h"
 
+#define FLAG_DEREF(V) (bool)  (V & 0b00000001)
+#define FLAG_SLICE(V) (bool) ((V & 0b00000010) >> 1)
+
 namespace qb {
 
     /*
@@ -33,6 +36,7 @@ namespace qb {
 
         // Vectors
         VECTOR = 0xB0,           // 
+        VECTOR_SLICE = 0xB1,     // (data_t only; NOT PARSEABLE)
 
         // References
         REF = 0xF0,             // + 0xDEVICE 0xPORT (0xINDEX 0xINDEX) - if deref device
@@ -220,7 +224,17 @@ namespace qb {
                 delete[] this->end;
             }
 
-            static Slice* from_vec(slice_t vec) {
+            Slice(Slice& other) {
+                this->dims = other.dims;
+                this->start = new index_t[dims];
+                this->end = new index_t[dims];
+                for (uint8_t i = 0; i < this->dims; i++) {
+                    this->start[i] = other.start[i];
+                    this->end[i] = other.end[i];
+                }
+            }
+
+            static Slice* init(slice_init_t vec) {
                 auto slice = new Slice(vec.size());
                 for (uint8_t i = 0; i < slice->dims; i++) {
                     slice->start[i] = vec[i].first;
@@ -229,7 +243,7 @@ namespace qb {
                 return slice;
             }
 
-            Slice* copy() {
+            Slice* copy() const {
                 auto slice = new Slice(this->dims);
                 for (uint8_t i = 0; i < slice->dims; i++) {
                     slice->start[i] = this->start[i];
@@ -237,12 +251,22 @@ namespace qb {
                 }
                 return slice;
             }
+
+            std::string to_str() const {
+                std::stringstream ss;
+                ss << "[";
+                for (uint8_t i = 0; i < this->dims; i++) {
+                    ss << this->start[i] << ":" << this->end[i] << (i < this->dims-1 ? "," : "");
+                }
+                ss << "]";
+                return ss.str();
+            }
         };
 
         struct Reference: public Data {
             device_t device = 0xFF;
             port_t port = 0;
-            bool deref = false;
+            uint8_t flags = 0b00000000;
             Slice* slice = nullptr;
 
             Reference():
@@ -251,12 +275,18 @@ namespace qb {
             Reference(uint8_t port):
                 Data(DataType::REF), port(port) {}
 
-            Reference(device_t device, port_t port, bool deref, Slice* slice):
-                Data(DataType::REF), device(device), port(port), deref(deref), slice(slice) {}
+            Reference(device_t device, port_t port, uint8_t flags, Slice* slice):
+                Data(DataType::REF), device(device), port(port), flags(flags), slice(slice) {}
+
+            // copy constructor
+            Reference(Reference& other):
+                Data(DataType::REF), device(other.device), port(other.port), flags(other.flags), slice(other.slice) {
+                    this->slice = other.slice != nullptr ? other.slice->copy() : nullptr;
+                }
 
             Reference* copy() const {
                 Slice* slice = this->slice != nullptr ? this->slice->copy() : nullptr;
-                return new Reference(this->deref, this->device, this->port, slice);
+                return new Reference(this->device, this->port, this->flags, slice); 
             }
 
             ~Reference() {
@@ -266,16 +296,16 @@ namespace qb {
             }
 
             void clear() {
-                this->deref = false;
                 this->device = 0;
                 this->port = 0;
+                this->flags = 0b00000000;
                 this->slice = nullptr;
             }
 
             const std::string to_str() const {
                 std::stringstream ss;
                 ss << "<";
-                if (this->deref) {
+                if (FLAG_DEREF(this->flags)) {
                     ss << "*";
                 }
                 ss << "ref:" << +(this->device) << "#" << +(this->port);
@@ -290,6 +320,7 @@ namespace qb {
                 return ss.str();
             };
         };
+
 
         template <typename T>
         struct Vector: public Data {
@@ -311,7 +342,7 @@ namespace qb {
                     this->size *= shape[i];
                 }
 
-                this->items = new T[this->size];
+                // this->items = new T[this->size];
                 this->clear();
             }
 
@@ -322,22 +353,27 @@ namespace qb {
 
             Vector<T>* copy() const {
                 auto copy = new Vector<T>(this->item_type, this->dims, this->shape);
-                for (uint16_t i = 0; i < this->size; i++) {
-                    copy->items[i] = this->items[i];
-                }
+                // for (uint16_t i = 0; i < this->size; i++) {
+                //     copy->items[i] = this->items[i];
+                // }
                 return copy;
             }
 
             void clear() {
-                for (uint16_t i = 0; i < this->size; i++) {
-                    this->items[i] = (T) 0;
-                }
+                // for (uint16_t i = 0; i < this->size; i++) {
+                //     this->items[i] = (T) 0;
+                // }
             }
 
-            void* ptr_at(index_t index) {
+            T* at(index_t index, Slice* slice) {
+                if (slice != nullptr) {
+                    // TODO: slice math
+                    index = 0;
+                }
                 switch (this->item_type) {
-                    case DataType::_NULL: return nullptr;
-                    case DataType::ERROR: return ((Error*)this->items) + index;
+                    case DataType::VOID: return nullptr;    // Not supported as vector item
+                    case DataType::_NULL: return nullptr;   // Not supported as vector item
+                    case DataType::ERROR: return ((Error*) this->items) + index;
                     case DataType::BOOL: return ((bool*) this->items) + index;
                     case DataType::UINT8: return ((uint8_t*)this->items) + index;
                     case DataType::INT8: return ((int8_t*)this->items) + index;
@@ -347,7 +383,7 @@ namespace qb {
                     case DataType::INT32: return ((int32_t*)this->items) + index;
                     case DataType::FLOAT32: return ((float*)this->items) + index;
                     case DataType::STRING: return ((std::string*)this->items) + index;
-                    case DataType::VECTOR: return ((Vector*)this->items) + index;
+                    case DataType::VECTOR: return nullptr;   // Not supported as vector item
                     case DataType::REF: return ((Reference*)this->items) + index;
                     default: return nullptr;
                 }
@@ -393,7 +429,17 @@ namespace qb {
                 ss << ">";
                 return ss.str();
             };
+
+            Slice* full_slice() {
+                auto slice = new Slice(this->dims);
+                for (uint8_t i = 0; i < this->dims; i++) {
+                    slice->start[i] = 0;
+                    slice->end[i] = this->shape[i];
+                }
+                return slice;
+            }
         };
+
     }
 
     /*
@@ -413,16 +459,10 @@ namespace qb {
         Numeric<float>* f32(float val = 0);
         String* str(std::string val);
 
-        template <typename T>
-        Vector<T>* vec(DataType item_type, uint8_t dims, index_t* shape) {
-            return new Vector<T>(item_type, dims, shape);
-        }
-        template <typename T>
-        Vector<T>* vec(DataType item_type, std::vector<index_t> shape) {
-            return new Vector<T>(item_type, shape.size(), shape.data());
-        }
+        Vector<void>* vec(type_t item_type, uint8_t dims, index_t* shape);
+        Vector<void>* vec(type_t item_type, std::vector<index_t> shape);
 
-        Reference* ref(device_t device, port_t port, bool deref, slice_t slice);
+        Reference* ref(device_t device, port_t port, uint8_t flags, slice_init_t slice);
     }
 
     /*

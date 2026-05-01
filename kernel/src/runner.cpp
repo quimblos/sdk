@@ -140,7 +140,7 @@ qb::data_t qb::Runner::resolve_data(const qb::Data* data) const {
         case DataType::FLOAT32: value = &((qb::data::Numeric<float>*) data)->value; break;
         case DataType::STRING: value = &((qb::data::String*) data)->value; break;
         case DataType::VECTOR: value = (void*) data; break;
-        case DataType::REF: return this->resolve_ref((qb::data::Reference*) data).data;
+        case DataType::REF: (qb::data::Reference*) data; break;
         default: return UNRESOLVED_DATA;
     }
 
@@ -151,6 +151,7 @@ qb::runner::device_data_t qb::Runner::resolve_ref(const qb::data::Reference* ref
 
     qb::Device* device = nullptr;
     qb::Data* data;
+
     // Runner Variable
     if (ref->device == DEVICE_RUNNER) {
         if (ref->port >= this->variables.size()) return UNRESOLVED_DEVICE_DATA;
@@ -163,37 +164,73 @@ qb::runner::device_data_t qb::Runner::resolve_ref(const qb::data::Reference* ref
         if (data == nullptr) return UNRESOLVED_DEVICE_DATA;
     }
 
-    // Vector
-    if (data->type == qb::DataType::VECTOR) {
-        auto vector = (qb::data::Vector<void>*) data;
+    // [Sliced]
 
+    if (ref->slice != nullptr) {
+
+        // Only vectors can be sliced
+        if (data->type != qb::DataType::VECTOR) return UNRESOLVED_DEVICE_DATA;
+
+        auto vector = (qb::data::Vector<void>*) data;
         qb::data::Slice* slice = ref->slice;
         
-        // Unsliced reference, return the array itself
-        if (slice == nullptr) {
+        // Check slice size
+        if (slice->dims > vector->dims) return UNRESOLVED_DEVICE_DATA;
+        for (uint8_t i = 0; i < slice->dims; i++) {
+            // empty or reversed dimension slice
+            if (slice->start[i] >= slice->end[i]) return UNRESOLVED_DEVICE_DATA;
+            // dimension slice too big
+            if (slice->end[i] - slice->start[i] > vector->shape[i]) return UNRESOLVED_DEVICE_DATA;
+        }
+
+        // Dereference: Vector Items into a new Vector of their values
+        if (FLAG_DEREF(ref->flags)) {
+            if (vector->item_type != qb::DataType::REF) return UNRESOLVED_DEVICE_DATA;
+
+            auto shape = new index_t[slice->dims];
+            for (uint8_t i = 0; i < slice->dims; i++) {
+                shape[i] = slice->end[i] - slice->start[i];
+            }
+            auto out_vector = qb::data::vec(vector->item_type, slice->dims, shape);
+
+            // TODO: Assign each resolved item
+            // for (uint8_t i = 0; i < out_vector->size; i++) {
+            //     auto ref = (qb::data::Reference*) vector->at(i, slice);
+            //     auto resolved = this->resolve_ref(ref);
+            //     *(out_vector->items[i]) = *resolved.value;
+            // }
+
             return {
                 .device = device,
-                .data = { .type = qb::DataType::VECTOR, .value = data }
+                .data = qb::data_t({
+                    .type = qb::DataType::VECTOR,
+                    .value = out_vector,
+                    .heap = true
+                })
             };
         }
-
-        if (slice->dims > vector->dims) return UNRESOLVED_DEVICE_DATA;
-
-        void* item = vector->ptr_at(slice->start[0]);
-
-        // Dereference Vector Item(s)
-        if (ref->deref) {
-            if (vector->item_type != qb::DataType::REF) return UNRESOLVED_DEVICE_DATA;
-            return this->resolve_ref((qb::data::Reference*) item);
+        // Reference: return sliced vector
+        else {
+            return {
+                .device = device,
+                .data = qb::data_t({
+                    .type = qb::DataType::VECTOR_SLICE,
+                    .value = new qb::data_slice_t({
+                        .type = qb::DataType::VECTOR,
+                        .value = data,
+                        .heap = true,
+                        .slice = slice->copy()
+                    }),
+                    .heap = true
+                })
+            }; 
         }
-        return {
-            .device = device,
-            .data = { .type = vector->item_type, .value = item }
-        };
     }
 
+    // [Unsliced]
+
     // Dereference
-    if (ref->deref) {
+    if (FLAG_DEREF(ref->flags)) {
         if (data->type != qb::DataType::REF) return UNRESOLVED_DEVICE_DATA;
         return this->resolve_ref((qb::data::Reference*) data);
     }

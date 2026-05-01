@@ -10,9 +10,37 @@
 
 namespace qb {
 
-    extern qb::data_t BOOL_TARGET_TYPE;
-    extern qb::data_t U32_TARGET_TYPE;
+    // Resolved data, used to read/write from memory
+    // allocated inside Data objects.
+    //
+    // - `value`:
+    //   - (null) nullptr
+    //   - (numeric, string) a pointer to the memory allocated by the Data object
+    //   - (error, vector or ref) a pointer to the Data object
+    //   - (sliced vector) a pointer to a iterator_t
+    // - `heap`:
+    //   - (true) this data should be deleted after the operation
+    //   - (false) this data lifecycle is not manageable by this operation
+    struct data_t {
+        type_t type;
+        void* value;
+        bool heap = false;
+    };
 
+    struct data_slice_t {
+        type_t type;
+        void* value = nullptr;
+        bool heap = false;
+        data::Slice* slice = nullptr;
+
+        ~data_slice_t() {
+            delete this->slice;
+        }
+    };
+
+    extern data_t BOOL_TARGET_TYPE;
+    extern data_t U32_TARGET_TYPE;
+   
     namespace _operator {
 
         struct res_t {
@@ -20,7 +48,8 @@ namespace qb {
             std::string* error = nullptr;
         };
 
-        void delete_data(data_t* data);
+        void clean_data(data_t* res);
+        // data_t* copy_data(data_t* res);
         void clean_heap(_operator::res_t* res);
 
         res_t cast(data_t* target, data_t* source);
