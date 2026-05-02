@@ -1,0 +1,151 @@
+#pragma once
+
+#include <vector>
+#include <iostream>
+#include <sstream>
+
+namespace qb {
+
+    typedef uint8_t type_t;
+
+    enum TypeKind {
+        VOID = 0x00,    
+        BOOL = 0x01,    
+        INT = 0x02,     
+        FLOAT = 0x03,
+        STRING = 0x04,
+        OBJ = 0x06,     // no built-in types, schema of_obj
+        EVENT = 0x05,   // no built-in types, schema of_map
+        VECTOR = 0x07,  // no built-in types, schema of_map
+        REF = 0x08,     // no built-in types, schema of_map
+    };
+        
+    union TypeFlags {
+        struct {
+            const bool is_void : 1 = false;
+            const bool is_null : 1 = false;
+            const uint8_t _ : 6 = 0;
+        } of_void;
+
+        struct {
+            const bool is_unsigned : 1 = false;
+            const uint8_t res : 7 = 0;
+        } of_int;
+
+        struct {
+            const bool is_template : 1 = false;
+            const uint8_t _ : 7 = 0;
+        } of_string;
+
+        struct {
+            const bool is_map : 1 = false;
+            const uint8_t _ : 7 = 0;
+        } of_obj;
+
+        uint8_t value;
+    };
+
+    struct Type;
+    union TypeSchema {
+        struct _struct {
+            const uint8_t n_fields;
+            const Type** fields;
+            ~_struct() {
+                delete[] this->fields;
+            }
+        } of_struct;
+        struct _ref {
+            const Type* type;
+        } of_map;
+        ~TypeSchema() {}
+    };
+
+    struct Type {
+        const TypeKind kind;
+        const TypeFlags flags;
+        const TypeSchema schema;
+
+        ~Type() {
+            switch (this->kind) {
+                case qb::TypeKind::VOID:
+                case qb::TypeKind::BOOL:
+                case qb::TypeKind::INT:
+                case qb::TypeKind::FLOAT:
+                case qb::TypeKind::STRING:
+                    break;
+                case qb::TypeKind::OBJ:
+                    if (this->flags.of_obj.is_map)
+                        this->schema.of_map.~_ref();
+                    else
+                        this->schema.of_struct.~_struct();
+                    break;
+                case qb::TypeKind::EVENT:
+                case qb::TypeKind::VECTOR:
+                    this->schema.of_map.~_ref();
+                    break;
+                case qb::TypeKind::REF:
+                    break;
+            }
+        }
+
+        std::string to_str() const {
+            std::stringstream ss;
+            switch (this->kind) {
+                case TypeKind::VOID: {
+                    if (this->flags.of_void.is_void) ss << "void"; 
+                    else if (this->flags.of_void.is_null) ss << "null";
+                    else ss << "void<?>";
+                    break;
+                }
+                case TypeKind::BOOL: {
+                    ss << "bool";
+                    break;
+                }
+                case TypeKind::INT: {
+                    if (this->flags.of_int.is_unsigned) ss << "u";
+                    else ss << "i";
+                    ss << this->flags.of_int.res * 8;
+                    break;
+                }
+                case TypeKind::FLOAT: {
+                    ss << "f32";
+                    break;
+                }
+                case TypeKind::STRING: {
+                    ss << "string";
+                    break;
+                }
+                case TypeKind::OBJ: {
+                    if (this->flags.of_obj.is_map) {
+                        ss << "map{" << this->schema.of_map.type->to_str() << "}";
+                    }
+                    else {
+                        ss << "struct{";
+                        auto n = this->schema.of_struct.n_fields;
+                        for (size_t i = 0; i < n; i++) {
+                            ss << this->schema.of_struct.fields[i]->to_str();
+                            if (i < n-1) ss << ",";
+                        }
+                        ss << "}";
+                    }
+                    break;
+                }
+                case TypeKind::EVENT: {
+                    ss << "event{" << this->schema.of_map.type->to_str() << "}";
+                    break;
+                }
+                case TypeKind::VECTOR: {
+                    ss << "vec[" << this->schema.of_map.type->to_str() << "]";
+                    break;
+                }
+                case TypeKind::REF: {
+                    ss << "ref";
+                    break;
+                }
+            }
+            return ss.str();
+        }
+
+    };
+
+}
