@@ -14,10 +14,10 @@ namespace qb {
         INT = 0x02,     
         FLOAT = 0x03,
         STRING = 0x04,
-        OBJ = 0x06,     // no built-in types, schema of_obj
-        EVENT = 0x05,   // no built-in types, schema of_map
-        VECTOR = 0x07,  // no built-in types, schema of_map
-        REF = 0x08,     // no built-in types, schema of_map
+        REF = 0x05,     // no built-in types, schema of_map
+        VECTOR = 0x06,  // no built-in types, schema of_map
+        OBJ = 0x07,     // no built-in types, schema of_obj
+        EVENT = 0x08,   // no built-in types, schema of_map
     };
         
     union TypeFlags {
@@ -47,6 +47,9 @@ namespace qb {
 
     struct Type;
     union TypeSchema {
+        struct _ref {
+            const Type* type;
+        } of_map;
         struct _struct {
             const uint8_t n_fields;
             const Type** fields;
@@ -54,9 +57,6 @@ namespace qb {
                 delete[] this->fields;
             }
         } of_struct;
-        struct _ref {
-            const Type* type;
-        } of_map;
         ~TypeSchema() {}
     };
 
@@ -73,6 +73,12 @@ namespace qb {
                 case qb::TypeKind::FLOAT:
                 case qb::TypeKind::STRING:
                     break;
+                case qb::TypeKind::REF:
+                    // this->schema.of_map.~_ref();
+                    break;
+                case qb::TypeKind::VECTOR:
+                    this->schema.of_map.~_ref();
+                    break;
                 case qb::TypeKind::OBJ:
                     if (this->flags.of_obj.is_map)
                         this->schema.of_map.~_ref();
@@ -80,10 +86,7 @@ namespace qb {
                         this->schema.of_struct.~_struct();
                     break;
                 case qb::TypeKind::EVENT:
-                case qb::TypeKind::VECTOR:
-                    this->schema.of_map.~_ref();
-                    break;
-                case qb::TypeKind::REF:
+                    // this->schema.of_map.~_ref();
                     break;
             }
         }
@@ -115,6 +118,14 @@ namespace qb {
                     ss << "string";
                     break;
                 }
+                case TypeKind::REF: {
+                    ss << "ref";
+                    break;
+                }
+                case TypeKind::VECTOR: {
+                    ss << "vec[" << this->schema.of_map.type->to_str() << "]";
+                    break;
+                }
                 case TypeKind::OBJ: {
                     if (this->flags.of_obj.is_map) {
                         ss << "map{" << this->schema.of_map.type->to_str() << "}";
@@ -132,14 +143,6 @@ namespace qb {
                 }
                 case TypeKind::EVENT: {
                     ss << "event{" << this->schema.of_map.type->to_str() << "}";
-                    break;
-                }
-                case TypeKind::VECTOR: {
-                    ss << "vec[" << this->schema.of_map.type->to_str() << "]";
-                    break;
-                }
-                case TypeKind::REF: {
-                    ss << "ref";
                     break;
                 }
             }

@@ -47,10 +47,10 @@ namespace qb {
                 return this->types[index-N_B_TYPES];
             }
             
+            const type_t add_vec(const type_t item_type);
             const type_t add_map(const type_t item_type);
             const type_t add_struct(const std::vector<type_t>& fields);
             const type_t add_event(const type_t item_type);
-            const type_t add_vec(const type_t item_type);
             
     };
 

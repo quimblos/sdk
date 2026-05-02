@@ -119,6 +119,22 @@ const qb::Type qb::TypeChecker::builtin_types[] = {
 
 /* Extendable Types */
 
+// vec
+const qb::type_t qb::TypeChecker::add_vec(const qb::type_t item_type) {
+    this->types.push_back(new qb::Type({
+        .kind = qb::TypeKind::VECTOR,
+        .flags = 0,
+        .schema = qb::TypeSchema({
+            .of_map = {
+                .type = this->get(item_type)
+            }
+        })
+    }));
+    
+    uint8_t idx = this->types.size() - 1;
+    return N_B_TYPES + idx;
+}
+
 // map
 const qb::type_t qb::TypeChecker::add_map(const qb::type_t item_type) {
     this->types.push_back(new qb::Type({
@@ -172,22 +188,6 @@ const qb::type_t qb::TypeChecker::add_event(const qb::type_t inner_type) {
         .schema = qb::TypeSchema({
             .of_map = {
                 .type = this->get(inner_type)
-            }
-        })
-    }));
-    
-    uint8_t idx = this->types.size() - 1;
-    return N_B_TYPES + idx;
-}
-
-// vec
-const qb::type_t qb::TypeChecker::add_vec(const qb::type_t item_type) {
-    this->types.push_back(new qb::Type({
-        .kind = qb::TypeKind::VECTOR,
-        .flags = 0,
-        .schema = qb::TypeSchema({
-            .of_map = {
-                .type = this->get(item_type)
             }
         })
     }));

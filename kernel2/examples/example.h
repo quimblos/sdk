@@ -49,12 +49,12 @@ class LED8 : public qb::Device {
     public:    
 
     LED8(): qb::Device("LED8", {
-        /* 0x00 */ { "on", qb::data::u8() }
+        /* 0x00 */ { "on", qb::memory::u8() }
     }) {}
     
     void on_tick() {
         qb::Device::on_tick();
-        auto data = qb::data::as_u8(this->variables.at(0).second);
+        auto data = qb::memory::as_u8(this->variables.at(0).second);
         uint8_t val = data->value;
 
         std::cout << COLOR_YELLOW;
