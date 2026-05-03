@@ -10,8 +10,8 @@ project (quimblos-sdk)
 
 set(SOURCES
     src/types.cpp
-    src/value.cpp
-    src/values.cpp
+    src/memory.cpp
+    src/parser.cpp
 )
 
 # WASM

@@ -1,9 +1,9 @@
-#include "types.h"
+#include "typesolver.h"
 #include <iostream>
 
 /* Built-In Types */
 
-const qb::Type qb::TypeChecker::builtin_types[] = {
+const qb::Type qb::TypeSolver::builtin_types[] = {
     
     // 0x00: void
     qb::Type({
@@ -120,7 +120,7 @@ const qb::Type qb::TypeChecker::builtin_types[] = {
 /* Extendable Types */
 
 // vec
-const qb::type_t qb::TypeChecker::add_vec(const qb::type_t item_type) {
+const qb::type_t qb::TypeSolver::add_vec(const qb::type_t item_type) {
     this->types.push_back(new qb::Type({
         .kind = qb::TypeKind::VECTOR,
         .flags = 0,
@@ -131,12 +131,12 @@ const qb::type_t qb::TypeChecker::add_vec(const qb::type_t item_type) {
         })
     }));
     
-    uint8_t idx = this->types.size() - 1;
-    return N_B_TYPES + idx;
+    port_t idx = this->types.size() - 1;
+    return idx;
 }
 
 // map
-const qb::type_t qb::TypeChecker::add_map(const qb::type_t item_type) {
+const qb::type_t qb::TypeSolver::add_map(const qb::type_t item_type) {
     this->types.push_back(new qb::Type({
         .kind = qb::TypeKind::OBJ,
         .flags = qb::TypeFlags({
@@ -150,14 +150,14 @@ const qb::type_t qb::TypeChecker::add_map(const qb::type_t item_type) {
             }
         })
     }));
-    uint8_t idx = this->types.size() - 1;
-    return N_B_TYPES + idx;
+    port_t idx = this->types.size() - 1;
+    return idx;
 }
 
 // struct
-const qb::type_t qb::TypeChecker::add_struct(const std::vector<type_t>& field_types) {    
+const qb::type_t qb::TypeSolver::add_struct(const std::vector<type_t>& field_types) {    
     
-    uint8_t n_fields = (uint8_t) field_types.size();
+    port_t n_fields = (port_t) field_types.size();
     auto fields = new const Type*[n_fields];
 
     for (size_t i = 0; i < n_fields; i++) {
@@ -176,12 +176,12 @@ const qb::type_t qb::TypeChecker::add_struct(const std::vector<type_t>& field_ty
             }
         })
     }));
-    uint8_t idx = this->types.size() - 1;
-    return N_B_TYPES + idx;
+    port_t idx = this->types.size() - 1;
+    return idx;
 }
 
 // event
-const qb::type_t qb::TypeChecker::add_event(const qb::type_t inner_type) {
+const qb::type_t qb::TypeSolver::add_event(const qb::type_t inner_type) {
     this->types.push_back(new qb::Type({
         .kind = qb::TypeKind::EVENT,
         .flags = 0,
@@ -192,6 +192,6 @@ const qb::type_t qb::TypeChecker::add_event(const qb::type_t inner_type) {
         })
     }));
     
-    uint8_t idx = this->types.size() - 1;
-    return N_B_TYPES + idx;
+    port_t idx = this->types.size() - 1;
+    return idx;
 }

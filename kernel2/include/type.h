@@ -1,12 +1,9 @@
 #pragma once
-
 #include <vector>
-#include <iostream>
 #include <sstream>
+#include "config.h"
 
 namespace qb {
-
-    typedef uint8_t type_t;
 
     enum TypeKind {
         VOID = 0x00,    
@@ -33,8 +30,8 @@ namespace qb {
         } of_int;
 
         struct {
-            const bool is_template : 1 = false;
-            const uint8_t _ : 7 = 0;
+            // const bool is_template : 1 = false;
+            const uint8_t _ : 8 = 0;
         } of_string;
 
         struct {
@@ -51,7 +48,7 @@ namespace qb {
             const Type* type;
         } of_map;
         struct _struct {
-            const uint8_t n_fields;
+            const port_t n_fields;
             const Type** fields;
             ~_struct() {
                 delete[] this->fields;

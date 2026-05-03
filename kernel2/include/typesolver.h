@@ -4,23 +4,24 @@
 #include <vector>
 #include "type.h"
 
-#define N_B_TYPES 12
-#define B_TYPE_VOID 0x00
-#define B_TYPE_NULL 0x01
-#define B_TYPE_BOOL 0x02
-#define B_TYPE_U8 0x03
-#define B_TYPE_I8 0x04
-#define B_TYPE_U16 0x05
-#define B_TYPE_I16 0x06
-#define B_TYPE_U32 0x07
-#define B_TYPE_I32 0x08
-#define B_TYPE_F32 0x09
-#define B_TYPE_STR 0x0A
-#define B_TYPE_REF 0x0B
+#define B_TYPES_0 0xF4
+
+#define B_TYPE_VOID 0xFF
+#define B_TYPE_NULL 0xFE
+#define B_TYPE_BOOL 0xFD
+#define B_TYPE_U8 0xFC
+#define B_TYPE_I8 0xFB
+#define B_TYPE_U16 0xFA
+#define B_TYPE_I16 0xF9
+#define B_TYPE_U32 0xF8
+#define B_TYPE_I32 0xF7
+#define B_TYPE_F32 0xF6
+#define B_TYPE_STR 0xF5
+#define B_TYPE_REF 0xF4
 
 namespace qb {
 
-    class TypeChecker {
+    class TypeSolver {
 
         public:
             static const Type builtin_types[];
@@ -30,21 +31,21 @@ namespace qb {
 
         public:
 
-            ~TypeChecker() {
-                for (uint8_t i = 0; i < this->types.size(); i++) {
+            ~TypeSolver() {
+                for (port_t i = 0; i < this->types.size(); i++) {
                     delete this->types[i];
                 }
                 // free(this->types);
             }
 
             const Type* get(type_t index) const {
-                if (index < N_B_TYPES) {
-                    return &TypeChecker::builtin_types[index];
+                if (index >= B_TYPES_0) {
+                    return &TypeSolver::builtin_types[0xFF-index];
                 }
-                if (index >= this->types.size()+N_B_TYPES) {
+                if (index >= this->types.size()) {
                     return nullptr;
                 }
-                return this->types[index-N_B_TYPES];
+                return this->types[index];
             }
             
             const type_t add_vec(const type_t item_type);

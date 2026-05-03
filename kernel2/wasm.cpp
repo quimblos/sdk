@@ -14,34 +14,34 @@ emscripten::val as_emval(qb::Data* data) {
             return emscripten::val::null();
             break;
         case qb::DataType::ERROR: {
-            auto error = qb::memory::as_error(data);
+            auto error = qb::mem::as_error(data);
             auto val = emscripten::val::object();
             val.set("code", emscripten::val(error->code));
             val.set("message", emscripten::val(error->message));
             return val;
         }
         case qb::DataType::BOOL:
-            return emscripten::val(qb::memory::as_bool(data)->value);
+            return emscripten::val(qb::mem::as_bool(data)->value);
         case qb::DataType::UINT8:
-            return emscripten::val(qb::memory::as_u8(data)->value);
+            return emscripten::val(qb::mem::as_u8(data)->value);
         case qb::DataType::INT8:
-            return emscripten::val(qb::memory::as_i8(data)->value);
+            return emscripten::val(qb::mem::as_i8(data)->value);
         case qb::DataType::UINT16:
-            return emscripten::val(qb::memory::as_u16(data)->value);
+            return emscripten::val(qb::mem::as_u16(data)->value);
         case qb::DataType::INT16:
-            return emscripten::val(qb::memory::as_i16(data)->value);
+            return emscripten::val(qb::mem::as_i16(data)->value);
         case qb::DataType::UINT32:
-            return emscripten::val(qb::memory::as_u32(data)->value);
+            return emscripten::val(qb::mem::as_u32(data)->value);
         case qb::DataType::INT32:
-            return emscripten::val(qb::memory::as_i32(data)->value);
+            return emscripten::val(qb::mem::as_i32(data)->value);
         case qb::DataType::FLOAT32:
-            return emscripten::val(qb::memory::as_f32(data)->value);
+            return emscripten::val(qb::mem::as_f32(data)->value);
         case qb::DataType::STRING:
-            return emscripten::val(qb::memory::as_str(data)->value);
+            return emscripten::val(qb::mem::as_str(data)->value);
         case qb::DataType::VECTOR:
             return emscripten::val::null();
         case qb::DataType::REF: {
-            auto ref = qb::memory::as_ref(data);
+            auto ref = qb::mem::as_ref(data);
             auto val = emscripten::val::object();
             val.set("device", emscripten::val((qb::device_t) ref->device));
             val.set("port", emscripten::val(ref->port));
