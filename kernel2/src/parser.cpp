@@ -103,7 +103,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
         case qb::OpCode::SET: {
             PARSE_U8(flags)
             PARSE(target, pointer)
-            if (target.block == BLOCK_THREAD_CONST)
+            if (target.block >= BLOCK_THREAD_CONST)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
             PARSE(source, pointer)
             OK({
@@ -175,7 +175,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
         case qb::OpCode::SET_IF: {
             PARSE_U8(flags)
             PARSE(target, pointer)
-            if (target.block == BLOCK_THREAD_CONST)
+            if (target.block >= BLOCK_THREAD_CONST)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
             PARSE(left, pointer)
             PARSE(right, pointer)
@@ -198,14 +198,14 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 PARSE(data, pointer)
                 data_true = data;
             }
-            else data_true = Pointer(BLOCK_THREAD_CONST, PORT_CONST_TRUE);
+            else data_true = Pointer(BLOCK_KERNEL, PORT_CONST_TRUE);
 
             Pointer data_false;
             if (flags_struct.has_false){
                 PARSE(data, pointer)
                 data_false = data;
             }
-            else data_false = Pointer(BLOCK_THREAD_CONST, PORT_CONST_FALSE);
+            else data_false = Pointer(BLOCK_KERNEL, PORT_CONST_FALSE);
             
             OK({
                 .instruction = new qb::instruction::SetIf(
@@ -237,7 +237,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 ERROR(qb::parser::res_t::Code::MATH_OP)
 
             PARSE(target, pointer)
-            if (target.block == BLOCK_THREAD_CONST)
+            if (target.block >= BLOCK_THREAD_CONST)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
             PARSE(source, pointer)
             OK({
@@ -249,7 +249,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             })
         }
 
-        // Runner
+        // Thread
 
         case qb::OpCode::SLEEP: {
             PARSE(source, pointer)
@@ -280,7 +280,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             })
         }
 
-
     }
-    
+
+    ERROR(qb::parser::res_t::Code::UNKNOWN_OP_CODE)    
 }

@@ -19,10 +19,10 @@ namespace qb {
         ADD_TYPE = 0x08,        // (kind:8, flags:8, ...schema)
         // 0x1* -> Memory Manipulation
         SET = 0x10,             // (flags:8, target:ptr, source:ptr)
-        HOLD = 0x1A,            // (kind:8, node|runner:str)
+        HOLD = 0x1A,            // (kind:8, node|thread:str)
             // NODE
             // THREAD
-        RELEASE = 0x1B,         // (kind:8, node|runner:str)
+        RELEASE = 0x1B,         // (kind:8, node|thread:str)
             // NODE
             // THREAD
         // 0x2* -> Flow control 
@@ -44,7 +44,7 @@ namespace qb {
             // MOD
             // POW
             // LN
-        // 0xE* -> Runner
+        // 0xE* -> Thread
         SLEEP = 0xE0,           // (time:ptr)
         PUBLISH = 0xEA,         // (topic:str, source:ptr)
         RETURN = 0xEF,          // (source:ptr)
@@ -65,8 +65,8 @@ namespace qb {
             std::stringstream ss;
             ss << '<';
             switch (this->block) {
-                case BLOCK_THREAD_CONST:
-                    ss << "const.";
+                case BLOCK_KERNEL:
+                    ss << "kernel.";
                     switch (this->port) {
                         case PORT_CONST_FALSE:
                             ss << "false";
@@ -75,6 +75,9 @@ namespace qb {
                             ss << "true";
                             break;
                     }
+                    break;
+                case BLOCK_THREAD_CONST:
+                    ss << "const." << +port;
                     break;
                 case BLOCK_THREAD:
                     ss << "var." << +port;
@@ -89,7 +92,7 @@ namespace qb {
     };
 
     /*
-        Instructions
+        Instruction
     */
 
     struct Instruction {
@@ -99,6 +102,23 @@ namespace qb {
 
         virtual const std::string to_str() const = 0;
     };
+
+    /*
+        Code
+    */
+
+    struct Code {
+        const code_addr_t size;
+        const Instruction* instructions;
+
+        Code(const code_addr_t size, const Instruction instructions[]) :
+            size(size),
+            instructions(instructions) {}
+    };
+
+    /*
+        Instruction Declarations
+    */
 
     namespace instruction {
         
@@ -137,16 +157,16 @@ namespace qb {
         // };
 
         struct AddVar: public Instruction {
-            const type_t var_type;
+            const type_t tdx;
 
-            AddVar(type_t var_type):
+            AddVar(type_t tdx):
                 Instruction(OpCode::ADD_VAR),
-                var_type(var_type)
+                tdx(tdx)
             {}
 
             const std::string to_str() const {
                 std::stringstream ss;
-                ss << "var:" << +this->var_type;
+                ss << "var:" << +this->tdx;
                 return ss.str();
             }
         };
@@ -401,7 +421,7 @@ namespace qb {
             }
         };
 
-        // Runner
+        // Thread
 
         struct Sleep: public Instruction {
             const Pointer time;

@@ -1,6 +1,6 @@
 #pragma once
 #include "number.h"
-#include "instruction.h"
+#include "code.h"
 
 namespace qb {
 
@@ -15,6 +15,7 @@ namespace qb {
                 ENTITY_KIND = 0x04,
                 COMPARE_OP = 0x05,
                 MATH_OP = 0x06,
+                UNKNOWN_OP_CODE = 0x07,
             } code;
 
             union {

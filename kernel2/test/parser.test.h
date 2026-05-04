@@ -6,7 +6,7 @@
     qb::byte_t code[] = CODE; \
     auto res = qb::parser::instruction(code, sizeof(code)/sizeof(qb::byte_t)); \
     if (res.code != 0) { \
-        std::cout << qb::i18n::error::PARSER.at(res.code) << std::endl; \
+        std::cout << qb::i18n::parser.at(res.code) << std::endl; \
         qb_fail() \
     } \
     std::cout << res.out.instruction->to_str() << std::endl; \
@@ -40,7 +40,7 @@ qb_suite(test_parser, "parser", {
                 B_TYPE_U8,          // type
             })
             qb_assert(instruction.type == qb::OpCode::ADD_VAR)
-            qb_assert(instruction.var_type == B_TYPE_U8)
+            qb_assert(instruction.tdx == B_TYPE_U8)
         })
     
         qb_test("ADD_TYPE:VOID (should fail)", {
@@ -243,9 +243,9 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.left.port == 0x02)
             qb_assert(instruction.right.block == BLOCK_THREAD)
             qb_assert(instruction.right.port == 0x03)
-            qb_assert(instruction.data_true.block == BLOCK_THREAD_CONST)
+            qb_assert(instruction.data_true.block == BLOCK_KERNEL)
             qb_assert(instruction.data_true.port == PORT_CONST_TRUE)
-            qb_assert(instruction.data_false.block == BLOCK_THREAD_CONST)
+            qb_assert(instruction.data_false.block == BLOCK_KERNEL)
             qb_assert(instruction.data_false.port == PORT_CONST_FALSE)
         })
 
@@ -274,7 +274,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.right.port == 0x03)
             qb_assert(instruction.data_true.block == BLOCK_THREAD)
             qb_assert(instruction.data_true.port == 0x04)
-            qb_assert(instruction.data_false.block == BLOCK_THREAD_CONST)
+            qb_assert(instruction.data_false.block == BLOCK_KERNEL)
             qb_assert(instruction.data_false.port == PORT_CONST_FALSE)
         })
 
@@ -301,7 +301,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.left.port == 0x02)
             qb_assert(instruction.right.block == BLOCK_THREAD)
             qb_assert(instruction.right.port == 0x03)
-            qb_assert(instruction.data_true.block == BLOCK_THREAD_CONST)
+            qb_assert(instruction.data_true.block == BLOCK_KERNEL)
             qb_assert(instruction.data_true.port == PORT_CONST_TRUE)
             qb_assert(instruction.data_false.block == BLOCK_THREAD)
             qb_assert(instruction.data_false.port == 0x04)
@@ -425,7 +425,7 @@ qb_suite(test_parser, "parser", {
 
     })
 
-    qb_describe("Instruction: Runner", {
+    qb_describe("Instruction: Thread", {
 
         qb_test("SLEEP", {
             TEST_INSTRUCTION_OK(qb::instruction::Sleep, {

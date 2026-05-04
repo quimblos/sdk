@@ -138,12 +138,8 @@ const qb::type_t qb::TypeSolver::add_vec(const qb::type_t item_type) {
 // map
 const qb::type_t qb::TypeSolver::add_map(const qb::type_t item_type) {
     this->types.push_back(new qb::Type({
-        .kind = qb::TypeKind::OBJ,
-        .flags = qb::TypeFlags({
-            .of_obj = {
-                .is_map = true
-            }
-        }),
+        .kind = qb::TypeKind::MAP,
+        .flags = 0,
         .schema = qb::TypeSchema({
             .of_map = {
                 .type = this->get(item_type)
@@ -165,10 +161,8 @@ const qb::type_t qb::TypeSolver::add_struct(const std::vector<type_t>& field_typ
     }
 
     this->types.push_back(new qb::Type({
-        .kind = qb::TypeKind::OBJ,
-        .flags = qb::TypeFlags({
-            .of_obj = {}
-        }),
+        .kind = qb::TypeKind::STRUCT,
+        .flags = 0,
         .schema = qb::TypeSchema({
             .of_struct = {
                 .n_fields = n_fields,

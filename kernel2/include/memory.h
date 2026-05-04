@@ -3,6 +3,11 @@
 #include <sstream>
 #include "typesolver.h"
 
+/*
+    [Quimblos Memory Manager]
+    Encapsulates memory management through quimblos types.
+*/
+
 namespace qb {
     
     enum EventLevel {
@@ -13,7 +18,7 @@ namespace qb {
         ERROR = 0x04,
     };
 
-    // [ Memory Manipulation ]
+    // [ Memory Manipulation Methods ]
 
     namespace mem {
 
@@ -26,50 +31,34 @@ namespace qb {
 
         // Dynamic allocation is used on Events and Pools.
 
-        byte_t* alloc(const Type* type);
+        data_t alloc(const Type* type);
 
         // [ Value Manipulation ]
 
         // Initialize a memory address with the proper
         // C++ type for a given qb::Type.
           
-        void init(const Type* type, byte_t* target);
-        void init_vec(const Type* type, byte_t* target);
-        void init_map(const Type* type, byte_t* target);  
+        void init(const Type* type, data_t target);
         
-        // Assign values to pre-allocated memory
+        // Copy values to pre-allocated memory
         // The memory MUST have been previously
         // allocated (statically or dynamically).
 
-        void assign(const Type* type, byte_t* target, byte_t* source);
-        void assign_vec(const Type* type, byte_t* target, index_t index, byte_t* source);
-        void assign_map(const Type* type, byte_t* target, std::string key, byte_t* source);
-        void assign_event(const Type* type, byte_t* target, EventLevel level, byte_t code, byte_t* source);
+        void copy(const Type* type, data_t target, data_t source);
 
         // [ Memory Manipulation ]
-
-        // Allows resizing vectors in memory.
-        // The Block memory remains contiguous, but
-        // it contains a pointer to the actual data changes.
-        
-        void resize_vec(const Type* type, byte_t* target, index_t size);
 
         // Free C++ allocated resources for a given address
         // of a given type.
         // This MUST be called for each data when destroying
         // the Block to avoid memory leaks.
         
-        void free(const Type* type, byte_t* target);
-        void free_vec(const Type* type, byte_t* target);
-        void free_map(const Type* type, byte_t* target);
+        void free(const Type* type, data_t target);
     }
 
-    // [ Custom (non-C++) Types ]
+    // [ Data Structures ]
 
     namespace mem {
-
-        uint8_t size_of(const Type* type);
-        void assign(const Type* type, byte_t* target, byte_t* source);
 
         struct Reference {
             block_t block = 0;
@@ -102,30 +91,154 @@ namespace qb {
         };
 
         struct Event {
+            const Type* type = nullptr;
             EventLevel level : 8 = EventLevel::INFO;
             byte_t code = 0x00;
-            byte_t* data = nullptr;
+            data_t data = nullptr;
 
-            Event() {}
+            Event(const Type* type): type(type) {
+                this->data = mem::alloc(type);
+                mem::init(type, this->data);
+            }
 
             ~Event() {
-                if (this->data != nullptr)
+                if (this->data != nullptr) {
+                    mem::free(this->type, this->data);
                     delete[] this->data;
+                }
             }
 
             void assign(Event* other) {
-                if (this->data != nullptr)
-                    delete[] this->data;
                 this->level = other->level;
                 this->code = other->code;
-                this->data = other->data;
+                mem::copy(type, this->data, other->data);
+            }
+
+            void set(EventLevel level, byte_t code, data_t value) {
+                this->level = level;
+                this->code = code;
+                mem::copy(this->type, this->data, value);
+            }
+
+            template <typename T>
+            void __cpp_set(EventLevel level, byte_t code, T value) {
+                this->level = level;
+                this->code = code;
+                mem::copy(this->type, this->data, (data_t) &value);
+            }
+        };
+
+        struct Vector {
+            const Type* type;
+            const uint8_t item_size;
+            std::vector<byte_t> data;
+            
+            Vector(const Type* type, index_t size = 0):
+                type(type),
+                item_size(size_of(type))
+            {
+                this->data = std::vector<byte_t>(size * this->item_size);
+                if (size > 0) {
+                    data_t start = &this->data.front();
+                    for (index_t i = 0; i < size; i++) {
+                        mem::init(this->type, start+i*this->item_size);
+                    }
+                }
+            }
+            
+            ~Vector() {
+                index_t size = this->data.size() / this->item_size;
+                if (size > 0) {
+                    data_t start = &this->data.front();
+                    for (index_t i = 0; i < size; i++) {
+                        mem::free(this->type, start+i*this->item_size);
+                    }
+                }
+            }
+
+            void resize(index_t size) {
+                auto old_size = this->data.size();
+                if (size == old_size) return;
+
+                if (size < old_size) {
+                    data_t start = &this->data.front();
+                    for (index_t i = size; i < old_size; i++) {
+                        mem::free(this->type, start+i*this->item_size);
+                    }
+                }
+                this->data.resize(size * this->item_size);
+                
+                if (size > old_size) {
+                    data_t start = &this->data.front();
+                    for (index_t i = old_size; i < size; i++) {
+                        mem::init(this->type, start+i*this->item_size);
+                    }
+                }
+            }
+
+            index_t size() {
+                return this->data.size() / this->item_size;
+            }
+
+            data_t at(index_t index) {
+                return &this->data.front() + index * this->item_size;
+            }
+
+            template <typename T>
+            T* __cpp_at(index_t index) {
+                return (T*) (&this->data.front() + index * this->item_size);
+            }
+
+            template <typename T>
+            void __cpp_set(index_t index, T value) {
+                auto ptr = &this->data.front() + index * this->item_size;
+                mem::copy(this->type, ptr, (data_t) &value);
+            }
+        };
+
+        struct Map {
+            const Type* type;
+            const uint8_t item_size;
+            std::map<std::string, data_t> data;
+            
+            Map(const Type* type):
+                type(type),
+                item_size(size_of(type))
+            {}
+
+            ~Map() {
+                for (const auto& it : this->data) {
+                    mem::free(this->type, it.second);
+                    delete[] it.second;
+                }
+            }
+
+            index_t size() {
+                return this->data.size();
+            }
+
+            data_t at(std::string key) {
+                return this->data.at(key);
+            }
+
+            template <typename T>
+            T* __cpp_at(std::string key) {
+                return (T*) this->data.at(key);
+            }
+
+            template <typename T>
+            void __cpp_set(std::string key, T value) {
+                this->data.insert({key, new byte_t[this->item_size]});
+                auto ptr = this->at(key);
+                mem::init(this->type, ptr);
+                mem::copy(this->type, ptr, (data_t) &value);
             }
         };
 
         struct Struct {
             const Type* type;
             std::vector<index_t> pos;
-            byte_t* data = nullptr;
+            data_t data = nullptr;
 
             Struct(const Type* type):
                 type(type)
@@ -171,64 +284,29 @@ namespace qb {
 
             // [ Value Manipulation ]
 
-            template <typename T>
-            void set(port_t port, T value) {                
+            void set(port_t port, data_t value) {                
                 auto type = this->type->schema.of_struct.fields[port];
-                byte_t* target = this->data + this->pos[port];
-                mem::assign(type, target, (byte_t*) &value);
+                data_t target = this->data + this->pos[port];
+                mem::copy(type, target, value);
             }
 
             template <typename T>
-            void set_vec(port_t port, index_t index, T value) {                
+            void __cpp_set(port_t port, T value) {                
                 auto type = this->type->schema.of_struct.fields[port];
-                byte_t* target = this->data + this->pos[port];
-                mem::assign_vec(type->schema.of_map.type, target, index, (byte_t*) &value);
+                data_t target = this->data + this->pos[port];
+                mem::copy(type, target, (data_t) &value);
             }
-            
-            template <typename T>
-            void set_map(port_t port, std::string key, T value) {                
-                auto type = this->type->schema.of_struct.fields[port];
-                byte_t* target = this->data + this->pos[port];
-                mem::assign_map(type->schema.of_map.type, target, key, (byte_t*) &value);
-            }
-
-            template <typename T>
-            void set_event(port_t port, EventLevel level, byte_t code, T value) {
-                auto type = this->type->schema.of_struct.fields[port];
-                byte_t* target = this->data + this->pos[port];
-                mem::assign_event(type->schema.of_map.type, target, level, code, (byte_t*) &value);
-            }
-    
-            // [ Memory Manipulation ]
-
-            void resize_vec(port_t port, index_t size) {
-                auto type = this->type->schema.of_struct.fields[port];
-                byte_t* target = this->data + this->pos[port];             
-                mem::resize_vec(type->schema.of_map.type, target, size);
-            }
-
+                
             // [ Read ]
 
+            data_t get(port_t port) {
+                return this->data + this->pos[port];
+            }
+
             template <typename T>
-            T* get(port_t port) {
+            T* __cpp_get(port_t port) {
                 return (T*)(this->data + this->pos[port]);
             }
-
-            template <typename T>
-            std::vector<T>* get_vec(port_t port) {
-                return (std::vector<T>*)(this->data + this->pos[port]);
-            }
-
-            template <typename T>
-            std::map<std::string, T>* get_map(port_t port) {
-                return (std::map<std::string, T>*)(this->data + this->pos[port]);
-            }
-
-            template <typename T>
-            T* get_event(port_t port) {
-                auto event = (Event*)(this->data + this->pos[port]);
-                return (T*)event->data;
-            }            
 
         };
 
@@ -244,7 +322,7 @@ namespace qb {
         class Pool {
             struct Item {
                 Type* type;
-                byte_t* value;
+                data_t value;
             };
 
             std::map<port_t, Item> data;
@@ -261,7 +339,7 @@ namespace qb {
                 template <typename T>
                 port_t add(Type* type, T value) {
                     auto target = mem::alloc(type);
-                    mem::assign(type, target, (byte_t*) &value);
+                    mem::copy(type, target, (data_t) &value);
                     port_t port = this->data.size();
                     this->data.insert(port, {
                         .type = type,
@@ -273,7 +351,7 @@ namespace qb {
                 template <typename T>
                 void set(port_t port, T value) {                
                     auto item = this->data[port];
-                    mem::assign(item.type, item.value, (byte_t*) &value);
+                    mem::copy(item.type, item.value, (data_t) &value);
                 }
 
         };
@@ -288,6 +366,9 @@ namespace qb {
                 Block(TypeSolver& solver, std::vector<type_t> tdxs):
                     Struct(solver.get(solver.add_struct(tdxs))) {}
     
+                // const Type* type_of(port_t port) const {
+                //     return this->type.schema.of_struct.fields[port];
+                // }
         };
 
     }

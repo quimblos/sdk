@@ -115,8 +115,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(B_TYPE_BOOL))
         })
     
@@ -125,8 +124,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(B_TYPE_U8))
         })
     
@@ -135,8 +133,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(B_TYPE_F32))
         })
     
@@ -145,8 +142,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(B_TYPE_STR))
         })
 
@@ -155,8 +151,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(B_TYPE_REF))
         })
     })
@@ -170,8 +165,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
         
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 1)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(B_TYPE_BOOL))
         })
@@ -184,8 +178,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
         
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 2)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(B_TYPE_BOOL))
             qb_assert(type->schema.of_struct.fields[1] == solver.get(B_TYPE_U8))
@@ -200,8 +193,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
         
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 3)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(B_TYPE_BOOL))
             qb_assert(type->schema.of_struct.fields[1] == solver.get(B_TYPE_U8))
@@ -218,8 +210,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
         
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 4)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(B_TYPE_BOOL))
             qb_assert(type->schema.of_struct.fields[1] == solver.get(B_TYPE_U8))
@@ -238,8 +229,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx);
         
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 5)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(B_TYPE_BOOL))
             qb_assert(type->schema.of_struct.fields[1] == solver.get(B_TYPE_U8))
@@ -354,8 +344,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(tdx0))
         })
     
@@ -368,8 +357,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(tdx0))
         })
     
@@ -379,8 +367,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(tdx0))
         })
     
@@ -390,8 +377,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == true)
+            qb_assert(type->kind == qb::TypeKind::MAP)
             qb_assert(type->schema.of_map.type == solver.get(tdx0))
         })
     })
@@ -406,8 +392,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 1)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(tdx0))
         })
@@ -423,8 +408,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 1)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(tdx0))
         })
@@ -437,8 +421,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 1)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(tdx0))
         })
@@ -451,8 +434,7 @@ qb_suite(test_type, "type", {
             auto type = solver.get(tdx1);
             
             std::cout << type->to_str() << std::endl;
-            qb_assert(type->kind == qb::TypeKind::OBJ)
-            qb_assert(type->flags.of_obj.is_map == false)
+            qb_assert(type->kind == qb::TypeKind::STRUCT)
             qb_assert(type->schema.of_struct.n_fields == 1)
             qb_assert(type->schema.of_struct.fields[0] == solver.get(tdx0))
         })

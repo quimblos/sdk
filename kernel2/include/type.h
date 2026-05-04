@@ -13,8 +13,9 @@ namespace qb {
         STRING = 0x04,
         REF = 0x05,     // no built-in types, schema of_map
         VECTOR = 0x06,  // no built-in types, schema of_map
-        OBJ = 0x07,     // no built-in types, schema of_obj
-        EVENT = 0x08,   // no built-in types, schema of_map
+        MAP = 0x07,     // no built-in types, schema of_map
+        STRUCT = 0x08,     // no built-in types, schema of_struct
+        EVENT = 0x09,   // no built-in types, schema of_map
     };
         
     union TypeFlags {
@@ -33,11 +34,6 @@ namespace qb {
             // const bool is_template : 1 = false;
             const uint8_t _ : 8 = 0;
         } of_string;
-
-        struct {
-            const bool is_map : 1 = false;
-            const uint8_t _ : 7 = 0;
-        } of_obj;
 
         uint8_t value;
     };
@@ -76,11 +72,11 @@ namespace qb {
                 case qb::TypeKind::VECTOR:
                     this->schema.of_map.~_ref();
                     break;
-                case qb::TypeKind::OBJ:
-                    if (this->flags.of_obj.is_map)
-                        this->schema.of_map.~_ref();
-                    else
-                        this->schema.of_struct.~_struct();
+                case qb::TypeKind::MAP:
+                    this->schema.of_map.~_ref();
+                    break;
+                case qb::TypeKind::STRUCT:
+                    this->schema.of_struct.~_struct();
                     break;
                 case qb::TypeKind::EVENT:
                     // this->schema.of_map.~_ref();
@@ -123,19 +119,18 @@ namespace qb {
                     ss << "vec[" << this->schema.of_map.type->to_str() << "]";
                     break;
                 }
-                case TypeKind::OBJ: {
-                    if (this->flags.of_obj.is_map) {
-                        ss << "map{" << this->schema.of_map.type->to_str() << "}";
+                case TypeKind::MAP: {
+                    ss << "map{" << this->schema.of_map.type->to_str() << "}";
+                    break;
+                }
+                case TypeKind::STRUCT: {
+                    ss << "struct{";
+                    auto n = this->schema.of_struct.n_fields;
+                    for (size_t i = 0; i < n; i++) {
+                    ss << this->schema.of_struct.fields[i]->to_str();
+                    if (i < n-1) ss << ",";
                     }
-                    else {
-                        ss << "struct{";
-                        auto n = this->schema.of_struct.n_fields;
-                        for (size_t i = 0; i < n; i++) {
-                            ss << this->schema.of_struct.fields[i]->to_str();
-                            if (i < n-1) ss << ",";
-                        }
-                        ss << "}";
-                    }
+                    ss << "}";
                     break;
                 }
                 case TypeKind::EVENT: {

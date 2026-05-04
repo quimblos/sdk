@@ -1,31 +1,65 @@
 #pragma once
-
-#define LOG(X) std::cout << #X " = " << X << std::endl;
+#include "parser.h"
+#include "operator.h"
 
 namespace qb {
 
     namespace i18n {
 
-        namespace error {
+        const std::map<uint8_t, std::string> parser = {
+            { qb::parser::res_t::Code::OK,                      "[parser] OK" },
+            { qb::parser::res_t::Code::UNEXPECTED_EOF,          "[parser] Unexpected EOF" },
+            { qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE,   "[parser] Creating custom primitive types is not allowed" },
+            { qb::parser::res_t::Code::CONST_ASSIGNMENT,        "[parser] Assignment to constant block is not allowed" },
+            { qb::parser::res_t::Code::ENTITY_KIND,             "[parser] Invalid kind of entity" },
+            { qb::parser::res_t::Code::COMPARE_OP,              "[parser] Invalid comparison operation" },
+            { qb::parser::res_t::Code::MATH_OP,                 "[parser] Invalid arithmetic operation" },
+            { qb::parser::res_t::Code::UNKNOWN_OP_CODE,         "[parser] Invalid op code" },
+        };
 
-            const std::map<uint8_t, std::string> PARSER = {
-                { qb::parser::res_t::Code::OK,
-                    "[parser] OK" },
-                { qb::parser::res_t::Code::UNEXPECTED_EOF,
-                    "[parser] Unexpected EOF" },
-                { qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE,
-                    "[parser] Creating custom primitive types is not allowed" },
-                { qb::parser::res_t::Code::CONST_ASSIGNMENT,
-                    "[parser] Assignment to constant block is not allowed" },
-                { qb::parser::res_t::Code::ENTITY_KIND,
-                    "[parser] Invalid kind of entity" },
-                { qb::parser::res_t::Code::COMPARE_OP,
-                    "[parser] Invalid comparison operation" },
-                { qb::parser::res_t::Code::MATH_OP,
-                    "[parser] Invalid arithmetic operation" },
-            };
-
-        }
+        const std::map<uint8_t, std::string> op = {
+            { qb::op::res_t::Code::OK,                          "[op] OK" },
+            { qb::op::res_t::Code::UNKNOWN_TARGET_TYPE,         "[op] UNKNOWN_TARGET_TYPE" },
+            { qb::op::res_t::Code::UNKNOWN_SOURCE_TYPE,         "[op] UNKNOWN_SOURCE_TYPE" },
+            { qb::op::res_t::Code::NOT_IMPLEMENTED,             "[op] NOT_IMPLEMENTED" },
+            { qb::op::res_t::Code::CAST_VOID_TO_INT,            "[op] CAST_VOID_TO_INT" },
+            { qb::op::res_t::Code::CAST_INT_SIZE,               "[op] CAST_INT_SIZE" },
+            { qb::op::res_t::Code::CAST_INT_TO_UINT,            "[op] CAST_INT_TO_UINT" },
+            { qb::op::res_t::Code::CAST_INT_UINT_SIZE,          "[op] CAST_INT_UINT_SIZE" },
+            { qb::op::res_t::Code::CAST_IMPLICIT_FLOAT_TO_INT,  "[op] CAST_IMPLICIT_FLOAT_TO_INT" },
+            { qb::op::res_t::Code::CAST_IMPLICIT_STRING_TO_INT, "[op] CAST_IMPLICIT_STRING_TO_INT" },
+            { qb::op::res_t::Code::CAST_NAN_STRING_TO_INT,      "[op] CAST_NAN_STRING_TO_INT" },
+            { qb::op::res_t::Code::CAST_IMPLICIT_REF_TO_INT,    "[op] CAST_IMPLICIT_REF_TO_INT" },
+            { qb::op::res_t::Code::CAST_IMPLICIT_VEC_TO_INT,    "[op] CAST_IMPLICIT_VEC_TO_INT" },
+            { qb::op::res_t::Code::CAST_IMPLICIT_MAP_TO_INT,    "[op] CAST_IMPLICIT_MAP_TO_INT" },
+            { qb::op::res_t::Code::CAST_STRUCT_TO_INT,          "[op] CAST_STRUCT_TO_INT" },
+            { qb::op::res_t::Code::CAST_IMPLICIT_EVENT_TO_INT,           "[op] CAST_IMPLICIT_EVENT_TO_INT" },
+            { qb::op::res_t::Code::CAST_VOID_TO_FLOAT,          "[op] CAST_VOID_TO_FLOAT" },
+            { qb::op::res_t::Code::CAST_STRING_TO_FLOAT,        "[op] CAST_STRING_TO_FLOAT" },
+            { qb::op::res_t::Code::CAST_REF_TO_FLOAT,           "[op] CAST_REF_TO_FLOAT" },
+            { qb::op::res_t::Code::CAST_VECTOR_TO_FLOAT,        "[op] CAST_VECTOR_TO_FLOAT" },
+            { qb::op::res_t::Code::CAST_MAP_TO_FLOAT,           "[op] CAST_MAP_TO_FLOAT" },
+            { qb::op::res_t::Code::CAST_STRUCT_TO_FLOAT,        "[op] CAST_STRUCT_TO_FLOAT" },
+            { qb::op::res_t::Code::CAST_EVENT_TO_FLOAT,         "[op] CAST_EVENT_TO_FLOAT" },
+            { qb::op::res_t::Code::CAST_VOID_TO_STRING,         "[op] CAST_VOID_TO_STRING" },
+            { qb::op::res_t::Code::CAST_BOOL_TO_STRING,         "[op] CAST_BOOL_TO_STRING" },
+            { qb::op::res_t::Code::CAST_INT_TO_STRING,          "[op] CAST_INT_TO_STRING" },
+            { qb::op::res_t::Code::CAST_FLOAT,                  "[op] CAST_FLOAT" },
+            { qb::op::res_t::Code::CAST_REF_TO_STRING,          "[op] CAST_REF_TO_STRING" },
+            { qb::op::res_t::Code::CAST_VECTOR_TO_STRING,       "[op] CAST_VECTOR_TO_STRING" },
+            { qb::op::res_t::Code::CAST_MAP_TO_STRING,          "[op] CAST_MAP_TO_STRING" },
+            { qb::op::res_t::Code::CAST_STRUCT_TO_STRING,       "[op] CAST_STRUCT_TO_STRING" },
+            { qb::op::res_t::Code::CAST_EVENT_TO_STRING,        "[op] CAST_EVENT_TO_STRING" },
+            { qb::op::res_t::Code::CAST_VOID_TO_REF,            "[op] CAST_VOID_TO_REF" },
+            { qb::op::res_t::Code::CAST_BOOL_TO_REF,            "[op] CAST_BOOL_TO_REF" },
+            { qb::op::res_t::Code::CAST_INT_TO_REF,             "[op] CAST_INT_TO_REF" },
+            { qb::op::res_t::Code::CAST_FLOAT_TO_REF,           "[op] CAST_FLOAT_TO_REF" },
+            { qb::op::res_t::Code::CAST_STRING_TO_REF,          "[op] CAST_STRING_TO_REF" },
+            { qb::op::res_t::Code::CAST_VECTOR_TO_REF,          "[op] CAST_VECTOR_TO_REF" },
+            { qb::op::res_t::Code::CAST_MAP_TO_REF,             "[op] CAST_MAP_TO_REF" },
+            { qb::op::res_t::Code::CAST_STRUCT_TO_REF,          "[op] CAST_STRUCT_TO_REF" },
+            { qb::op::res_t::Code::CAST_EVENT_TO_REF,           "[op] CAST_EVENT_TO_REF" }
+        };
 
     }
 

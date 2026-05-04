@@ -12,7 +12,7 @@ qb_suite(test_memory, "memory", {
                 B_TYPE_VOID
             });
 
-            auto data = block.get<qb::void_t>(0);
+            auto data = block.__cpp_get<qb::void_t>(0);
             // qb_assert(sizeof(data) == 1);
             qb_assert(*data == 0);
         })
@@ -22,7 +22,7 @@ qb_suite(test_memory, "memory", {
                 B_TYPE_NULL
             });
             
-            auto data = block.get<qb::void_t>(0);
+            auto data = block.__cpp_get<qb::void_t>(0);
             // qb_assert(sizeof(data) == 1);
             qb_assert(*data == 0);
         })
@@ -31,9 +31,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_BOOL
             });
-            block.set(0, true);
+            block.__cpp_set(0, true);
 
-            auto data = block.get<bool>(0);
+            auto data = block.__cpp_get<bool>(0);
             qb_assert(*data == true);
         })
     
@@ -41,9 +41,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_U8
             });
-            block.set(0, (uint8_t) 123);
+            block.__cpp_set(0, (uint8_t) 123);
 
-            auto data = block.get<uint8_t>(0);
+            auto data = block.__cpp_get<uint8_t>(0);
             qb_assert(*data == 123);
         })
     
@@ -51,9 +51,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_I8
             });
-            block.set(0, (int8_t) -123);
+            block.__cpp_set(0, (int8_t) -123);
 
-            auto data = block.get<int8_t>(0);
+            auto data = block.__cpp_get<int8_t>(0);
             qb_assert(*data == -123);
         })
     
@@ -61,9 +61,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_U16
             });
-            block.set(0, (uint16_t) 1234);
+            block.__cpp_set(0, (uint16_t) 1234);
 
-            auto data = block.get<uint16_t>(0);
+            auto data = block.__cpp_get<uint16_t>(0);
             qb_assert(*data == 1234);
         })
     
@@ -71,9 +71,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_I16
             });
-            block.set(0, (int16_t) -1234);
+            block.__cpp_set(0, (int16_t) -1234);
 
-            auto data = block.get<int16_t>(0);
+            auto data = block.__cpp_get<int16_t>(0);
             qb_assert(*data == -1234);
         })
     
@@ -81,9 +81,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_U32
             });
-            block.set(0, (uint32_t) 123456);
+            block.__cpp_set(0, (uint32_t) 123456);
 
-            auto data = block.get<uint32_t>(0);
+            auto data = block.__cpp_get<uint32_t>(0);
             qb_assert(*data == 123456);
         })
     
@@ -91,9 +91,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_I32
             });
-            block.set(0, (int32_t) -123456);
+            block.__cpp_set(0, (int32_t) -123456);
 
-            auto data = block.get<int32_t>(0);
+            auto data = block.__cpp_get<int32_t>(0);
             qb_assert(*data == -123456);
         })
     
@@ -101,9 +101,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_F32
             });
-            block.set(0, (float) -12.34);
+            block.__cpp_set(0, (float) -12.34);
 
-            auto data = block.get<float>(0);
+            auto data = block.__cpp_get<float>(0);
             qb_assert(abs(*data - -12.34) < 0.000000000000000001);
         })
     
@@ -111,9 +111,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_STR
             });
-            block.set(0, std::string("test"));
+            block.__cpp_set(0, std::string("test"));
 
-            auto data = block.get<std::string>(0);
+            auto data = block.__cpp_get<std::string>(0);
             qb_assert(*data == "test");
         })
     
@@ -121,9 +121,9 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 B_TYPE_REF
             });
-            block.set(0, qb::mem::Reference(0xFF, 0x01, false, false));
+            block.__cpp_set(0, qb::mem::Reference(0xFF, 0x01, false, false));
 
-            auto data = block.get<qb::mem::Reference>(0);
+            auto data = block.__cpp_get<qb::mem::Reference>(0);
             qb_assert(data->to_str() == "@255.1");
         })
 
@@ -138,19 +138,19 @@ qb_suite(test_memory, "memory", {
                 B_TYPE_REF,  // 6
             });
 
-            block.set(2, true);
-            block.set(3, (uint8_t) 123);
-            block.set(4, (float) 123.456);
-            block.set(5, std::string("test"));
-            block.set(6, qb::mem::Reference(0xFF,0x01,false,false));
+            block.__cpp_set(2, true);
+            block.__cpp_set(3, (uint8_t) 123);
+            block.__cpp_set(4, (float) 123.456);
+            block.__cpp_set(5, std::string("test"));
+            block.__cpp_set(6, qb::mem::Reference(0xFF,0x01,false,false));
 
-            qb_assert(*block.get<qb::void_t>(0) == 0);
-            qb_assert(*block.get<qb::void_t>(1) == 0);
-            qb_assert(*block.get<bool>(2) == true);
-            qb_assert(*block.get<uint8_t>(3) == 123);
-            qb_assert(abs(*block.get<float>(4) - 123.456) < 0.000000000000000001);
-            qb_assert(*block.get<std::string>(5) == "test");
-            qb_assert(block.get<qb::mem::Reference>(6)->to_str() == "@255.1");
+            qb_assert(*block.__cpp_get<qb::void_t>(0) == 0);
+            qb_assert(*block.__cpp_get<qb::void_t>(1) == 0);
+            qb_assert(*block.__cpp_get<bool>(2) == true);
+            qb_assert(*block.__cpp_get<uint8_t>(3) == 123);
+            qb_assert(abs(*block.__cpp_get<float>(4) - 123.456) < 0.000000000000000001);
+            qb_assert(*block.__cpp_get<std::string>(5) == "test");
+            qb_assert(block.__cpp_get<qb::mem::Reference>(6)->to_str() == "@255.1");
         })
 
     })
@@ -161,70 +161,70 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 solver.add_vec(B_TYPE_BOOL)
             });
-            block.resize_vec(0, 2);
-            block.set_vec(0, 0, true);
-            block.set_vec(0, 1, false);
+            auto data = block.__cpp_get<qb::mem::Vector>(0);
+            data->resize(2);
+            data->__cpp_set<bool>(0, true);
+            data->__cpp_set<bool>(1, false);
 
-            auto data = block.get_vec<bool>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at(0) == true);
-            qb_assert(data->at(1) == false);
+            qb_assert(*data->__cpp_at<bool>(0) == true);
+            qb_assert(*data->__cpp_at<bool>(1) == false);
         })
     
-        qb_test("vec[u8]", {
+        qb_test("vec[i16]", {
             auto block = qb::mem::Block(solver, {
-                solver.add_vec(B_TYPE_U8)
+                solver.add_vec(B_TYPE_I16)
             });
-            block.resize_vec(0, 2);
-            block.set_vec(0, 0, (uint8_t) 123);
-            block.set_vec(0, 1, (uint8_t) 234);
+            auto data = block.__cpp_get<qb::mem::Vector>(0);
+            data->resize(2);
+            data->__cpp_set<int16_t>(0, 123);
+            data->__cpp_set<int16_t>(1, -234);
 
-            auto data = block.get_vec<uint8_t>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at(0) == 123);
-            qb_assert(data->at(1) == 234);
+            qb_assert(*data->__cpp_at<int16_t>(0) == 123);
+            qb_assert(*data->__cpp_at<int16_t>(1) == -234);
         })
     
         qb_test("vec[f32]", {
             auto block = qb::mem::Block(solver, {
                 solver.add_vec(B_TYPE_F32)
             });
-            block.resize_vec(0, 2);
-            block.set_vec(0, 0, (float) 12.34);
-            block.set_vec(0, 1, (float) 56.78);
+            auto data = block.__cpp_get<qb::mem::Vector>(0);
+            data->resize(2);
+            data->__cpp_set<float>(0, 12.34);
+            data->__cpp_set<float>(1, -56.78);
 
-            auto data = block.get_vec<float>(0);
             qb_assert(data->size() == 2);
-            qb_assert(abs(data->at(0) - 12.34) < 0.000000000000000001);
-            qb_assert(abs(data->at(1) - 56.78) < 0.000000000000000001);
+            qb_assert(abs(*data->__cpp_at<float>(0) - 12.34) < 0.000000000000000001);
+            qb_assert(abs(*data->__cpp_at<float>(1) - -56.78) < 0.000000000000000001);
         })
     
         qb_test("vec[str]", {
             auto block = qb::mem::Block(solver, {
                 solver.add_vec(B_TYPE_STR)
             });
-            block.resize_vec(0, 2);
-            block.set_vec(0, 0, std::string("gaga"));
-            block.set_vec(0, 1, std::string("haha"));
+            auto data = block.__cpp_get<qb::mem::Vector>(0);
+            data->resize(2);
+            data->__cpp_set<std::string>(0, "test");
+            data->__cpp_set<std::string>(1, "nice");
 
-            auto data = block.get_vec<std::string>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at(0) == "gaga");
-            qb_assert(data->at(1) == "haha");
+            qb_assert(*data->__cpp_at<std::string>(0) == "test");
+            qb_assert(*data->__cpp_at<std::string>(1) == "nice");
         })
     
         qb_test("vec[ref]", {
             auto block = qb::mem::Block(solver, {
                 solver.add_vec(B_TYPE_REF)
             });
-            block.resize_vec(0, 2);
-            block.set_vec(0, 0, qb::mem::Reference(0xFF, 0x01, false, false));
-            block.set_vec(0, 1, qb::mem::Reference(0xFF, 0x02, false, false));
+            auto data = block.__cpp_get<qb::mem::Vector>(0);
+            data->resize(2);
+            data->__cpp_set(0, qb::mem::Reference(0xFF, 0x01, false, false));
+            data->__cpp_set(1, qb::mem::Reference(0xFF, 0x02, false, false));
 
-            auto data = block.get_vec<qb::mem::Reference>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at(0).to_str() == "@255.1");
-            qb_assert(data->at(1).to_str() == "@255.2");
+            qb_assert(data->__cpp_at<qb::mem::Reference>(0)->to_str() == "@255.1");
+            qb_assert(data->__cpp_at<qb::mem::Reference>(1)->to_str() == "@255.2");
         })
    
     })
@@ -235,65 +235,65 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 solver.add_map(B_TYPE_BOOL)
             });
-            block.set_map(0, "a", true);
-            block.set_map(0, "b", false);
+            auto data = block.__cpp_get<qb::mem::Map>(0);
+            data->__cpp_set<bool>("a", true);
+            data->__cpp_set<bool>("b", false);
 
-            auto data = block.get_map<bool>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at("a") == true);
-            qb_assert(data->at("b") == false);
+            qb_assert(*data->__cpp_at<bool>("a") == true);
+            qb_assert(*data->__cpp_at<bool>("b") == false);
         })
     
-        qb_test("map{u8}", {
+        qb_test("map{i16}", {
             auto block = qb::mem::Block(solver, {
-                solver.add_map(B_TYPE_U8)
+                solver.add_map(B_TYPE_I16)
             });
-            block.set_map(0, "c", (uint8_t) 123);
-            block.set_map(0, "d", (uint8_t) 234);
+            auto data = block.__cpp_get<qb::mem::Map>(0);
+            data->__cpp_set<int16_t>("a", 123);
+            data->__cpp_set<int16_t>("b", -234);
 
-            auto data = block.get_map<uint8_t>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at("c") == 123);
-            qb_assert(data->at("d") == 234);
+            qb_assert(*data->__cpp_at<int16_t>("a") == 123);
+            qb_assert(*data->__cpp_at<int16_t>("b") == -234);
         })
     
         qb_test("map{f32}", {
             auto block = qb::mem::Block(solver, {
                 solver.add_map(B_TYPE_F32)
             });
-            block.set_map(0, "e", (float) 12.34);
-            block.set_map(0, "f", (float) 56.78);
+            auto data = block.__cpp_get<qb::mem::Map>(0);
+            data->__cpp_set<float>("a", 12.34);
+            data->__cpp_set<float>("b", -56.78);
 
-            auto data = block.get_map<float>(0);
             qb_assert(data->size() == 2);
-            qb_assert(abs(data->at("e") - 12.34) < 0.000000000000000001);
-            qb_assert(abs(data->at("f") - 56.78) < 0.000000000000000001);
+            qb_assert(abs(*data->__cpp_at<float>("a") - 12.34) < 0.000000000000000001);
+            qb_assert(abs(*data->__cpp_at<float>("b") - -56.78) < 0.000000000000000001);
         })
     
         qb_test("map{str}", {
             auto block = qb::mem::Block(solver, {
                 solver.add_map(B_TYPE_STR)
             });
-            block.set_map(0, "g", std::string("gaga"));
-            block.set_map(0, "h", std::string("haha"));
+            auto data = block.__cpp_get<qb::mem::Map>(0);
+            data->__cpp_set<std::string>("a", "test");
+            data->__cpp_set<std::string>("b", "nice");
 
-            auto data = block.get_map<std::string>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at("g") == "gaga");
-            qb_assert(data->at("h") == "haha");
+            qb_assert(*data->__cpp_at<std::string>("a") == "test");
+            qb_assert(*data->__cpp_at<std::string>("b") == "nice");
         })
     
         qb_test("map{ref}", {
             auto block = qb::mem::Block(solver, {
                 solver.add_map(B_TYPE_REF)
             });
-            block.set_map(0, "i", qb::mem::Reference(0xFF, 0x01, false, false));
-            block.set_map(0, "j", qb::mem::Reference(0xFF, 0x02, false, false));
+            auto data = block.__cpp_get<qb::mem::Map>(0);
+            data->__cpp_set("a", qb::mem::Reference(0xFF, 0x01, false, false));
+            data->__cpp_set("b", qb::mem::Reference(0xFF, 0x02, false, false));
 
-            auto data = block.get_map<qb::mem::Reference>(0);
             qb_assert(data->size() == 2);
-            qb_assert(data->at("i").to_str() == "@255.1");
-            qb_assert(data->at("j").to_str() == "@255.2");
+            qb_assert(data->__cpp_at<qb::mem::Reference>("a")->to_str() == "@255.1");
+            qb_assert(data->__cpp_at<qb::mem::Reference>("b")->to_str() == "@255.2");
         })
    
     })
@@ -307,15 +307,15 @@ qb_suite(test_memory, "memory", {
             });
             auto block = qb::mem::Block(solver, { tdx });
 
-            auto _struct = block.get<qb::mem::Struct>(0);
+            auto _struct = block.__cpp_get<qb::mem::Struct>(0);
             qb_assert(_struct->type == solver.get(tdx));
 
-            _struct->set(0, true);
-            auto data0 = _struct->get<bool>(0);
+            _struct->__cpp_set<bool>(0, true);
+            auto data0 = _struct->__cpp_get<bool>(0);
             qb_assert(*data0 == true);
 
-            _struct->set(1, 123);
-            auto data1 = _struct->get<uint8_t>(1);
+            _struct->__cpp_set<uint8_t>(1, 123);
+            auto data1 = _struct->__cpp_get<uint8_t>(1);
             qb_assert(*data1 == 123);
         })
         
@@ -327,56 +327,65 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(solver, {
                 solver.add_event(B_TYPE_BOOL)
             });
-            block.set_event(0, qb::EventLevel::DEBUG, 0x12, true);
+            
+            auto event = block.__cpp_get<qb::mem::Event>(0);
+            event->__cpp_set(
+                qb::EventLevel::DEBUG,
+                0x12,
+                true
+            );
 
-            auto event = block.get<qb::mem::Event>(0);
             qb_assert(event->level == qb::EventLevel::DEBUG);
             qb_assert(event->code == 0x12);
-
-            auto data = block.get_event<bool>(0);
-            qb_assert(*data == true);
+            qb_assert(*(bool*)event->data == true);
         })
     
-        qb_test("event{u8}", {
+        qb_test("event{i16}", {
             auto block = qb::mem::Block(solver, {
-                solver.add_event(B_TYPE_U8)
+                solver.add_event(B_TYPE_I16)
             });
-            block.set_event(0, qb::EventLevel::DEBUG, 0x12, 123);
+            auto event = block.__cpp_get<qb::mem::Event>(0);
+            event->__cpp_set(
+                qb::EventLevel::DEBUG,
+                0x12,
+                -1234
+            );
 
-            auto event = block.get<qb::mem::Event>(0);
             qb_assert(event->level == qb::EventLevel::DEBUG);
             qb_assert(event->code == 0x12);
-
-            auto data = block.get_event<uint8_t>(0);
-            qb_assert(*data == 123);
+            qb_assert(*(int16_t*)event->data == -1234);
         })
     
         qb_test("event{f32}", {
             auto block = qb::mem::Block(solver, {
                 solver.add_event(B_TYPE_F32)
             });
-            block.set_event(0, qb::EventLevel::DEBUG, 0x12, 12.34);
+            auto event = block.__cpp_get<qb::mem::Event>(0);
+            event->__cpp_set(
+                qb::EventLevel::DEBUG,
+                0x12,
+                12.34
+            );
 
-            auto event = block.get<qb::mem::Event>(0);
             qb_assert(event->level == qb::EventLevel::DEBUG);
             qb_assert(event->code == 0x12);
-
-            auto data = block.get_event<float>(0);
-            qb_assert(abs(*data - 12.34) < 0.000000000000000001);
+            qb_assert(abs(*(float*)event->data - 12.34) < 0.000000000000000001);
         })
         
         qb_test("event{str}", {
             auto block = qb::mem::Block(solver, {
                 solver.add_event(B_TYPE_STR)
             });
-            block.set_event(0, qb::EventLevel::DEBUG, 0x12, std::string("Something went wrong"));
-            
-            auto event = block.get<qb::mem::Event>(0);
+            auto event = block.__cpp_get<qb::mem::Event>(0);
+            event->__cpp_set(
+                qb::EventLevel::DEBUG,
+                0x12,
+                std::string("Something went wrong")
+            );
+
             qb_assert(event->level == qb::EventLevel::DEBUG);
-            qb_assert(event->code == 0x12);
-            
-            auto data = block.get_event<std::string>(0);
-            qb_assert(*data == "Something went wrong");
+            qb_assert(event->code == 0x12);        
+            qb_assert(*(std::string*)event->data == "Something went wrong");
         })
 
         qb_test("event{ref}", {
@@ -384,15 +393,17 @@ qb_suite(test_memory, "memory", {
                 solver.add_event(B_TYPE_REF)
             });
             auto ref = qb::mem::Reference(0xFF, 0x01, false, false);
-            block.set_event(0, qb::EventLevel::DEBUG, 0x12, ref);
+            auto event = block.__cpp_get<qb::mem::Event>(0);
+            event->__cpp_set(
+                qb::EventLevel::DEBUG,
+                0x12,
+                ref
+            );
 
-            auto event = block.get<qb::mem::Event>(0);
             qb_assert(event->level == qb::EventLevel::DEBUG);
             qb_assert(event->code == 0x12);
-
-            auto data = block.get_event<qb::mem::Reference>(0);
-            qb_assert(data->block == ref.block);
-            qb_assert(data->port == ref.port);
+            qb_assert(((qb::mem::Reference*)event->data)->block == ref.block);
+            qb_assert(((qb::mem::Reference*)event->data)->port == ref.port);
         })
     })
 })
