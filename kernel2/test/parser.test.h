@@ -98,8 +98,8 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CONST_ASSIGNMENT, {
                 qb::OpCode::SET,
                 0b00000011,                 // flags
-                BLOCK_THREAD_CONST, 0x00,   // target
-                BLOCK_THREAD_CONST, 0x01,   // source
+                BLOCK_THREAD, 0x00,   // target
+                BLOCK_THREAD, 0x01,   // source
             })
         })
     
@@ -107,15 +107,15 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::Set, {
                 qb::OpCode::SET,
                 0b00000010,                 // flags
-                BLOCK_THREAD, 0x00,         // target
-                BLOCK_THREAD_CONST, 0x01,   // source
+                BLOCK_ROUTINE, 0x00,         // target
+                BLOCK_THREAD, 0x01,   // source
             })
             qb_assert(instruction.type == qb::OpCode::SET)
             qb_assert(instruction.flags.deref_target == false)
             qb_assert(instruction.flags.deref_source == true)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x00)
-            qb_assert(instruction.source.block == BLOCK_THREAD_CONST)
+            qb_assert(instruction.source.block == BLOCK_THREAD)
             qb_assert(instruction.source.port == 0x01)
         })
     
@@ -199,13 +199,13 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::If, {
                 qb::OpCode::IF,
                 0b00000001,                 // flags
-                BLOCK_THREAD_CONST, 0x02,   // source
+                BLOCK_THREAD, 0x02,   // source
                 0x12, 0x34,                 // addr true
                 0x56, 0x78                  // addr false
             })
             qb_assert(instruction.type == qb::OpCode::IF)
             qb_assert(instruction.flags.deref_source == true)
-            qb_assert(instruction.source.block == BLOCK_THREAD_CONST)
+            qb_assert(instruction.source.block == BLOCK_THREAD)
             qb_assert(instruction.source.port == 0x02)
             qb_assert(instruction.addr_true == 0x1234)
             qb_assert(instruction.addr_false == 0x5678)
@@ -215,9 +215,9 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CONST_ASSIGNMENT, {
                 qb::OpCode::SET_IF,
                 0b00011111,                 // flags
-                BLOCK_THREAD_CONST, 0x02,   // target
-                BLOCK_THREAD, 0x01,         // left
-                BLOCK_THREAD, 0x02,         // right
+                BLOCK_THREAD, 0x02,   // target
+                BLOCK_ROUTINE, 0x01,         // left
+                BLOCK_ROUTINE, 0x02,         // right
             })
         })
 
@@ -225,9 +225,9 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::SetIf, {
                 qb::OpCode::SET_IF,
                 0b00001111,                 // flags
-                BLOCK_THREAD, 0x01,         // target
-                BLOCK_THREAD, 0x02,         // left
-                BLOCK_THREAD, 0x03,         // right
+                BLOCK_ROUTINE, 0x01,         // target
+                BLOCK_ROUTINE, 0x02,         // left
+                BLOCK_ROUTINE, 0x03,         // right
             })
             qb_assert(instruction.type == qb::OpCode::SET_IF)
             qb_assert(instruction.flags.deref_target == true)
@@ -237,11 +237,11 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.has_true == false)
             qb_assert(instruction.flags.has_false == false)
             qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x01)
-            qb_assert(instruction.left.block == BLOCK_THREAD)
+            qb_assert(instruction.left.block == BLOCK_ROUTINE)
             qb_assert(instruction.left.port == 0x02)
-            qb_assert(instruction.right.block == BLOCK_THREAD)
+            qb_assert(instruction.right.block == BLOCK_ROUTINE)
             qb_assert(instruction.right.port == 0x03)
             qb_assert(instruction.data_true.block == BLOCK_KERNEL)
             qb_assert(instruction.data_true.port == PORT_CONST_TRUE)
@@ -253,10 +253,10 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::SetIf, {
                 qb::OpCode::SET_IF,
                 0b00011111,                 // flags
-                BLOCK_THREAD, 0x01,         // target
-                BLOCK_THREAD, 0x02,         // left
-                BLOCK_THREAD, 0x03,         // right
-                BLOCK_THREAD, 0x04          // data true
+                BLOCK_ROUTINE, 0x01,         // target
+                BLOCK_ROUTINE, 0x02,         // left
+                BLOCK_ROUTINE, 0x03,         // right
+                BLOCK_ROUTINE, 0x04          // data true
             })
             qb_assert(instruction.type == qb::OpCode::SET_IF)
             qb_assert(instruction.flags.deref_target == true)
@@ -266,13 +266,13 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.has_true == true)
             qb_assert(instruction.flags.has_false == false)
             qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x01)
-            qb_assert(instruction.left.block == BLOCK_THREAD)
+            qb_assert(instruction.left.block == BLOCK_ROUTINE)
             qb_assert(instruction.left.port == 0x02)
-            qb_assert(instruction.right.block == BLOCK_THREAD)
+            qb_assert(instruction.right.block == BLOCK_ROUTINE)
             qb_assert(instruction.right.port == 0x03)
-            qb_assert(instruction.data_true.block == BLOCK_THREAD)
+            qb_assert(instruction.data_true.block == BLOCK_ROUTINE)
             qb_assert(instruction.data_true.port == 0x04)
             qb_assert(instruction.data_false.block == BLOCK_KERNEL)
             qb_assert(instruction.data_false.port == PORT_CONST_FALSE)
@@ -282,10 +282,10 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::SetIf, {
                 qb::OpCode::SET_IF,
                 0b00101111,                 // flags
-                BLOCK_THREAD, 0x01,         // target
-                BLOCK_THREAD, 0x02,         // left
-                BLOCK_THREAD, 0x03,         // right
-                BLOCK_THREAD, 0x04          // data false
+                BLOCK_ROUTINE, 0x01,         // target
+                BLOCK_ROUTINE, 0x02,         // left
+                BLOCK_ROUTINE, 0x03,         // right
+                BLOCK_ROUTINE, 0x04          // data false
             })
             qb_assert(instruction.type == qb::OpCode::SET_IF)
             qb_assert(instruction.flags.deref_target == true)
@@ -295,15 +295,15 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.has_true == false)
             qb_assert(instruction.flags.has_false == true)
             qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x01)
-            qb_assert(instruction.left.block == BLOCK_THREAD)
+            qb_assert(instruction.left.block == BLOCK_ROUTINE)
             qb_assert(instruction.left.port == 0x02)
-            qb_assert(instruction.right.block == BLOCK_THREAD)
+            qb_assert(instruction.right.block == BLOCK_ROUTINE)
             qb_assert(instruction.right.port == 0x03)
             qb_assert(instruction.data_true.block == BLOCK_KERNEL)
             qb_assert(instruction.data_true.port == PORT_CONST_TRUE)
-            qb_assert(instruction.data_false.block == BLOCK_THREAD)
+            qb_assert(instruction.data_false.block == BLOCK_ROUTINE)
             qb_assert(instruction.data_false.port == 0x04)
         })
 
@@ -311,11 +311,11 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::SetIf, {
                 qb::OpCode::SET_IF,
                 0b00111111,                 // flags
-                BLOCK_THREAD, 0x01,         // target
-                BLOCK_THREAD, 0x02,         // left
-                BLOCK_THREAD, 0x03,         // right
-                BLOCK_THREAD, 0x04,          // data true
-                BLOCK_THREAD, 0x05          // data false
+                BLOCK_ROUTINE, 0x01,         // target
+                BLOCK_ROUTINE, 0x02,         // left
+                BLOCK_ROUTINE, 0x03,         // right
+                BLOCK_ROUTINE, 0x04,          // data true
+                BLOCK_ROUTINE, 0x05          // data false
             })
             qb_assert(instruction.type == qb::OpCode::SET_IF)
             qb_assert(instruction.flags.deref_target == true)
@@ -325,15 +325,15 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.has_true == true)
             qb_assert(instruction.flags.has_false == true)
             qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x01)
-            qb_assert(instruction.left.block == BLOCK_THREAD)
+            qb_assert(instruction.left.block == BLOCK_ROUTINE)
             qb_assert(instruction.left.port == 0x02)
-            qb_assert(instruction.right.block == BLOCK_THREAD)
+            qb_assert(instruction.right.block == BLOCK_ROUTINE)
             qb_assert(instruction.right.port == 0x03)
-            qb_assert(instruction.data_true.block == BLOCK_THREAD)
+            qb_assert(instruction.data_true.block == BLOCK_ROUTINE)
             qb_assert(instruction.data_true.port == 0x04)
-            qb_assert(instruction.data_false.block == BLOCK_THREAD)
+            qb_assert(instruction.data_false.block == BLOCK_ROUTINE)
             qb_assert(instruction.data_false.port == 0x05)
         })
 
@@ -341,11 +341,11 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::SetIf, {
                 qb::OpCode::SET_IF,
                 0b10111111,                 // flags
-                BLOCK_THREAD, 0x01,         // target
-                BLOCK_THREAD, 0x02,         // left
-                BLOCK_THREAD, 0x03,         // right
-                BLOCK_THREAD, 0x04,          // data true
-                BLOCK_THREAD, 0x05          // data false
+                BLOCK_ROUTINE, 0x01,         // target
+                BLOCK_ROUTINE, 0x02,         // left
+                BLOCK_ROUTINE, 0x03,         // right
+                BLOCK_ROUTINE, 0x04,          // data true
+                BLOCK_ROUTINE, 0x05          // data false
             })
             qb_assert(instruction.type == qb::OpCode::SET_IF)
             qb_assert(instruction.flags.deref_target == true)
@@ -355,15 +355,15 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.has_true == true)
             qb_assert(instruction.flags.has_false == true)
             qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::LT)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x01)
-            qb_assert(instruction.left.block == BLOCK_THREAD)
+            qb_assert(instruction.left.block == BLOCK_ROUTINE)
             qb_assert(instruction.left.port == 0x02)
-            qb_assert(instruction.right.block == BLOCK_THREAD)
+            qb_assert(instruction.right.block == BLOCK_ROUTINE)
             qb_assert(instruction.right.port == 0x03)
-            qb_assert(instruction.data_true.block == BLOCK_THREAD)
+            qb_assert(instruction.data_true.block == BLOCK_ROUTINE)
             qb_assert(instruction.data_true.port == 0x04)
-            qb_assert(instruction.data_false.block == BLOCK_THREAD)
+            qb_assert(instruction.data_false.block == BLOCK_ROUTINE)
             qb_assert(instruction.data_false.port == 0x05)
         })
 
@@ -375,8 +375,8 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CONST_ASSIGNMENT, {
                 qb::OpCode::MATH,
                 0b01000111,                 // flags
-                BLOCK_THREAD_CONST, 0x01,   // target
-                BLOCK_THREAD, 0x02,         // source
+                BLOCK_THREAD, 0x01,   // target
+                BLOCK_ROUTINE, 0x02,         // source
             })
         })
 
@@ -384,8 +384,8 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::MATH_OP, {
                 qb::OpCode::MATH,
                 0b11111111,                 // flags
-                BLOCK_THREAD_CONST, 0x01,   // target
-                BLOCK_THREAD, 0x02,         // source
+                BLOCK_THREAD, 0x01,   // target
+                BLOCK_ROUTINE, 0x02,         // source
             })
         })
 
@@ -393,16 +393,16 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::Math, {
                 qb::OpCode::MATH,
                 0b01000011,                 // flags
-                BLOCK_THREAD, 0x01,         // target
-                BLOCK_THREAD, 0x02,         // source
+                BLOCK_ROUTINE, 0x01,         // target
+                BLOCK_ROUTINE, 0x02,         // source
             })
             qb_assert(instruction.type == qb::OpCode::MATH)
             qb_assert(instruction.flags.deref_target == true)
             qb_assert(instruction.flags.deref_source == true)
             qb_assert(instruction.flags.op == qb::instruction::Math::Flags::Op::ADD)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x01)
-            qb_assert(instruction.source.block == BLOCK_THREAD)
+            qb_assert(instruction.source.block == BLOCK_ROUTINE)
             qb_assert(instruction.source.port == 0x02)
         })
 
@@ -410,16 +410,16 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_OK(qb::instruction::Math, {
                 qb::OpCode::MATH,
                 0b01011011,                 // flags
-                BLOCK_THREAD, 0x01,         // target
-                BLOCK_THREAD, 0x02,         // source
+                BLOCK_ROUTINE, 0x01,         // target
+                BLOCK_ROUTINE, 0x02,         // source
             })
             qb_assert(instruction.type == qb::OpCode::MATH)
             qb_assert(instruction.flags.deref_target == true)
             qb_assert(instruction.flags.deref_source == true)
             qb_assert(instruction.flags.op == qb::instruction::Math::Flags::Op::LN)
-            qb_assert(instruction.target.block == BLOCK_THREAD)
+            qb_assert(instruction.target.block == BLOCK_ROUTINE)
             qb_assert(instruction.target.port == 0x01)
-            qb_assert(instruction.source.block == BLOCK_THREAD)
+            qb_assert(instruction.source.block == BLOCK_ROUTINE)
             qb_assert(instruction.source.port == 0x02)
         })
 
@@ -430,10 +430,10 @@ qb_suite(test_parser, "parser", {
         qb_test("SLEEP", {
             TEST_INSTRUCTION_OK(qb::instruction::Sleep, {
                 qb::OpCode::SLEEP,
-                BLOCK_THREAD, 0x01      // time
+                BLOCK_ROUTINE, 0x01      // time
             })
             qb_assert(instruction.type == qb::OpCode::SLEEP)
-            qb_assert(instruction.time.block == BLOCK_THREAD)
+            qb_assert(instruction.time.block == BLOCK_ROUTINE)
             qb_assert(instruction.time.port == 0x01)
         })
 
@@ -442,21 +442,21 @@ qb_suite(test_parser, "parser", {
                 qb::OpCode::PUBLISH,
                 4,                      // str length
                 't', 'e', 's', 't',     // topic
-                BLOCK_THREAD, 0x01      // source
+                BLOCK_ROUTINE, 0x01      // source
             })
             qb_assert(instruction.type == qb::OpCode::PUBLISH)
             qb_assert(instruction.topic == "test")
-            qb_assert(instruction.source.block == BLOCK_THREAD)
+            qb_assert(instruction.source.block == BLOCK_ROUTINE)
             qb_assert(instruction.source.port == 0x01)
         })
 
         qb_test("RETURN", {
             TEST_INSTRUCTION_OK(qb::instruction::Return, {
                 qb::OpCode::RETURN,
-                BLOCK_THREAD, 0x01      // source
+                BLOCK_ROUTINE, 0x01      // source
             })
             qb_assert(instruction.type == qb::OpCode::RETURN)
-            qb_assert(instruction.source.block == BLOCK_THREAD)
+            qb_assert(instruction.source.block == BLOCK_ROUTINE)
             qb_assert(instruction.source.port == 0x01)
         })
 

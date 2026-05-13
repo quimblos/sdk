@@ -3,14 +3,20 @@
 #include "../type.test.h"
 #include "../memory.test.h"
 #include "../parser.test.h"
+#include "../parser_code.test.h"
+#include "../operator_cast.test.h"
 #include "../operator.test.h"
+#include "../stack.test.h"
 
 int main(int argc, char* argv[]) {
     
     test_type();
     test_memory();
     test_parser();
+    test_parser_code();
+    test_operator_cast();
     test_operator();
+    test_stack();
     
     report_test_results();
     return 0;

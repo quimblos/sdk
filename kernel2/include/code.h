@@ -1,7 +1,6 @@
 #pragma once
 #include <vector>
 #include "memory.h"
-#include "print.h"
 
 #define HEADER_QUIMBLOS 'q', 'b', 0x00, 0x00
 
@@ -15,8 +14,9 @@ namespace qb {
         // 0x0* -> Parser
         USE_BLOCK = 0x01,       // (node:str)
         ADD_CONST = 0x06,       // (type:_t, ...data)
-        ADD_VAR = 0x07,         // (type:_t)
-        ADD_TYPE = 0x08,        // (kind:8, flags:8, ...schema)
+        ADD_ARG = 0x07,         // (type:_t)
+        ADD_VAR = 0x08,         // (type:_t)
+        ADD_TYPE = 0x09,        // (kind:8, flags:8, ...schema)
         // 0x1* -> Memory Manipulation
         SET = 0x10,             // (flags:8, target:ptr, source:ptr)
         HOLD = 0x1A,            // (kind:8, node|thread:str)
@@ -76,10 +76,10 @@ namespace qb {
                             break;
                     }
                     break;
-                case BLOCK_THREAD_CONST:
+                case BLOCK_THREAD:
                     ss << "const." << +port;
                     break;
-                case BLOCK_THREAD:
+                case BLOCK_ROUTINE:
                     ss << "var." << +port;
                     break;
                 case BLOCK_NODE:
@@ -108,12 +108,43 @@ namespace qb {
     */
 
     struct Code {
-        const code_addr_t size;
-        const Instruction* instructions;
+        const std::vector<std::string> blocks;
+        const std::vector<type_t> args;
+        const std::vector<type_t> vars;
+        const std::vector<Instruction*> instructions;
+        const std::vector<Code*> children;
 
-        Code(const code_addr_t size, const Instruction instructions[]) :
-            size(size),
+        Code(
+            const std::vector<std::string>& blocks,
+            const std::vector<type_t>& args,
+            const std::vector<type_t>& vars,
+            const std::vector<Instruction*>& instructions
+            // const std::vector<Code*>& children
+        ) :
+            blocks(blocks),
+            args(args),
+            vars(vars),
             instructions(instructions) {}
+            // children(children) {}
+
+        ~Code() {
+            // delete[] this->blocks;
+            // delete[] this->args;
+            // delete[] this->vars;
+            for (size_t i = 0; i < this->instructions.size(); i++) {
+                delete this->instructions[i];
+            }
+            // delete[] this->instructions;
+            // delete[] this->children;
+        }
+
+        std::string to_str() {
+            std::stringstream ss;
+            for (size_t i = 0; i < this->instructions.size(); i++) {
+                ss << this->instructions[i]->to_str() << std::endl;
+            }
+            return ss.str();
+        }
     };
 
     /*
@@ -139,22 +170,37 @@ namespace qb {
             }
         };
 
-        // struct AddConst: public Instruction {
-        //     const type_t type;
-        //     const data data;
+        struct AddConst: public Instruction {
+            const type_t type;
+            const data_t data;
 
-        //     AddConst(type_t type, data_t data):
-        //         Instruction(OpCode::ADD_CONST),
-        //         type(type),
-        //         data(data)
-        //     {}
+            AddConst(type_t type, data_t data):
+                Instruction(OpCode::ADD_CONST),
+                type(type),
+                data(data)
+            {}
 
-        //     const std::string to_str() const {
-        //         std::stringstream ss;
-        //         ss << "const:" << +this->type << " = ...";
-        //         return ss.str();
-        //     }
-        // };
+            const std::string to_str() const {
+                std::stringstream ss;
+                ss << "const:" << +this->type << " = ...";
+                return ss.str();
+            }
+        };
+
+        struct AddArg: public Instruction {
+            const type_t tdx;
+
+            AddArg(type_t tdx):
+                Instruction(OpCode::ADD_ARG),
+                tdx(tdx)
+            {}
+
+            const std::string to_str() const {
+                std::stringstream ss;
+                ss << "arg:" << +this->tdx;
+                return ss.str();
+            }
+        };
 
         struct AddVar: public Instruction {
             const type_t tdx;
@@ -202,7 +248,8 @@ namespace qb {
             const struct Flags {
                 const bool deref_target: 1 = false;
                 const bool deref_source: 1 = false;
-                uint8_t _: 6 = 0;
+                const bool explicit_cast: 1 = false;
+                uint8_t _: 5 = 0;
             } flags;
             const Pointer target;
             const Pointer source;

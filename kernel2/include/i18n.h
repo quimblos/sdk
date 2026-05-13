@@ -58,7 +58,9 @@ namespace qb {
             { qb::op::res_t::Code::CAST_VECTOR_TO_REF,          "[op] CAST_VECTOR_TO_REF" },
             { qb::op::res_t::Code::CAST_MAP_TO_REF,             "[op] CAST_MAP_TO_REF" },
             { qb::op::res_t::Code::CAST_STRUCT_TO_REF,          "[op] CAST_STRUCT_TO_REF" },
-            { qb::op::res_t::Code::CAST_EVENT_TO_REF,           "[op] CAST_EVENT_TO_REF" }
+            { qb::op::res_t::Code::CAST_EVENT_TO_REF,           "[op] CAST_EVENT_TO_REF" },
+            { qb::op::res_t::Code::MATH_BOOL_TARGET,            "[op] MATH_BOOL_TARGET" },
+            { qb::op::res_t::Code::MATH_DEC_TARGET,             "[op] MATH_DEC_TARGET" }
         };
 
     }

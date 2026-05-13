@@ -12,6 +12,8 @@ set(SOURCES
     src/types.cpp
     src/memory.cpp
     src/parser.cpp
+    src/operator.cpp
+    src/stack.cpp
 )
 
 # WASM

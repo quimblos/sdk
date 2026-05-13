@@ -29,7 +29,7 @@ namespace qb {
 
         uint8_t size_of(const Type* type);
 
-        // Dynamic allocation is used on Events and Pools.
+        // Dynamic allocation
 
         data_t alloc(const Type* type);
 
@@ -310,6 +310,11 @@ namespace qb {
 
         };
 
+        struct Code;
+        struct Function {
+            const Code* code;
+        };
+
     }
 
     // [ Memory Implementations ]
@@ -366,9 +371,9 @@ namespace qb {
                 Block(TypeSolver& solver, std::vector<type_t> tdxs):
                     Struct(solver.get(solver.add_struct(tdxs))) {}
     
-                // const Type* type_of(port_t port) const {
-                //     return this->type.schema.of_struct.fields[port];
-                // }
+                const Type* type_of(port_t port) const {
+                    return this->type->schema.of_struct.fields[port];
+                }
         };
 
     }

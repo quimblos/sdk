@@ -16,6 +16,7 @@ namespace qb {
         MAP = 0x07,     // no built-in types, schema of_map
         STRUCT = 0x08,     // no built-in types, schema of_struct
         EVENT = 0x09,   // no built-in types, schema of_map
+        FN = 0x0A,   // no built-in types, schema of_map
     };
         
     union TypeFlags {
@@ -39,6 +40,7 @@ namespace qb {
     };
 
     struct Type;
+    struct Code;
     union TypeSchema {
         struct _ref {
             const Type* type;
@@ -50,6 +52,10 @@ namespace qb {
                 delete[] this->fields;
             }
         } of_struct;
+        struct _fn {
+            const Type* return_type;
+            const Code* code;
+        } of_fn;
         ~TypeSchema() {}
     };
 
@@ -80,6 +86,8 @@ namespace qb {
                     break;
                 case qb::TypeKind::EVENT:
                     // this->schema.of_map.~_ref();
+                    break;
+                case qb::TypeKind::FN:
                     break;
             }
         }
@@ -135,6 +143,10 @@ namespace qb {
                 }
                 case TypeKind::EVENT: {
                     ss << "event{" << this->schema.of_map.type->to_str() << "}";
+                    break;
+                }
+                case TypeKind::FN: {
+                    ss << "fn:" << this->schema.of_fn.return_type->to_str();
                     break;
                 }
             }

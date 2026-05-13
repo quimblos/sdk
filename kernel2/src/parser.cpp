@@ -76,6 +76,46 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 .instruction = new qb::instruction::UseBlock(str)
             })
         }
+        case qb::OpCode::ADD_CONST: {
+            PARSE_U8(kind)
+            switch (kind) {
+                case qb::TypeKind::VOID:
+                    break;
+                case qb::TypeKind::BOOL: {
+                    // PARSE_U8(value)
+                    // OK({
+                    //     .instruction = new qb::instruction::AddConst(tdx, new bool(value))
+                    // })
+                    break;
+                }
+                case qb::TypeKind::INT:
+                    break;
+                case qb::TypeKind::FLOAT:
+                    break;
+                case qb::TypeKind::STRING:
+                    break;
+                case qb::TypeKind::REF:
+                    break;
+                case qb::TypeKind::VECTOR:
+                    break;
+                case qb::TypeKind::MAP:
+                    break;
+                case qb::TypeKind::STRUCT:
+                    break;
+                case qb::TypeKind::EVENT:
+                    break;
+                case qb::TypeKind::FN:
+                    break;
+            }
+            break;
+        }
+
+        case qb::OpCode::ADD_ARG: {
+            PARSE_U8(type)
+            OK({
+                .instruction = new qb::instruction::AddArg(type)
+            })
+        }
 
         case qb::OpCode::ADD_VAR: {
             PARSE_U8(type)
@@ -103,7 +143,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
         case qb::OpCode::SET: {
             PARSE_U8(flags)
             PARSE(target, pointer)
-            if (target.block >= BLOCK_THREAD_CONST)
+            if (target.block >= BLOCK_THREAD)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
             PARSE(source, pointer)
             OK({
@@ -175,7 +215,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
         case qb::OpCode::SET_IF: {
             PARSE_U8(flags)
             PARSE(target, pointer)
-            if (target.block >= BLOCK_THREAD_CONST)
+            if (target.block >= BLOCK_THREAD)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
             PARSE(left, pointer)
             PARSE(right, pointer)
@@ -237,7 +277,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 ERROR(qb::parser::res_t::Code::MATH_OP)
 
             PARSE(target, pointer)
-            if (target.block >= BLOCK_THREAD_CONST)
+            if (target.block >= BLOCK_THREAD)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
             PARSE(source, pointer)
             OK({
@@ -283,4 +323,64 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
     }
 
     ERROR(qb::parser::res_t::Code::UNKNOWN_OP_CODE)    
+}
+
+const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length, code_addr_t addr) {
+
+    ASSERT_N_BYTES(4)
+    if (bytes[0] != 'q'
+     || bytes[1] != 'b'
+     || bytes[2] != 0
+     || bytes[3] != 0)
+        ERROR(qb::parser::res_t::Code::INVALID_HEADER)
+
+    addr += 4;
+
+    std::vector<std::string> blocks;
+    std::vector<type_t> args;
+    std::vector<type_t> vars;
+    std::vector<Instruction*> instructions;
+
+    while (addr < length) {
+        auto res = instruction(bytes, length, addr);
+        if (res.code > 0) return res;
+        
+        switch (res.out.instruction->type) {
+            case qb::OpCode::USE_BLOCK:
+                blocks.push_back(((qb::instruction::UseBlock*)res.out.instruction)->name);
+                delete res.out.instruction;
+                break;
+            case qb::OpCode::ADD_CONST:
+                // TODO
+                delete res.out.instruction;
+                break;
+            case qb::OpCode::ADD_ARG:
+                args.push_back(((qb::instruction::AddArg*)res.out.instruction)->tdx);
+                delete res.out.instruction;
+                break;
+            case qb::OpCode::ADD_VAR:
+                vars.push_back(((qb::instruction::AddVar*)res.out.instruction)->tdx);
+                delete res.out.instruction;
+                break;
+            case qb::OpCode::ADD_TYPE:
+                // TODO
+                delete res.out.instruction;
+                break;
+            default:
+                instructions.push_back(res.out.instruction);
+        }
+
+        addr = res.addr;
+    }
+
+    qb::Code* code = new qb::Code(
+        blocks,
+        args,
+        vars,
+        instructions
+    );
+
+    OK({
+        .code = code
+    })
 }
