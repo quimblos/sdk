@@ -58,11 +58,11 @@ namespace qb {
 
         // cast
 
-        res_t cast_to_bool(const Type* to_type, const Type* from_type, data_t value);
+        res_t cast_to_bool(const Type* from_type, data_t value);
         res_t cast_to_int(const Type* to_type, const Type* from_type, data_t value, bool is_explicit = false);
-        res_t cast_to_float(const Type* to_type, const Type* from_type, data_t value);
-        res_t cast_to_string(const Type* to_type, const Type* from_type, data_t value);
-        res_t cast_to_ref(const Type* to_type, const Type* from_type, data_t value);
+        res_t cast_to_float(const Type* from_type, data_t value);
+        res_t cast_to_string(const Type* from_type, data_t value);
+        res_t cast_to_ref(const Type* from_type, data_t value);
         res_t cast(const Type* to_type, const Type* from_type, data_t value, bool is_explicit = false);
 
         // assign

@@ -53,7 +53,7 @@
 
 // [cast: bool <- ?]
 
-qb::op::res_t qb::op::cast_to_bool(const Type* to_type, const Type* from_type, data_t value) {
+qb::op::res_t qb::op::cast_to_bool(const Type* from_type, data_t value) {
     switch (from_type->kind) {
         case qb::TypeKind::VOID:    OK_TEMP(bool, false)
         case qb::TypeKind::BOOL:    OK(value)
@@ -156,7 +156,7 @@ qb::op::res_t qb::op::cast_to_int(const Type* to_type, const Type* from_type, da
 
 // [cast: float <- ?]
 
-qb::op::res_t qb::op::cast_to_float(const Type* to_type, const Type* from_type, data_t value) {
+qb::op::res_t qb::op::cast_to_float(const Type* from_type, data_t value) {
     switch (from_type->kind) {
         case qb::TypeKind::VOID:    ERROR(CAST_VOID_TO_FLOAT)
         case qb::TypeKind::BOOL:    OK_TEMP(float, *(bool*) value ? 1 : 0)
@@ -174,7 +174,7 @@ qb::op::res_t qb::op::cast_to_float(const Type* to_type, const Type* from_type, 
 
 // [cast: string <- ?]
 
-qb::op::res_t qb::op::cast_to_string(const Type* to_type, const Type* from_type, data_t value) {
+qb::op::res_t qb::op::cast_to_string(const Type* from_type, data_t value) {
     switch (from_type->kind) {
         case qb::TypeKind::VOID:    ERROR(CAST_VOID_TO_STRING)
         case qb::TypeKind::BOOL:    ERROR(CAST_BOOL_TO_STRING)
@@ -192,7 +192,7 @@ qb::op::res_t qb::op::cast_to_string(const Type* to_type, const Type* from_type,
 
 // [cast: ref <- ?]
 
-qb::op::res_t qb::op::cast_to_ref(const Type* to_type, const Type* from_type, data_t value) {
+qb::op::res_t qb::op::cast_to_ref(const Type* from_type, data_t value) {
     switch (from_type->kind) {
         case qb::TypeKind::VOID:    ERROR(CAST_VOID_TO_REF)
         case qb::TypeKind::BOOL:    ERROR(CAST_BOOL_TO_REF)
@@ -216,11 +216,11 @@ qb::op::res_t qb::op::cast(const Type* to_type, const Type* from_type, data_t va
     }
     switch (to_type->kind) {
         case qb::TypeKind::VOID:    OK(nullptr)
-        case qb::TypeKind::BOOL:    return cast_to_bool(to_type, from_type, value);
+        case qb::TypeKind::BOOL:    return cast_to_bool(from_type, value);
         case qb::TypeKind::INT:     return cast_to_int(to_type, from_type, value, is_explicit);
-        case qb::TypeKind::FLOAT:   return cast_to_float(to_type, from_type, value);
-        case qb::TypeKind::STRING:  return cast_to_string(to_type, from_type, value);
-        case qb::TypeKind::REF:     return cast_to_ref(to_type, from_type, value);
+        case qb::TypeKind::FLOAT:   return cast_to_float(from_type, value);
+        case qb::TypeKind::STRING:  return cast_to_string(from_type, value);
+        case qb::TypeKind::REF:     return cast_to_ref(from_type, value);
         case qb::TypeKind::VECTOR:  ERROR(NOT_IMPLEMENTED)
         case qb::TypeKind::MAP:     ERROR(NOT_IMPLEMENTED)
         case qb::TypeKind::STRUCT:  ERROR(NOT_IMPLEMENTED)

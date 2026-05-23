@@ -297,6 +297,16 @@ namespace qb {
                 mem::copy(type, target, (data_t) &value);
             }
                 
+            void clear() {
+                port_t ports = this->type->schema.of_struct.n_fields;
+                for (port_t port = 0; port < ports; port++) {
+                    auto target = this->data + this->pos[port];
+                    auto type = this->type->schema.of_struct.fields[port];
+                    mem::free(type, target);
+                    mem::init(type, target);
+                }
+            }
+
             // [ Read ]
 
             data_t get(port_t port) {

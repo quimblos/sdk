@@ -6,31 +6,45 @@ namespace qb {
 
     class Thread {
 
-        // Engine
-        // const Engine* engine;
+        public:
+            enum State {
+                IDLE = 0x00,
+                RUNNING = 0x01,
+                SLEEPING = 0x10,
+                OK = 0xF0,
+                ERROR = 0xFF
+            };
+
+        private:
+
+        // Metadata
         const std::string name;
 
+        // Code
+        const Code* code;
+
         // State
-        enum State {
-            IDLE = 0x00,
-            RUNNING = 0x01,
-            SLEEPING = 0x10,
-            OK = 0xF0,
-            ERROR = 0xFF
-        } state = State::IDLE;
+        State state = State::IDLE;
         uint32_t sleep = 0;
 
         // Execution
-        exec::Stack stack;
+        Stack stack;
+        
+        // Memory
+        mem::Block block;
 
         public:
 
             Thread(
-                // const Engine* engine,
-                const std::string& name
+                TypeSolver& solver,
+                const std::string& name,
+                const Code* code,
+                std::vector<type_t> tdxs
             ):
-                // engine(engine),
-                name(name) {}
+                name(name),
+                stack(Stack(solver)),
+                code(code),
+                block(mem::Block(solver, tdxs)) {}
         
             const std::string& get_name() { return this->name; }
             State get_state() { return this->state; }

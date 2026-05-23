@@ -14,9 +14,9 @@ namespace qb {
         REF = 0x05,     // no built-in types, schema of_map
         VECTOR = 0x06,  // no built-in types, schema of_map
         MAP = 0x07,     // no built-in types, schema of_map
-        STRUCT = 0x08,     // no built-in types, schema of_struct
+        STRUCT = 0x08,  // no built-in types, schema of_struct
         EVENT = 0x09,   // no built-in types, schema of_map
-        FN = 0x0A,   // no built-in types, schema of_map
+        FN = 0x10,      // no built-in types, schema of_map
     };
         
     union TypeFlags {

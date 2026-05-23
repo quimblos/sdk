@@ -12,19 +12,15 @@ namespace qb {
     
     enum OpCode {
         // 0x0* -> Parser
-        USE_BLOCK = 0x01,       // (node:str)
+        USE_DRIVER = 0x01,       // (driver:str)
         ADD_CONST = 0x06,       // (type:_t, ...data)
         ADD_ARG = 0x07,         // (type:_t)
         ADD_VAR = 0x08,         // (type:_t)
         ADD_TYPE = 0x09,        // (kind:8, flags:8, ...schema)
         // 0x1* -> Memory Manipulation
         SET = 0x10,             // (flags:8, target:ptr, source:ptr)
-        HOLD = 0x1A,            // (kind:8, node|thread:str)
-            // NODE
-            // THREAD
-        RELEASE = 0x1B,         // (kind:8, node|thread:str)
-            // NODE
-            // THREAD
+        HOLD = 0x1A,            // (driver:str)
+        RELEASE = 0x1B,         // (driver:str)
         // 0x2* -> Flow control 
         GOTO = 0x20,            // (addr:_t)
         IF = 0x21,              // (flags:8, source:ptr, true_addr:_t, false_addr: _t)
@@ -44,12 +40,13 @@ namespace qb {
             // MOD
             // POW
             // LN
+        // 0xD* -> Method
+        RETURN = 0xD0,          // (source:ptr)
         // 0xE* -> Thread
         SLEEP = 0xE0,           // (time:ptr)
-        PUBLISH = 0xEA,         // (topic:str, source:ptr)
-        RETURN = 0xEF,          // (source:ptr)
         // 0xF* -> Engine
         RESET = 0xF0,           // ()
+        PUBLISH = 0xF1,         // (topic:str, source:ptr)
         REBOOT = 0xFF,          // ()
     };
     
@@ -65,7 +62,7 @@ namespace qb {
             std::stringstream ss;
             ss << '<';
             switch (this->block) {
-                case BLOCK_KERNEL:
+                case BLOCK_ENGINE:
                     ss << "kernel.";
                     switch (this->port) {
                         case PORT_CONST_FALSE:
@@ -76,18 +73,22 @@ namespace qb {
                             break;
                     }
                     break;
+                case BLOCK_NODE:
+                    ss << "node." << +port;
+                    break;
                 case BLOCK_THREAD:
                     ss << "const." << +port;
                     break;
-                case BLOCK_ROUTINE:
+                case BLOCK_METHOD:
                     ss << "var." << +port;
-                    break;
-                case BLOCK_NODE:
-                    ss << "node." << +port;
                     break;
             }
             ss << '>';
             return ss.str();
+        }
+
+        Pointer* copy() const {
+            return new Pointer(this->block, this->port);
         }
     };
 
@@ -108,34 +109,35 @@ namespace qb {
     */
 
     struct Code {
-        const std::vector<std::string> blocks;
+        const std::vector<std::string> drivers;
+        const Pointer* out_value;
+        const std::vector<std::pair<type_t, data_t>> consts;
         const std::vector<type_t> args;
         const std::vector<type_t> vars;
         const std::vector<Instruction*> instructions;
         const std::vector<Code*> children;
 
         Code(
-            const std::vector<std::string>& blocks,
+            const std::vector<std::string>& drivers,
+            const Pointer* out_value,
+            const std::vector<std::pair<type_t, data_t>> consts,
             const std::vector<type_t>& args,
             const std::vector<type_t>& vars,
             const std::vector<Instruction*>& instructions
             // const std::vector<Code*>& children
         ) :
-            blocks(blocks),
+            drivers(drivers),
+            out_value(out_value),
+            consts(consts),
             args(args),
             vars(vars),
             instructions(instructions) {}
             // children(children) {}
 
         ~Code() {
-            // delete[] this->blocks;
-            // delete[] this->args;
-            // delete[] this->vars;
             for (size_t i = 0; i < this->instructions.size(); i++) {
                 delete this->instructions[i];
             }
-            // delete[] this->instructions;
-            // delete[] this->children;
         }
 
         std::string to_str() {
@@ -155,11 +157,11 @@ namespace qb {
         
         // Parser
 
-        struct UseBlock: public Instruction {
+        struct UseDriver: public Instruction {
             const std::string name;
 
-            UseBlock(const std::string& name):
-                Instruction(OpCode::USE_BLOCK),
+            UseDriver(const std::string& name):
+                Instruction(OpCode::USE_DRIVER),
                 name(name)
             {}
 
@@ -272,51 +274,31 @@ namespace qb {
         };
 
         struct Hold: public Instruction {
-            const enum Kind {
-                NODE = 0x00,
-                THREAD = 0x01
-            } kind;
-            const std::string entity;
+            const std::string driver;
 
-            Hold(const Kind kind, const std::string& entity):
+            Hold(const std::string& driver):
                 Instruction(OpCode::HOLD),
-                kind(kind),
-                entity(entity)
+                driver(driver)
             {}
 
             const std::string to_str() const {
                 std::stringstream ss;
-                ss << "hold ";
-                switch (this->kind) {
-                    case Kind::NODE: ss << "node"; break;
-                    case Kind::THREAD: ss << "thread"; break;
-                }
-                ss << " @" << this->entity;
+                ss << "hold @" << this->driver;
                 return ss.str();
             }
         };
 
         struct Release: public Instruction {
-            const enum Kind {
-                NODE = 0x00,
-                THREAD = 0x01
-            } kind;
-            const std::string entity;
+            const std::string driver;
 
-            Release(const Kind kind, const std::string& entity):
+            Release(const std::string& driver):
                 Instruction(OpCode::RELEASE),
-                kind(kind),
-                entity(entity)
+                driver(driver)
             {}
 
             const std::string to_str() const {
                 std::stringstream ss;
-                ss << "release ";
-                switch (this->kind) {
-                    case Kind::NODE: ss << "node"; break;
-                    case Kind::THREAD: ss << "thread"; break;
-                }
-                ss << " @" << this->entity;
+                ss << "release @" << this->driver;
                 return ss.str();
             }
         };
@@ -467,6 +449,23 @@ namespace qb {
                 return ss.str();
             }
         };
+        
+        // Method
+
+        struct Return: public Instruction {
+            const Pointer source;
+
+            Return(const Pointer& source):
+                Instruction(OpCode::RETURN),
+                source(source)
+            {}
+
+            const std::string to_str() const {
+                std::stringstream ss;
+                ss << "return " << this->source.to_str();
+                return ss.str();
+            }
+        };
 
         // Thread
 
@@ -484,6 +483,8 @@ namespace qb {
                 return ss.str();
             }
         };
+
+        // Engine
         
         struct Publish: public Instruction {
             const std::string topic;
@@ -502,21 +503,6 @@ namespace qb {
             }
         };
         
-        struct Return: public Instruction {
-            const Pointer source;
-
-            Return(const Pointer& source):
-                Instruction(OpCode::RETURN),
-                source(source)
-            {}
-
-            const std::string to_str() const {
-                std::stringstream ss;
-                ss << "return " << this->source.to_str();
-                return ss.str();
-            }
-        };
-
     }
 
 }

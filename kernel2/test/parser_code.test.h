@@ -19,12 +19,12 @@ qb_suite(test_parser_code, "parser_code", {
         qb_test("Blocks", {
             TEST_CODE_OK({
                 HEADER_QUIMBLOS,
-                qb::OpCode::USE_BLOCK, 3, 'l', 'e', 'd',
-                qb::OpCode::USE_BLOCK, 5, 'c', 'l', 'o', 'c', 'k',
+                qb::OpCode::USE_DRIVER, 3, 'l', 'e', 'd',
+                qb::OpCode::USE_DRIVER, 5, 'c', 'l', 'o', 'c', 'k',
             });
-            qb_assert(code->blocks.size() == 2)
-            qb_assert(code->blocks[0] == "led")
-            qb_assert(code->blocks[1] == "clock")
+            qb_assert(code->drivers.size() == 2)
+            qb_assert(code->drivers[0] == "led")
+            qb_assert(code->drivers[1] == "clock")
             delete code;
         })
 
@@ -55,7 +55,7 @@ qb_suite(test_parser_code, "parser_code", {
         qb_test("Instructions", {
             TEST_CODE_OK({
                 HEADER_QUIMBLOS,
-                qb::OpCode::SLEEP, BLOCK_ROUTINE, 0x01,
+                qb::OpCode::SLEEP, BLOCK_METHOD, 0x01,
                 qb::OpCode::GOTO, 0x00, 0x00,
             });
             qb_assert(code->instructions.size() == 2)

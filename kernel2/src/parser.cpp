@@ -70,10 +70,10 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
 
         // Parser
 
-        case qb::OpCode::USE_BLOCK: {
+        case qb::OpCode::USE_DRIVER: {
             PARSE(str, string)
             OK({
-                .instruction = new qb::instruction::UseBlock(str)
+                .instruction = new qb::instruction::UseDriver(str)
             })
         }
         case qb::OpCode::ADD_CONST: {
@@ -159,26 +159,18 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
         }
 
         case qb::OpCode::HOLD: {
-            PARSE_U8(kind)
-            if (kind > 0x01)
-                ERROR(qb::parser::res_t::Code::ENTITY_KIND)
             PARSE(entity, string)
             OK({
                 .instruction = new qb::instruction::Hold(
-                    (qb::instruction::Hold::Kind) kind,
                     entity
                 )
             })
         }
 
         case qb::OpCode::RELEASE: {
-            PARSE_U8(kind)
-            if (kind > 0x01)
-                ERROR(qb::parser::res_t::Code::ENTITY_KIND)
             PARSE(entity, string)
             OK({
                 .instruction = new qb::instruction::Release(
-                    (qb::instruction::Release::Kind) kind,
                     entity
                 )
             })
@@ -238,14 +230,14 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 PARSE(data, pointer)
                 data_true = data;
             }
-            else data_true = Pointer(BLOCK_KERNEL, PORT_CONST_TRUE);
+            else data_true = Pointer(BLOCK_ENGINE, PORT_CONST_TRUE);
 
             Pointer data_false;
             if (flags_struct.has_false){
                 PARSE(data, pointer)
                 data_false = data;
             }
-            else data_false = Pointer(BLOCK_KERNEL, PORT_CONST_FALSE);
+            else data_false = Pointer(BLOCK_ENGINE, PORT_CONST_FALSE);
             
             OK({
                 .instruction = new qb::instruction::SetIf(
@@ -336,7 +328,9 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
 
     addr += 4;
 
-    std::vector<std::string> blocks;
+    std::vector<std::string> drivers;
+    qb::Pointer* out_value = nullptr;
+    std::vector<std::pair<type_t, data_t>> consts;
     std::vector<type_t> args;
     std::vector<type_t> vars;
     std::vector<Instruction*> instructions;
@@ -346,8 +340,8 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
         if (res.code > 0) return res;
         
         switch (res.out.instruction->type) {
-            case qb::OpCode::USE_BLOCK:
-                blocks.push_back(((qb::instruction::UseBlock*)res.out.instruction)->name);
+            case qb::OpCode::USE_DRIVER:
+                drivers.push_back(((qb::instruction::UseDriver*)res.out.instruction)->name);
                 delete res.out.instruction;
                 break;
             case qb::OpCode::ADD_CONST:
@@ -366,6 +360,10 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
                 // TODO
                 delete res.out.instruction;
                 break;
+            case qb::OpCode::RETURN:
+                // TODO
+                out_value = ((qb::instruction::Return*)res.out.instruction)->source.copy();
+                break;
             default:
                 instructions.push_back(res.out.instruction);
         }
@@ -374,7 +372,9 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
     }
 
     qb::Code* code = new qb::Code(
-        blocks,
+        drivers,
+        out_value,
+        consts,
         args,
         vars,
         instructions

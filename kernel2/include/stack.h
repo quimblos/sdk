@@ -1,54 +1,34 @@
 #pragma once
-#include "code.h"
+#include "method.h"
 
 namespace qb {
 
-    namespace exec {
+    class Stack {
+        TypeSolver* solver;
+        Method* root = nullptr;
+        uint8_t size = 0;
+        
+        public:
+            Stack(TypeSolver& solver)
+                : solver(&solver) {}
 
-        struct Routine {
-            const Routine* parent;
-            const Code* code;
-            mem::Block block;
-            code_addr_t length;
-            code_addr_t cursor;
-
-            Routine(
-                TypeSolver& solver,
-                const Routine* parent,
-                const Code* code
-            ):
-                parent(parent),
-                code(code),
-                block(Routine::make_block(solver, code))
-            {}
-
-            ~Routine() {
-                if (this->parent != nullptr) {
-                    delete this->parent;
+            ~Stack() {
+                auto node = this->root;
+                while (node != nullptr) {
+                    auto next = (Method*) node->parent;
+                    delete node;
+                    node = next;
                 }
             }
 
-            static mem::Block make_block(TypeSolver& solver, const Code* code);
-        };
-    
-        class Stack {
-            TypeSolver* solver;
-            Routine* root = nullptr;
-            
-            public:
-                Stack(TypeSolver* solver)
-                    : solver(solver) {}
+            Method* get_root() { return this->root; };
+            uint8_t get_size() { return this->size; };
 
-                ~Stack() {
-                    if (this->root != nullptr) {
-                        delete this->root;
-                    }
-                }
+            bool tick();
+            void clear();
 
-                Routine* push(const Code* code);
-                Routine* pop(const Code* code);
-        };
-
-    }
+            Method* push(const Code* code);
+            void pop();
+    };
 
 }

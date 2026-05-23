@@ -21,6 +21,9 @@
     - **Operator**: Methods to perform operations with memory (assign, math, etc).
         - `include/operator.h`
         - `src/operator.cpp`
+    - **Method**: A running quimblos method.
+        - `include/method.h`
+        - `src/method.cpp`
     - **Stack**: Execution stack to allow method calls.
         - `include/stack.h`
         - `src/stack.cpp`
@@ -30,7 +33,7 @@
 - **Kernel**
     - **Driver**: Memory block tied to an external aspect of the application, which can be manipulated through code.
     - **Node**: A manageable set of _drivers_ and _threads_.
-    - **Storage**: Methods to manipulate long-term storage.
+    - **Engine**: The entrypoint of quimblos application, which contains 1 or more nodes - either local or remote.
 
 ### Tests
 
@@ -41,8 +44,9 @@
 |✔ |parser        ||
 |✏ |operator_cast |Missing non-bultin types|
 |✏ |operator      |Must expand test cases|
-|✕ |stack         ||
-|✕ |thread        ||
-|✕ |driver        ||
-|✕ |node          ||
-|✕ |storage       ||
+|✏ |method        ||
+|✏ |stack         ||
+|✏ |thread        ||
+|✏ |driver        ||
+|✏ |node          ||
+|✏ |engine        ||

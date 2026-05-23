@@ -1,6 +1,8 @@
 #pragma once
 #include "parser.h"
 #include "operator.h"
+#include "node.h"
+#include "engine.h"
 
 namespace qb {
 
@@ -61,6 +63,18 @@ namespace qb {
             { qb::op::res_t::Code::CAST_EVENT_TO_REF,           "[op] CAST_EVENT_TO_REF" },
             { qb::op::res_t::Code::MATH_BOOL_TARGET,            "[op] MATH_BOOL_TARGET" },
             { qb::op::res_t::Code::MATH_DEC_TARGET,             "[op] MATH_DEC_TARGET" }
+        };
+
+        const std::map<uint8_t, std::string> node = {
+            { qb::node::res_t::Code::OK,                        "[node] OK" },
+            { qb::node::res_t::Code::THREAD_ALREADY_EXISTS,     "[node] THREAD_ALREADY_EXISTS" },
+            { qb::node::res_t::Code::THREAD_NOT_FOUND,          "[node] UNKNOWN_SOURCE_TYPE" }
+        };
+
+        const std::map<uint8_t, std::string> engine = {
+            { qb::engine::res_t::Code::OK,                      "[engine] OK" },
+            { qb::engine::res_t::Code::NODE_ALREADY_EXISTS,     "[engine] NODE_ALREADY_EXISTS" },
+            { qb::engine::res_t::Code::NODE_NOT_FOUND,          "[engine] UNKNOWN_SOURCE_TYPE" }
         };
 
     }

@@ -13,7 +13,11 @@ set(SOURCES
     src/memory.cpp
     src/parser.cpp
     src/operator.cpp
+    src/method.cpp
     src/stack.cpp
+    src/thread.cpp
+    src/node.cpp
+    src/engine.cpp
 )
 
 # WASM
