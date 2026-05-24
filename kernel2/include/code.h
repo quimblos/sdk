@@ -12,7 +12,7 @@ namespace qb {
     
     enum OpCode {
         // 0x0* -> Parser
-        USE_DRIVER = 0x01,       // (driver:str)
+        USE_DRIVER = 0x01,      // (driver:str)
         ADD_CONST = 0x06,       // (type:_t, ...data)
         ADD_ARG = 0x07,         // (type:_t)
         ADD_VAR = 0x08,         // (type:_t)
@@ -51,48 +51,6 @@ namespace qb {
     };
     
     /*
-        Pointer
-    */
-
-    struct Pointer {
-        block_t block;
-        port_t port;
-        
-        const std::string to_str() const {
-            std::stringstream ss;
-            ss << '<';
-            switch (this->block) {
-                case BLOCK_ENGINE:
-                    ss << "kernel.";
-                    switch (this->port) {
-                        case PORT_CONST_FALSE:
-                            ss << "false";
-                            break;
-                        case PORT_CONST_TRUE:
-                            ss << "true";
-                            break;
-                    }
-                    break;
-                case BLOCK_NODE:
-                    ss << "node." << +port;
-                    break;
-                case BLOCK_THREAD:
-                    ss << "const." << +port;
-                    break;
-                case BLOCK_METHOD:
-                    ss << "var." << +port;
-                    break;
-            }
-            ss << '>';
-            return ss.str();
-        }
-
-        Pointer* copy() const {
-            return new Pointer(this->block, this->port);
-        }
-    };
-
-    /*
         Instruction
     */
 
@@ -110,7 +68,7 @@ namespace qb {
 
     struct Code {
         const std::vector<std::string> drivers;
-        const Pointer* out_value;
+        const mem::Reference* out_value;
         const std::vector<std::pair<type_t, data_t>> consts;
         const std::vector<type_t> args;
         const std::vector<type_t> vars;
@@ -119,7 +77,7 @@ namespace qb {
 
         Code(
             const std::vector<std::string>& drivers,
-            const Pointer* out_value,
+            const mem::Reference* out_value,
             const std::vector<std::pair<type_t, data_t>> consts,
             const std::vector<type_t>& args,
             const std::vector<type_t>& vars,
@@ -174,12 +132,14 @@ namespace qb {
 
         struct AddConst: public Instruction {
             const type_t type;
-            const data_t data;
+            const byte_t* bytes;
+            code_addr_t length;
 
-            AddConst(type_t type, data_t data):
+            AddConst(type_t type, const byte_t* bytes, code_addr_t length):
                 Instruction(OpCode::ADD_CONST),
                 type(type),
-                data(data)
+                bytes(bytes),
+                length(length)
             {}
 
             const std::string to_str() const {
@@ -221,15 +181,17 @@ namespace qb {
 
         struct AddType: public Instruction {
             const TypeKind kind;
-            const TypeFlags flags;
-            const TypeSchema* schema;
+            const type_t* schema;
 
-            AddType(TypeKind kind, const TypeFlags& flags, const TypeSchema* schema):
+            AddType(TypeKind kind, const type_t* schema):
                 Instruction(OpCode::ADD_TYPE),
                 kind(kind),
-                flags(flags),
                 schema(schema)
             {}
+
+            ~AddType() {
+                delete[] this->schema;
+            }
 
             const std::string to_str() const {
                 std::stringstream ss;
@@ -253,10 +215,10 @@ namespace qb {
                 const bool explicit_cast: 1 = false;
                 uint8_t _: 5 = 0;
             } flags;
-            const Pointer target;
-            const Pointer source;
+            const mem::Reference target;
+            const mem::Reference source;
 
-            Set(const Flags& flags, const Pointer& target, const Pointer& source):
+            Set(const Flags& flags, const mem::Reference& target, const mem::Reference& source):
                 Instruction(OpCode::SET),
                 flags(flags),
                 target(target),
@@ -325,11 +287,11 @@ namespace qb {
                 const bool deref_source: 1 = false;
                 const uint8_t _: 7 = 0;
             } flags;
-            const Pointer source;
+            const mem::Reference source;
             const code_addr_t addr_true;
             const code_addr_t addr_false;
 
-            If(const Flags& flags, const Pointer& source, code_addr_t addr_true, code_addr_t addr_false):
+            If(const Flags& flags, const mem::Reference& source, code_addr_t addr_true, code_addr_t addr_false):
                 Instruction(OpCode::IF),
                 flags(flags),
                 source(source),
@@ -360,13 +322,13 @@ namespace qb {
                     LT = 0x02,
                 } op : 2;
             } flags;
-            const Pointer target;
-            const Pointer left;
-            const Pointer right;
-            const Pointer data_true;
-            const Pointer data_false;
+            const mem::Reference target;
+            const mem::Reference left;
+            const mem::Reference right;
+            const mem::Reference data_true;
+            const mem::Reference data_false;
 
-            SetIf(const Flags& flags, const Pointer& target, const Pointer& left, const Pointer& right, const Pointer& data_true, const Pointer& data_false):
+            SetIf(const Flags& flags, const mem::Reference& target, const mem::Reference& left, const mem::Reference& right, const mem::Reference& data_true, const mem::Reference& data_false):
                 Instruction(OpCode::SET_IF),
                 flags(flags),
                 target(target),
@@ -420,10 +382,10 @@ namespace qb {
                     // EML = 0x20,
                 } op : 6;
             } flags;
-            const Pointer target;
-            const Pointer source;
+            const mem::Reference target;
+            const mem::Reference source;
 
-            Math(const Flags& flags, const Pointer& target, const Pointer& source):
+            Math(const Flags& flags, const mem::Reference& target, const mem::Reference& source):
                 Instruction(qb::OpCode::MATH),
                 flags(flags),
                 target(target),
@@ -453,9 +415,9 @@ namespace qb {
         // Method
 
         struct Return: public Instruction {
-            const Pointer source;
+            const mem::Reference source;
 
-            Return(const Pointer& source):
+            Return(const mem::Reference& source):
                 Instruction(OpCode::RETURN),
                 source(source)
             {}
@@ -470,9 +432,9 @@ namespace qb {
         // Thread
 
         struct Sleep: public Instruction {
-            const Pointer time;
+            const mem::Reference time;
 
-            Sleep(const Pointer& time):
+            Sleep(const mem::Reference& time):
                 Instruction(OpCode::SLEEP),
                 time(time)
             {}
@@ -488,9 +450,9 @@ namespace qb {
         
         struct Publish: public Instruction {
             const std::string topic;
-            const Pointer source;
+            const mem::Reference source;
 
-            Publish(const std::string& topic, const Pointer& source):
+            Publish(const std::string& topic, const mem::Reference& source):
                 Instruction(OpCode::PUBLISH),
                 topic(topic),
                 source(source)

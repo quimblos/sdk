@@ -2,7 +2,7 @@
 
 qb::Method* qb::Stack::push(const Code* code){
     auto parent = this->root;
-    auto method = new Method(*this->solver, parent, code);
+    auto method = new Method(parent, code);
     this->root = method;
     this->size += 1;
     return method;

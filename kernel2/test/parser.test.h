@@ -33,6 +33,8 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.type == qb::OpCode::USE_DRIVER)
             qb_assert(instruction.name == "test")
         })
+
+        // TODO: ADD_CONST
     
         qb_test("ADD_VAR", {
             TEST_INSTRUCTION_OK(qb::instruction::AddVar, {

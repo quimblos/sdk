@@ -9,11 +9,11 @@
         qb_fail() \
     } \
     qb::Code* code = res.out.code; \
-    auto thread = qb::Thread(solver, "test", code, {});
+    auto engine = qb::Engine({}); \
+    auto node = qb::Node(&engine, "test", {}); \
+    auto thread = qb::Thread(&node, "test", code, {});
 
 qb_suite(test_thread, "thread", {
-
-    auto solver = qb::TypeSolver();
 
     qb_describe("State", {
     

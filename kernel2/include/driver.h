@@ -32,12 +32,11 @@ namespace qb {
         public:
 
             Driver(
-                TypeSolver& solver,
                 std::string name,
-                std::vector<type_t> tdxs
+                TypeDef type_def
             ):
                 name(name),
-                block(mem::Block(solver, tdxs)) {}
+                block(mem::Block(type_def)) {}
 
             virtual driver::res_t hold(Thread* thread) {
                 if (this->held_by == nullptr) {

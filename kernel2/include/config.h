@@ -11,6 +11,8 @@
 #define PORT_CONST_FALSE 0x00
 #define PORT_CONST_TRUE 0x01
 
+#define EPSILON 0.000000000000000001
+
 namespace qb {
 
     typedef uint8_t void_t;

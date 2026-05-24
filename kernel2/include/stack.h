@@ -4,13 +4,11 @@
 namespace qb {
 
     class Stack {
-        TypeSolver* solver;
         Method* root = nullptr;
         uint8_t size = 0;
         
         public:
-            Stack(TypeSolver& solver)
-                : solver(&solver) {}
+            Stack() {}
 
             ~Stack() {
                 auto node = this->root;

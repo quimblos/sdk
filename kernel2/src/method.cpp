@@ -1,11 +1,9 @@
 #include "method.h"
 
-#define QB_METHOD_DEBUG
-
 // 0: output
 // 1~x: args
 // x+1~y: vars
-qb::mem::Block qb::Method::make_block(TypeSolver& solver, const Code* code) {
+qb::mem::Block qb::Method::make_block(const Code* code) {
     port_t ports = 0;
     for (code_addr_t i = 0; i < code->instructions.size(); i++) {
         auto instruction = code->instructions[i];
@@ -17,15 +15,18 @@ qb::mem::Block qb::Method::make_block(TypeSolver& solver, const Code* code) {
     auto args = code->args.size();
     auto vars = code->vars.size();
 
-    std::vector<type_t> tdxs(args + vars);
+    auto type_def = qb::TypeDef::block(
+        std::vector<qb::TypeDef>(1 + args + vars)
+    );
+    type_def.add.children[0].use = B_TYPE_VOID;
     for (code_addr_t i = 0; i < args; i++) {
-        tdxs[i] = code->args[i];
+        type_def.add.children[i+1].use = code->args[i];
     }
     for (code_addr_t i = 0; i < vars; i++) {
-        tdxs[i+args] = code->vars[i];
+        type_def.add.children[i+1+args].use = code->vars[i];
     }
 
-    return qb::mem::Block(solver, tdxs);
+    return qb::mem::Block(type_def);
 }
 
 bool qb::Method::tick() {

@@ -54,11 +54,11 @@ const qb::parser::res_t qb::parser::string(const byte_t* bytes, code_addr_t leng
     })
 }
 
-const qb::parser::res_t qb::parser::pointer(const byte_t* bytes, code_addr_t length, code_addr_t addr) {
+const qb::parser::res_t qb::parser::ref(const byte_t* bytes, code_addr_t length, code_addr_t addr) {
     PARSE_U8(block)
     PARSE_U8(port)
     OK({
-        .pointer = new Pointer(block, port)
+        .ref = new qb::mem::Reference(block, port)
     })
 }
 
@@ -77,37 +77,34 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             })
         }
         case qb::OpCode::ADD_CONST: {
-            PARSE_U8(kind)
-            switch (kind) {
-                case qb::TypeKind::VOID:
-                    break;
-                case qb::TypeKind::BOOL: {
-                    // PARSE_U8(value)
-                    // OK({
-                    //     .instruction = new qb::instruction::AddConst(tdx, new bool(value))
-                    // })
+            PARSE_U8(type)
+            uint16_t n_bytes = 0;
+            switch (type) {
+                case B_TYPE_VOID: break;
+                case B_TYPE_NULL: break;
+                case B_TYPE_BOOL: n_bytes = 1; break;
+                case B_TYPE_U8: n_bytes = 1; break;
+                case B_TYPE_I8: n_bytes = 1; break;
+                case B_TYPE_U16: n_bytes = 2; break;
+                case B_TYPE_I16: n_bytes = 2; break;
+                case B_TYPE_U32: n_bytes = 4; break;
+                case B_TYPE_I32: n_bytes = 4; break;
+                case B_TYPE_F32: n_bytes = 4; break;
+                case B_TYPE_REF: n_bytes = 4; break;
+                case B_TYPE_REF_SLICE: {
+                    PARSE_U16(dims);
+                    n_bytes = dims*4;
                     break;
                 }
-                case qb::TypeKind::INT:
+                default: {
+                    PARSE_U16(len);
+                    n_bytes = len;
                     break;
-                case qb::TypeKind::FLOAT:
-                    break;
-                case qb::TypeKind::STRING:
-                    break;
-                case qb::TypeKind::REF:
-                    break;
-                case qb::TypeKind::VECTOR:
-                    break;
-                case qb::TypeKind::MAP:
-                    break;
-                case qb::TypeKind::STRUCT:
-                    break;
-                case qb::TypeKind::EVENT:
-                    break;
-                case qb::TypeKind::FN:
-                    break;
+                }
             }
-            break;
+            OK({
+                .instruction = new qb::instruction::AddConst(type, bytes+addr, n_bytes)
+            })
         }
 
         case qb::OpCode::ADD_ARG: {
@@ -126,26 +123,48 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
 
         case qb::OpCode::ADD_TYPE: {
             PARSE_U8(kind)
-            if (kind < 0x06)
-                ERROR(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE)
-            PARSE_U8(flags)
-            OK({
-                .instruction = new qb::instruction::AddType(
-                    (qb::TypeKind) kind,
-                    { .value = flags },
-                    nullptr
-                )
-            })
+            switch (kind) {
+                case qb::TypeKind::VOID:
+                case qb::TypeKind::BOOL:
+                case qb::TypeKind::INT:
+                case qb::TypeKind::FLOAT:
+                case qb::TypeKind::STRING:
+                case qb::TypeKind::REF:
+                    ERROR(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE)
+                case qb::TypeKind::VECTOR:
+                case qb::TypeKind::MAP:
+                case qb::TypeKind::EVENT:
+                case qb::TypeKind::FN: {
+                    PARSE_U8(type_child)
+                    type_t* schema = new type_t[1];
+                    schema[0] = type_child;
+                    OK({
+                        .instruction = new qb::instruction::AddType((qb::TypeKind) kind, schema)
+                    })
+                }
+                case qb::TypeKind::STRUCT: {
+                    PARSE_U8(n_fields)
+                    type_t* schema = new type_t[n_fields];
+                    for (port_t i = 0; i < n_fields; i++) {
+                        PARSE_U8(type_child)
+                        schema[i] = type_child;
+                    }
+                    OK({
+                        .instruction = new qb::instruction::AddType((qb::TypeKind) kind, schema)
+                    })
+                }
+            } 
+            ERROR(qb::parser::res_t::Code::UNKNOWN_TYPE_KIND)
         }
 
         // Data Manipulation
 
         case qb::OpCode::SET: {
             PARSE_U8(flags)
-            PARSE(target, pointer)
+            PARSE(target, ref)
             if (target.block >= BLOCK_THREAD)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
-            PARSE(source, pointer)
+            PARSE(source, ref)
             OK({
                 .instruction = new qb::instruction::Set(
                     {
@@ -189,7 +208,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
 
         case qb::OpCode::IF: {
             PARSE_U8(flags)
-            PARSE(source, pointer)
+            PARSE(source, ref)
             PARSE_U16(addr_true)
             PARSE_U16(addr_false)
             OK({
@@ -206,11 +225,11 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
 
         case qb::OpCode::SET_IF: {
             PARSE_U8(flags)
-            PARSE(target, pointer)
+            PARSE(target, ref)
             if (target.block >= BLOCK_THREAD)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
-            PARSE(left, pointer)
-            PARSE(right, pointer)
+            PARSE(left, ref)
+            PARSE(right, ref)
             
             auto flags_struct = qb::instruction::SetIf::Flags({
                 .deref_target = (flags & 1) > 0,
@@ -225,19 +244,19 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             if (flags_struct.op > 0x02)
                 ERROR(qb::parser::res_t::Code::COMPARE_OP)
 
-            Pointer data_true;
+            qb::mem::Reference data_true;
             if (flags_struct.has_true){
-                PARSE(data, pointer)
+                PARSE(data, ref)
                 data_true = data;
             }
-            else data_true = Pointer(BLOCK_ENGINE, PORT_CONST_TRUE);
+            else data_true = qb::mem::Reference(BLOCK_ENGINE, PORT_CONST_TRUE);
 
-            Pointer data_false;
+            qb::mem::Reference data_false;
             if (flags_struct.has_false){
-                PARSE(data, pointer)
+                PARSE(data, ref)
                 data_false = data;
             }
-            else data_false = Pointer(BLOCK_ENGINE, PORT_CONST_FALSE);
+            else data_false = qb::mem::Reference(BLOCK_ENGINE, PORT_CONST_FALSE);
             
             OK({
                 .instruction = new qb::instruction::SetIf(
@@ -268,10 +287,10 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             )
                 ERROR(qb::parser::res_t::Code::MATH_OP)
 
-            PARSE(target, pointer)
+            PARSE(target, ref)
             if (target.block >= BLOCK_THREAD)
                 ERROR(qb::parser::res_t::Code::CONST_ASSIGNMENT)
-            PARSE(source, pointer)
+            PARSE(source, ref)
             OK({
                 .instruction = new qb::instruction::Math(
                     flags_struct,
@@ -280,11 +299,22 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 )
             })
         }
+        
+        // Method
+
+        case qb::OpCode::RETURN: {
+            PARSE(source, ref)
+            OK({
+                .instruction = new qb::instruction::Return(
+                    source
+                )
+            })
+        }
 
         // Thread
 
         case qb::OpCode::SLEEP: {
-            PARSE(source, pointer)
+            PARSE(source, ref)
             OK({
                 .instruction = new qb::instruction::Sleep(
                     source
@@ -292,21 +322,14 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             })
         }
 
+        // Engine
+
         case qb::OpCode::PUBLISH: {
             PARSE(topic, string)
-            PARSE(source, pointer)
+            PARSE(source, ref)
             OK({
                 .instruction = new qb::instruction::Publish(
                     topic,
-                    source
-                )
-            })
-        }
-
-        case qb::OpCode::RETURN: {
-            PARSE(source, pointer)
-            OK({
-                .instruction = new qb::instruction::Return(
                     source
                 )
             })
@@ -329,7 +352,7 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
     addr += 4;
 
     std::vector<std::string> drivers;
-    qb::Pointer* out_value = nullptr;
+    qb::mem::Reference* out_value = nullptr;
     std::vector<std::pair<type_t, data_t>> consts;
     std::vector<type_t> args;
     std::vector<type_t> vars;

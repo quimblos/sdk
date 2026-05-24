@@ -240,14 +240,14 @@ qb::op::res_t qb::op::assign(mem::Block& t_block, port_t t_port, mem::Block& s_b
 
     // Get source type and data
     auto s_type = s_block.type_of(s_port);
-    auto s_data = s_block.get(s_port);
+    auto s_data = s_block.data.get(s_port);
 
     // Attempt cast
     auto res = qb::op::cast(t_type, s_type, s_data, explicit_cast);
     if (res.code > 0) return res;
 
     // Copy value
-    t_block.set(t_port, res.out);
+    t_block.data.set(t_port, res.out);
 
     // Delete temporary value (created by cast)
     if (res.temp) delete res.out;
@@ -260,17 +260,17 @@ qb::op::res_t qb::op::assign(mem::Block& t_block, port_t t_port, mem::Block& s_b
                 switch (t_type->flags.of_int.res) { \
                     case 1: { \
                         uint8_t out = (*(uint8_t*) t_data) OP (*(uint8_t*) res.out); \
-                        t_block.set(t_port, (data_t) &out); \
+                        t_block.data.set(t_port, (data_t) &out); \
                         break; \
                     } \
                     case 2: { \
                         uint16_t out = (*(uint16_t*) t_data) OP (*(uint16_t*) res.out); \
-                        t_block.set(t_port, (data_t) &out); \
+                        t_block.data.set(t_port, (data_t) &out); \
                         break; \
                     } \
                     case 4: { \
                         uint32_t out = (*(uint32_t*) t_data) OP (*(uint32_t*) res.out); \
-                        t_block.set(t_port, (data_t) &out); \
+                        t_block.data.set(t_port, (data_t) &out); \
                         break; \
                     } \
                 } \
@@ -279,17 +279,17 @@ qb::op::res_t qb::op::assign(mem::Block& t_block, port_t t_port, mem::Block& s_b
                 switch (t_type->flags.of_int.res) { \
                     case 1: { \
                         int8_t out = (*(int8_t*) t_data) OP (*(int8_t*) res.out); \
-                        t_block.set(t_port, (data_t) &out); \
+                        t_block.data.set(t_port, (data_t) &out); \
                         break; \
                     } \
                     case 2: { \
                         int16_t out = (*(int16_t*) t_data) OP (*(int16_t*) res.out); \
-                        t_block.set(t_port, (data_t) &out); \
+                        t_block.data.set(t_port, (data_t) &out); \
                         break; \
                     } \
                     case 4: { \
                         int32_t out = (*(int32_t*) t_data) OP (*(int32_t*) res.out); \
-                        t_block.set(t_port, (data_t) &out); \
+                        t_block.data.set(t_port, (data_t) &out); \
                         break; \
                     } \
                 } \
@@ -297,7 +297,7 @@ qb::op::res_t qb::op::assign(mem::Block& t_block, port_t t_port, mem::Block& s_b
             break; \
         case qb::TypeKind::FLOAT: { \
             float out = (*(float*) t_data) OP (*(float*) res.out); \
-            t_block.set(t_port, (data_t) &out); \
+            t_block.data.set(t_port, (data_t) &out); \
             break; \
         } \
     } \
@@ -319,14 +319,14 @@ qb::op::res_t qb::op::math(qb::instruction::Math::Flags::Op op, mem::Block& t_bl
 
     // Get source type and data
     auto s_type = s_block.type_of(s_port);
-    auto s_data = s_block.get(s_port);
+    auto s_data = s_block.data.get(s_port);
 
     // Attempt cast
     auto res = qb::op::cast(t_type, s_type, s_data);
     if (res.code > 0) return res;
 
     // Get target data
-    auto t_data = s_block.get(t_port);
+    auto t_data = s_block.data.get(t_port);
 
     // Run operation
     if (is_bool_math) {
@@ -336,7 +336,7 @@ qb::op::res_t qb::op::math(qb::instruction::Math::Flags::Op op, mem::Block& t_bl
             case qb::instruction::Math::Flags::AND: out = (*(bool*) t_data) && (*(bool*) res.out); break;
             case qb::instruction::Math::Flags::OR:  out = (*(bool*) t_data) || (*(bool*) res.out); break;
         }
-        t_block.set(t_port, (data_t) &out);
+        t_block.data.set(t_port, (data_t) &out);
     }
     else {
         switch (op) {

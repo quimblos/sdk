@@ -11,20 +11,19 @@ namespace qb {
         code_addr_t cursor;
 
         Method(
-            TypeSolver& solver,
             const Method* parent,
             const Code* code
         ):
             parent(parent),
             code(code),
-            block(Method::make_block(solver, code)),
+            block(Method::make_block(code)),
             length(code->instructions.size()),
             cursor(0)
         {}
 
         bool tick();
 
-        static mem::Block make_block(TypeSolver& solver, const Code* code);
+        static mem::Block make_block(const Code* code);
     };
     
 }

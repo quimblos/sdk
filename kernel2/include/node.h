@@ -18,20 +18,32 @@ namespace qb {
         };
     }
 
+    class Engine;
     class Node {
 
         protected:
+            Engine* engine;
             std::string name;
+
+            mem::Block block;
             std::unordered_map<std::string, Thread*> threads;
 
         public:
-            Node(std::string name): name(name) {}
+            Node(
+                Engine* engine,
+                std::string name,
+                const TypeDef& type_def
+            ):
+                name(name),
+                block(mem::Block(type_def)) {}
+                
             ~Node() {
                 for (auto pair : this->threads) {
                     delete pair.second;
                 }
             }
 
+            Engine* get_engine() const { return this->engine; }
             const std::string& get_name() const { return this->name; }
             const std::unordered_map<std::string, Thread*>& get_threads() const { return this->threads; }
 

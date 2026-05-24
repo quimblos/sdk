@@ -12,19 +12,20 @@
         } \
         code_##NAME = parser_res.out.code; \
     } \
-    auto NAME = qb::Thread(solver, "test", code_##NAME, {});
+    auto engine_##NAME = qb::Engine({}); \
+    auto node_##NAME = qb::Node(&engine_##NAME, "test", {}); \
+    auto NAME = qb::Thread(&node_##NAME, "test", code_##NAME, {});
 
 qb_suite(test_driver, "driver", {
-
-    auto solver = qb::TypeSolver();
 
     qb_describe("getters", {
     
         qb_test("name", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.get_name() == "test");
         })
 
@@ -33,18 +34,20 @@ qb_suite(test_driver, "driver", {
     qb_describe("hold/release", {
     
         qb_test("should start not held", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.is_held() == false);
         })
     
         qb_test("should hold", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.is_held() == false);
             MAKE_DRIVER_THREAD(thread, {
                 HEADER_QUIMBLOS
@@ -56,10 +59,11 @@ qb_suite(test_driver, "driver", {
         })
     
         qb_test("should hold twice", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.is_held() == false);
             MAKE_DRIVER_THREAD(thread, {
                 HEADER_QUIMBLOS
@@ -74,10 +78,11 @@ qb_suite(test_driver, "driver", {
         })
     
         qb_test("should not allow hold while held", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.is_held() == false);
             MAKE_DRIVER_THREAD(thread1, {
                 HEADER_QUIMBLOS
@@ -96,10 +101,11 @@ qb_suite(test_driver, "driver", {
         })
     
         qb_test("should fail to release not held", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.is_held() == false);
             MAKE_DRIVER_THREAD(thread, {
                 HEADER_QUIMBLOS
@@ -111,10 +117,11 @@ qb_suite(test_driver, "driver", {
         })
     
         qb_test("should release", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.is_held() == false);
             MAKE_DRIVER_THREAD(thread, {
                 HEADER_QUIMBLOS
@@ -129,10 +136,11 @@ qb_suite(test_driver, "driver", {
         })
     
         qb_test("should fail to release held by other", {
-            auto driver = qb::Driver(solver, "test", {
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+            auto type_def = qb::TypeDef::block({
+                qb::TypeDef::_use(B_TYPE_BOOL),
+                qb::TypeDef::_use(B_TYPE_U8)
             });
+            auto driver = qb::Driver("test", type_def);
             qb_assert(driver.is_held() == false);
             MAKE_DRIVER_THREAD(thread1, {
                 HEADER_QUIMBLOS

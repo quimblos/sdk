@@ -3,15 +3,13 @@
 
 qb_suite(test_method, "method", {
 
-    auto solver = qb::TypeSolver();
-
     qb_describe("Method", {
     
         qb_test("Vars", {
             
             qb::byte_t code[] = {
                 HEADER_QUIMBLOS,
-                qb::OpCode::ADD_VAR, B_TYPE_U8,
+                qb::OpCode::ADD_ARG, B_TYPE_U8,
                 qb::OpCode::ADD_VAR, B_TYPE_STR
             };
             auto res = qb::parser::code(code, sizeof(code)/sizeof(qb::byte_t));
@@ -21,9 +19,9 @@ qb_suite(test_method, "method", {
             }
             std::cout << res.out.code->to_str() << std::endl;
 
-            auto method = qb::Method(solver, nullptr, res.out.code);
+            auto method = qb::Method(nullptr, res.out.code);
 
-            qb_assert(method.block.pos.size() == 2)
+            qb_assert(method.block.data.pos.size() == 3)
 
             delete res.out.code;
         })

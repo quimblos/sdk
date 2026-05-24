@@ -4,6 +4,7 @@
 
 namespace qb {
 
+    class Node;
     class Thread {
 
         public:
@@ -15,10 +16,13 @@ namespace qb {
                 ERROR = 0xFF
             };
 
-        private:
+        protected:
 
         // Metadata
         const std::string name;
+
+        // Context
+        Node* node;
 
         // Code
         const Code* code;
@@ -36,15 +40,16 @@ namespace qb {
         public:
 
             Thread(
-                TypeSolver& solver,
+                Node* node,
                 const std::string& name,
                 const Code* code,
-                std::vector<type_t> tdxs
+                const TypeDef& type_def
             ):
+                node(node),
                 name(name),
-                stack(Stack(solver)),
+                stack(Stack()),
                 code(code),
-                block(mem::Block(solver, tdxs)) {}
+                block(mem::Block(type_def)) {}
         
             const std::string& get_name() { return this->name; }
             State get_state() { return this->state; }

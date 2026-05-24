@@ -1,7 +1,7 @@
 #pragma once
 #include <vector>
 #include <sstream>
-#include "typesolver.h"
+#include "typeblock.h"
 
 /*
     [Quimblos Memory Manager]
@@ -63,29 +63,94 @@ namespace qb {
         struct Reference {
             block_t block = 0;
             port_t port = 0;
-            bool deref : 1 = false;
-            bool slice : 1 = false;
-            uint8_t _ : 6 = 0;
     
             Reference() {}
 
-            Reference(block_t block, port_t port, bool deref, bool slice) {
+            Reference(block_t block, port_t port) {
                 this->block = block;
                 this->port = port;
-                this->deref = deref;
-                this->slice = slice;
             }
 
             void assign(Reference* other) {
                 this->block = other->block;
                 this->port = other->port;
-                this->deref = other->deref;
-                this->slice = other->slice;
             }
 
-            std::string to_str() const {
+            const std::string to_str() const {
                 std::stringstream ss;
-                ss << '@' << +this->block << '.' << +this->port;
+                ss << '<';
+                switch (this->block) {
+                    case BLOCK_ENGINE:
+                        ss << "engine.";
+                        switch (this->port) {
+                            case PORT_CONST_FALSE:
+                                ss << "false";
+                                break;
+                            case PORT_CONST_TRUE:
+                                ss << "true";
+                                break;
+                        }
+                        break;
+                    case BLOCK_NODE:
+                        ss << "node." << +port;
+                        break;
+                    case BLOCK_THREAD:
+                        ss << "const." << +port;
+                        break;
+                    case BLOCK_METHOD:
+                        ss << "var." << +port;
+                        break;
+                }
+                ss << '>';
+                return ss.str();
+            }
+
+            Reference* copy() const {
+                return new Reference(this->block, this->port);
+            }
+        };
+
+        struct SlicedReference: public Reference {
+            struct Slice {
+                index_t start = 0;
+                index_t end = 0;
+            };
+
+            uint8_t dims = 0;
+            std::vector<Slice> shape;
+    
+            SlicedReference() {}
+
+            SlicedReference(block_t block, port_t port, uint8_t dims, const std::vector<Slice>& shape) {
+                this->block = block;
+                this->port = port;
+                this->dims = dims;
+                this->shape = shape;
+            }
+
+            void assign(SlicedReference* other) {
+                this->block = other->block;
+                this->port = other->port;
+                this->dims = other->dims;
+                this->shape = other->shape;
+            }
+
+            void set(uint8_t i, index_t value) {
+                if (i%2 == 0) {
+                    this->shape[i/2].start = value;
+                }
+                else {
+                    this->shape[i/2].end = value;
+                }
+            }
+
+
+            const std::string to_str() const {
+                std::stringstream ss;
+                ss << Reference::to_str();
+                for (uint8_t i = 0; i < this->dims; i++) {
+                    ss << '[' << this->shape[i].start << ':' << this->shape[i].end << ']';
+                }
                 return ss.str();
             }
         };
@@ -126,22 +191,33 @@ namespace qb {
                 this->code = code;
                 mem::copy(this->type, this->data, (data_t) &value);
             }
+
+            template <typename T>
+            T* __cpp_get() {
+                return (T*) this->data;
+            }
         };
 
         struct Vector {
-            const Type* type;
+            const Type* item_type;
             const uint8_t item_size;
+            std::vector<index_t> shape;
             std::vector<byte_t> data;
             
-            Vector(const Type* type, index_t size = 0):
-                type(type),
-                item_size(size_of(type))
+            Vector(const Type* item_type, const std::vector<index_t>& shape = {}):
+                item_type(item_type),
+                shape(shape),
+                item_size(size_of(item_type))
             {
+                index_t size = this->shape.size() ? 1 : 0;
+                for (uint8_t i = 0; i < this->shape.size(); i++) {
+                    size *= this->shape[i];
+                }
                 this->data = std::vector<byte_t>(size * this->item_size);
                 if (size > 0) {
                     data_t start = &this->data.front();
                     for (index_t i = 0; i < size; i++) {
-                        mem::init(this->type, start+i*this->item_size);
+                        mem::init(this->item_type, start+i*this->item_size);
                     }
                 }
             }
@@ -151,19 +227,29 @@ namespace qb {
                 if (size > 0) {
                     data_t start = &this->data.front();
                     for (index_t i = 0; i < size; i++) {
-                        mem::free(this->type, start+i*this->item_size);
+                        mem::free(this->item_type, start+i*this->item_size);
                     }
                 }
             }
 
-            void resize(index_t size) {
+            void resize(const std::vector<index_t>& shape) {
+                index_t size = shape.size() ? 1 : 0;
+                for (uint8_t i = 0; i < shape.size(); i++) {
+                    size *= shape[i];
+                }
+                
+                this->shape.resize(size);
+                for (uint8_t i = 0; i < shape.size(); i++) {
+                    this->shape[i] = shape[i];
+                }
+
                 auto old_size = this->data.size();
                 if (size == old_size) return;
 
                 if (size < old_size) {
                     data_t start = &this->data.front();
                     for (index_t i = size; i < old_size; i++) {
-                        mem::free(this->type, start+i*this->item_size);
+                        mem::free(this->item_type, start+i*this->item_size);
                     }
                 }
                 this->data.resize(size * this->item_size);
@@ -171,7 +257,7 @@ namespace qb {
                 if (size > old_size) {
                     data_t start = &this->data.front();
                     for (index_t i = old_size; i < size; i++) {
-                        mem::init(this->type, start+i*this->item_size);
+                        mem::init(this->item_type, start+i*this->item_size);
                     }
                 }
             }
@@ -185,30 +271,30 @@ namespace qb {
             }
 
             template <typename T>
-            T* __cpp_at(index_t index) {
+            T* __cpp_get(index_t index) {
                 return (T*) (&this->data.front() + index * this->item_size);
             }
 
             template <typename T>
             void __cpp_set(index_t index, T value) {
                 auto ptr = &this->data.front() + index * this->item_size;
-                mem::copy(this->type, ptr, (data_t) &value);
+                mem::copy(this->item_type, ptr, (data_t) &value);
             }
         };
 
         struct Map {
-            const Type* type;
+            const Type* item_type;
             const uint8_t item_size;
             std::map<std::string, data_t> data;
             
-            Map(const Type* type):
-                type(type),
-                item_size(size_of(type))
+            Map(const Type* item_type):
+                item_type(item_type),
+                item_size(size_of(item_type))
             {}
 
             ~Map() {
                 for (const auto& it : this->data) {
-                    mem::free(this->type, it.second);
+                    mem::free(this->item_type, it.second);
                     delete[] it.second;
                 }
             }
@@ -218,11 +304,13 @@ namespace qb {
             }
 
             data_t at(std::string key) {
+                if (!this->data.contains(key)) return nullptr;
                 return this->data.at(key);
             }
 
             template <typename T>
-            T* __cpp_at(std::string key) {
+            T* __cpp_get(std::string key) {
+                if (!this->data.contains(key)) return nullptr;
                 return (T*) this->data.at(key);
             }
 
@@ -230,8 +318,8 @@ namespace qb {
             void __cpp_set(std::string key, T value) {
                 this->data.insert({key, new byte_t[this->item_size]});
                 auto ptr = this->at(key);
-                mem::init(this->type, ptr);
-                mem::copy(this->type, ptr, (data_t) &value);
+                mem::init(this->item_type, ptr);
+                mem::copy(this->item_type, ptr, (data_t) &value);
             }
         };
 
@@ -374,15 +462,21 @@ namespace qb {
         // [Block]
         // A statically allocated contiguous block of memory.
 
-        class Block : public Struct {
+        class Block {
         
             public:
-    
-                Block(TypeSolver& solver, std::vector<type_t> tdxs):
-                    Struct(solver.get(solver.add_struct(tdxs))) {}
+                TypeBlock types;
+                Struct data;
+                                
+                Block(const TypeDef& type_def)
+                    : data(this->types.get(this->types.add_from_def(type_def))) {}
     
                 const Type* type_of(port_t port) const {
-                    return this->type->schema.of_struct.fields[port];
+                    return this->data.type->schema.of_struct.fields[port];
+                }
+
+                void clear() {
+                    this->data.clear();
                 }
         };
 

@@ -9,7 +9,7 @@
     - **Manipulation Methods**: Methods to manipulate memory based on type definitions.
         - `include/memory.h`
         - `include/memory.cpp`
-    - **Data Structures**: Base data structures for the types and the application itsefl.
+    - **Data Structures**: Base data structures for the types and the application itself.
         - `include/memory.h`
 - **Code**
     - **Instructions**: Data structures to hold each instruction.
@@ -40,13 +40,14 @@
 |OK|File            |Details|
 |--|--------------|-------|
 |✔ |type          ||
-|✏ |memory        |Missing complex types|
+|✔ |memory        ||
 |✔ |parser        ||
+|✔ |parser_code   ||
 |✏ |operator_cast |Missing non-bultin types|
 |✏ |operator      |Must expand test cases|
 |✏ |method        ||
-|✏ |stack         ||
-|✏ |thread        ||
-|✏ |driver        ||
-|✏ |node          ||
-|✏ |engine        ||
+|✔ |stack         ||
+|✔ |thread        ||
+|✔ |driver        ||
+|✔ |node          ||
+|✔ |engine        ||

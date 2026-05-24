@@ -34,7 +34,7 @@
 
 qb_suite(test_operator_cast, "operator: cast", {
     
-    auto solver = qb::TypeSolver();
+    auto solver = qb::TypeBlock();
 
     qb_describe("built-in: void", {
     
@@ -332,10 +332,10 @@ qb_suite(test_operator_cast, "operator: cast", {
         // int <- ref
         {
             qb_test("U8 <- REF (should fail)", {
-                TEST_CAST_FAIL(CAST_IMPLICIT_REF_TO_INT, B_TYPE_U8, B_TYPE_REF, qb::mem::Reference, 0, 123, false, false)
+                TEST_CAST_FAIL(CAST_IMPLICIT_REF_TO_INT, B_TYPE_U8, B_TYPE_REF, qb::mem::Reference, 0, 123)
             })
             qb_test("U8 <- REF: explicit", {
-                TEST_EXPLICIT_CAST_OK(B_TYPE_U8, B_TYPE_REF, uint8_t, qb::mem::Reference, 0, 123, false, false)
+                TEST_EXPLICIT_CAST_OK(B_TYPE_U8, B_TYPE_REF, uint8_t, qb::mem::Reference, 0, 123)
                 qb_assert(out == 123)
             })
         }

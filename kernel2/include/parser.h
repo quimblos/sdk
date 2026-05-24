@@ -11,6 +11,7 @@ namespace qb {
                 OK = 0x00,
                 UNEXPECTED_EOF,
                 CUSTOM_PRIMITIVE_TYPE,
+                UNKNOWN_TYPE_KIND,
                 CONST_ASSIGNMENT,
                 ENTITY_KIND,
                 COMPARE_OP,
@@ -21,8 +22,8 @@ namespace qb {
 
             union {
                 std::string* string;
+                mem::Reference* ref;
                 Instruction* instruction;
-                Pointer* pointer;
                 qb::Code* code;
             } out;
 
@@ -33,7 +34,7 @@ namespace qb {
 
         const res_t instruction(const byte_t* bytes, code_addr_t length, code_addr_t addr = 0);
         const res_t string(const byte_t* bytes, code_addr_t length, code_addr_t addr = 0);
-        const res_t pointer(const byte_t* bytes, code_addr_t length, code_addr_t addr = 0);
+        const res_t ref(const byte_t* bytes, code_addr_t length, code_addr_t addr = 0);
         const res_t code(const byte_t* bytes, code_addr_t length, code_addr_t addr = 0);
 
     }

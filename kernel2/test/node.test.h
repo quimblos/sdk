@@ -9,19 +9,19 @@
         qb_fail() \
     } \
     qb::Code* code = parser_res.out.code; \
-    auto thread = new qb::Thread(solver, "test", code, {}); \
-    auto node = qb::Node("test"); \
+    auto engine = qb::Engine({}); \
+    auto node = qb::Node(&engine, "test", {}); \
+    auto thread = new qb::Thread(&node, "test", code, {}); \
     auto link_res = node.link_thread(thread); \
     qb_assert(link_res.code == 0);
     
 qb_suite(test_node, "node", {
 
-    auto solver = qb::TypeSolver();
-
     qb_describe("getters", {
     
         qb_test("name", {
-            auto node = qb::Node("test");
+            auto engine = qb::Engine({});
+            auto node = qb::Node(&engine, "test", {});
             qb_assert(node.get_name() == "test");
         })
 

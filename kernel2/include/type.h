@@ -11,12 +11,13 @@ namespace qb {
         INT = 0x02,     
         FLOAT = 0x03,
         STRING = 0x04,
-        REF = 0x05,     // no built-in types, schema of_map
-        VECTOR = 0x06,  // no built-in types, schema of_map
-        MAP = 0x07,     // no built-in types, schema of_map
-        STRUCT = 0x08,  // no built-in types, schema of_struct
-        EVENT = 0x09,   // no built-in types, schema of_map
-        FN = 0x10,      // no built-in types, schema of_map
+        REF = 0x05,
+        REF_SLICE = 0x06,
+        VECTOR = 0x10,  // no built-in types, schema of_map
+        MAP = 0x11,     // no built-in types, schema of_map
+        STRUCT = 0x12,  // no built-in types, schema of_struct
+        EVENT = 0x13,   // no built-in types, schema of_map
+        FN = 0x20,      // no built-in types, schema of_map
     };
         
     union TypeFlags {
@@ -121,6 +122,10 @@ namespace qb {
                 }
                 case TypeKind::REF: {
                     ss << "ref";
+                    break;
+                }
+                case TypeKind::REF_SLICE: {
+                    ss << "ref[#]";
                     break;
                 }
                 case TypeKind::VECTOR: {
