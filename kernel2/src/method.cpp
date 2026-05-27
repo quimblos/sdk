@@ -4,29 +4,45 @@
 // 1~x: args
 // x+1~y: vars
 qb::mem::Block qb::Method::make_block(const Code* code) {
-    port_t ports = 0;
-    for (code_addr_t i = 0; i < code->instructions.size(); i++) {
-        auto instruction = code->instructions[i];
-        if (instruction->type == qb::OpCode::ADD_VAR) {
-            ports++;
-        }
-    }
 
+    // Make 
+
+    auto consts = code->consts.size();
     auto args = code->args.size();
     auto vars = code->vars.size();
 
     auto type_def = qb::TypeDef::block(
-        std::vector<qb::TypeDef>(1 + args + vars)
+        std::vector<qb::TypeDef>(1 + consts + args + vars)
     );
+    // Types
+    
+    // Return
     type_def.add.children[0].use = B_TYPE_VOID;
-    for (code_addr_t i = 0; i < args; i++) {
-        type_def.add.children[i+1].use = code->args[i];
+    // Constants
+    for (code_addr_t i = 0; i < consts; i++) {
+        type_def.add.children[i+1].use = code->consts[i].tdx;
     }
+    // Arguments
+    for (code_addr_t i = 0; i < args; i++) {
+        type_def.add.children[i+1+consts].use = code->args[i];
+    }
+    // Variables
     for (code_addr_t i = 0; i < vars; i++) {
-        type_def.add.children[i+1+args].use = code->vars[i];
+        type_def.add.children[i+1+consts+args].use = code->vars[i];
     }
 
-    return qb::mem::Block(type_def);
+    return qb::mem::Block(code->types, type_def);
+}
+
+bool qb::Method::init() {
+    this->block.data.clear();
+    auto consts = code->consts.size();
+    for (code_addr_t i = 0; i < consts; i++) {
+        auto data = code->consts[i];
+        bool res = this->block.data.set_raw(i+1, data.bytes, data.length);
+        if (!res) return false;
+    }
+    return true;
 }
 
 bool qb::Method::tick() {

@@ -171,8 +171,9 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                     break;
                 }
                 default: {
-                    PARSE_U16(len);
-                    n_bytes = len;
+                    ASSERT_N_BYTES(2);
+                    uint8_t len = parse_u16(bytes+addr);
+                    n_bytes = 2+len;
                     break;
                 }
             }

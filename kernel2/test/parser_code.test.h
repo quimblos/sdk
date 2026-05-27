@@ -16,7 +16,7 @@ qb_suite(test_parser_code, "parser_code", {
 
     qb_describe("Code", {
     
-        qb_test("Blocks", {
+        qb_test("Drivers", {
             TEST_CODE_OK({
                 HEADER_QUIMBLOS,
                 qb::OpCode::USE_DRIVER, 3, 'l', 'e', 'd',
@@ -52,7 +52,7 @@ qb_suite(test_parser_code, "parser_code", {
                 qb::OpCode::ADD_CONST, B_TYPE_U16, 0x12, 0x34,
                 qb::OpCode::ADD_CONST, B_TYPE_STR, 0x00, 0x04, 't', 'e', 's', 't',
                 qb::OpCode::ADD_TYPE, qb::TypeKind::VECTOR, false, B_TYPE_U16,
-                qb::OpCode::ADD_CONST, 0, 0x00, 0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03,
+                qb::OpCode::ADD_CONST, 0, 0x00, 0x09, 0x01, 0x00, 0x03, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03,
 
             });
             qb_assert(code->consts.size() == 3)
@@ -61,18 +61,25 @@ qb_suite(test_parser_code, "parser_code", {
             qb_assert(code->consts[0].bytes[0] == 0x12)
             qb_assert(code->consts[0].bytes[1] == 0x34)
             qb_assert(code->consts[1].tdx == B_TYPE_STR)
-            qb_assert(code->consts[1].length == 4)
-            qb_assert(code->consts[1].bytes[0] == 't')
-            qb_assert(code->consts[1].bytes[1] == 'e')
-            qb_assert(code->consts[1].bytes[2] == 's')
-            qb_assert(code->consts[1].bytes[3] == 't')
-            qb_assert(code->consts[2].length == 6)
+            qb_assert(code->consts[1].length == 6)
+            qb_assert(code->consts[1].bytes[0] == 0x00)
+            qb_assert(code->consts[1].bytes[1] == 0x04)
+            qb_assert(code->consts[1].bytes[2] == 't')
+            qb_assert(code->consts[1].bytes[3] == 'e')
+            qb_assert(code->consts[1].bytes[4] == 's')
+            qb_assert(code->consts[1].bytes[5] == 't')
+            qb_assert(code->consts[2].length == 11)
             qb_assert(code->consts[2].bytes[0] == 0x00)
-            qb_assert(code->consts[2].bytes[1] == 0x01)
-            qb_assert(code->consts[2].bytes[2] == 0x00)
-            qb_assert(code->consts[2].bytes[3] == 0x02)
-            qb_assert(code->consts[2].bytes[4] == 0x00)
-            qb_assert(code->consts[2].bytes[5] == 0x03)
+            qb_assert(code->consts[2].bytes[1] == 0x09)
+            qb_assert(code->consts[2].bytes[2] == 0x01)
+            qb_assert(code->consts[2].bytes[3] == 0x00)
+            qb_assert(code->consts[2].bytes[4] == 0x03)
+            qb_assert(code->consts[2].bytes[5] == 0x00)
+            qb_assert(code->consts[2].bytes[6] == 0x01)
+            qb_assert(code->consts[2].bytes[7] == 0x00)
+            qb_assert(code->consts[2].bytes[8] == 0x02)
+            qb_assert(code->consts[2].bytes[9] == 0x00)
+            qb_assert(code->consts[2].bytes[10] == 0x03)
             delete code;
         })
 

@@ -41,6 +41,7 @@
 |--|--------------|-------|
 |✔ |type          ||
 |✔ |memory        ||
+|X |memory_raw    ||
 |✔ |parser        ||
 |✔ |parser_code   ||
 |✏ |operator_cast |Missing non-bultin types|

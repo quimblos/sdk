@@ -363,7 +363,7 @@ qb_suite(test_memory, "memory", {
             auto block = qb::mem::Block(type_def);
 
             auto _struct = block.data.__cpp_get<qb::mem::Struct>(0);
-            qb_assert(_struct->type == block.types.get(0));
+            qb_assert(_struct->type == block.type_block.get(0));
 
             _struct->__cpp_set<bool>(0, true);
             auto data0 = _struct->__cpp_get<bool>(0);
@@ -525,7 +525,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Vector>(0);
             data->resize({2});
 
@@ -564,7 +564,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(0);
+            auto type = block.type_block.get(0);
             auto data = block.data.__cpp_get<qb::mem::Vector>(0);
             data->resize({2});
 
@@ -594,7 +594,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Vector>(0);
             data->resize({2});
 
@@ -628,7 +628,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Map>(0);
             
             data->__cpp_set<qb::mem::Vector>("a", qb::mem::Vector(type));
@@ -667,7 +667,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Map>(0);
 
             data->__cpp_set<qb::mem::Map>("a", qb::mem::Map(type));
@@ -705,7 +705,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(0);
+            auto type = block.type_block.get(0);
             auto data = block.data.__cpp_get<qb::mem::Map>(0);
 
             data->__cpp_set<qb::mem::Struct>("a", qb::mem::Struct(type));
@@ -734,7 +734,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Map>(0);
 
             data->__cpp_set<qb::mem::Event>("a", qb::mem::Event(type));
@@ -768,7 +768,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Struct>(0);
             
             data->__cpp_set<bool>(0, true);
@@ -796,7 +796,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Struct>(0);
 
             data->__cpp_set<bool>(0, true);
@@ -824,7 +824,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(0);
+            auto type = block.type_block.get(0);
             auto data = block.data.__cpp_get<qb::mem::Struct>(0);
 
             data->__cpp_set<bool>(0, true);
@@ -848,7 +848,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Struct>(0);
 
             data->__cpp_set<bool>(0, true);
@@ -875,7 +875,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Event>(0);
             
             data->__cpp_set<qb::mem::Vector>(qb::EventLevel::INFO, 123, qb::mem::Vector(type));
@@ -902,7 +902,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Event>(0);
 
             data->__cpp_set<qb::mem::Map>(qb::EventLevel::INFO, 123, qb::mem::Map(type));
@@ -929,7 +929,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(0);
+            auto type = block.type_block.get(0);
             auto data = block.data.__cpp_get<qb::mem::Event>(0);
 
             data->__cpp_set<qb::mem::Struct>(qb::EventLevel::INFO, 123, qb::mem::Struct(type));
@@ -952,7 +952,7 @@ qb_suite(test_memory, "memory", {
                 })
             });
             auto block = qb::mem::Block(type_def);
-            auto type = block.types.get(B_TYPE_U8);
+            auto type = block.type_block.get(B_TYPE_U8);
             auto data = block.data.__cpp_get<qb::mem::Event>(0);
 
             data->__cpp_set<qb::mem::Event>(qb::EventLevel::INFO, 123, qb::mem::Event(type));

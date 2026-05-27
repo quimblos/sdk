@@ -21,6 +21,7 @@ namespace qb {
             cursor(0)
         {}
 
+        bool init();
         bool tick();
 
         static mem::Block make_block(const Code* code);

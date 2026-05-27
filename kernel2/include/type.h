@@ -43,7 +43,7 @@ namespace qb {
     struct Type;
     struct Code;
     union TypeSchema {
-        struct _ref {
+        struct _map {
             const Type* type;
         } of_map;
         struct _struct {
@@ -74,22 +74,22 @@ namespace qb {
                 case qb::TypeKind::STRING:
                     break;
                 case qb::TypeKind::REF:
-                    // this->schema.of_map.~_ref(); ?
+                    // this->schema.of_map.~_map(); ?
                     break;
                 case qb::TypeKind::REF_SLICE:
-                    // this->schema.of_map.~_ref(); ?
+                    // this->schema.of_map.~_map(); ?
                     break;
                 case qb::TypeKind::VECTOR:
-                    this->schema.of_map.~_ref();
+                    this->schema.of_map.~_map();
                     break;
                 case qb::TypeKind::MAP:
-                    this->schema.of_map.~_ref();
+                    this->schema.of_map.~_map();
                     break;
                 case qb::TypeKind::STRUCT:
                     this->schema.of_struct.~_struct();
                     break;
                 case qb::TypeKind::EVENT:
-                    // this->schema.of_map.~_ref();
+                    // this->schema.of_map.~_map();
                     break;
                 case qb::TypeKind::FN:
                     break;

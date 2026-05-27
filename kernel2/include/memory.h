@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <sstream>
+#include "number.h"
 #include "typeblock.h"
 
 /*
@@ -45,6 +46,10 @@ namespace qb {
         // allocated (statically or dynamically).
 
         void copy(const Type* type, data_t target, data_t source);
+        
+        // Copy raw values (from code) to pre-allocated memory.
+
+        bool copy_raw(const Type* type, data_t target, const byte_t* bytes, code_addr_t length, qb::code_addr_t* out_parsed_bytes);
 
         // [ Memory Manipulation ]
 
@@ -263,7 +268,7 @@ namespace qb {
                 return this->data.size() / this->item_size;
             }
 
-            data_t at(index_t index) {
+            data_t get(index_t index) {
                 return &this->data.front() + index * this->item_size;
             }
 
@@ -322,18 +327,18 @@ namespace qb {
 
         struct Struct {
             const Type* type;
-            std::vector<index_t> pos;
+            std::vector<index_t> fields;
             data_t data = nullptr;
 
             Struct(const Type* type):
                 type(type)
             {
                 port_t ports = type->schema.of_struct.n_fields;
-                pos.resize(type->schema.of_struct.n_fields);
+                fields.resize(type->schema.of_struct.n_fields);
 
                 index_t offset = 0;
                 for (index_t i = 0; i < ports; i++) {
-                    this->pos[i] = offset;
+                    this->fields[i] = offset;
                     auto item_type = type->schema.of_struct.fields[i];
                     offset += mem::size_of(item_type);
                 }
@@ -346,12 +351,16 @@ namespace qb {
                 this->init();
             }
 
+            index_t size() {
+                return this->fields.size();
+            }
+
             // [ Init / Free ]
 
             void init() {
                 port_t ports = this->type->schema.of_struct.n_fields;
                 for (port_t port = 0; port < ports; port++) {
-                    auto target = this->data + this->pos[port];
+                    auto target = this->data + this->fields[port];
                     auto type = this->type->schema.of_struct.fields[port];
                     mem::init(type, target);
                 }
@@ -360,7 +369,7 @@ namespace qb {
             ~Struct() {
                 port_t ports = this->type->schema.of_struct.n_fields;
                 for (port_t i = 0; i < ports; i++) {
-                    auto target = this->data + this->pos[i];
+                    auto target = this->data + this->fields[i];
                     auto type = this->type->schema.of_struct.fields[i];
                     mem::free(type, target);
                 }
@@ -371,21 +380,28 @@ namespace qb {
 
             void set(port_t port, data_t value) {                
                 auto type = this->type->schema.of_struct.fields[port];
-                data_t target = this->data + this->pos[port];
+                data_t target = this->data + this->fields[port];
                 mem::copy(type, target, value);
+            }
+
+            bool set_raw(port_t port, const byte_t* bytes, code_addr_t length) {                
+                auto type = this->type->schema.of_struct.fields[port];
+                data_t target = this->data + this->fields[port];
+                code_addr_t out;
+                return mem::copy_raw(type, target, bytes, length, &out);
             }
 
             template <typename T>
             void __cpp_set(port_t port, T value) {                
                 auto type = this->type->schema.of_struct.fields[port];
-                data_t target = this->data + this->pos[port];
+                data_t target = this->data + this->fields[port];
                 mem::copy(type, target, (data_t) &value);
             }
                 
             void clear() {
                 port_t ports = this->type->schema.of_struct.n_fields;
                 for (port_t port = 0; port < ports; port++) {
-                    auto target = this->data + this->pos[port];
+                    auto target = this->data + this->fields[port];
                     auto type = this->type->schema.of_struct.fields[port];
                     mem::free(type, target);
                     mem::init(type, target);
@@ -395,12 +411,12 @@ namespace qb {
             // [ Read ]
 
             data_t get(port_t port) {
-                return this->data + this->pos[port];
+                return this->data + this->fields[port];
             }
 
             template <typename T>
             T* __cpp_get(port_t port) {
-                return (T*)(this->data + this->pos[port]);
+                return (T*)(this->data + this->fields[port]);
             }
 
         };
@@ -462,12 +478,16 @@ namespace qb {
         class Block {
         
             public:
-                TypeBlock types;
+                TypeBlock type_block;
                 Struct data;
                                 
-                Block(const TypeDef& type_def)
-                    : data(this->types.get(this->types.add_from_def(type_def))) {}
-    
+                Block(const TypeDef& type_def):
+                    data(this->type_block.get(this->type_block.add_from_def(type_def))) {}
+                
+                Block(const std::vector<TypeDef>& custom_types, const TypeDef& type_def):
+                    type_block(custom_types),
+                    data(this->type_block.get(this->type_block.add_from_def(type_def))) {}
+                      
                 const Type* type_of(port_t port) const {
                     return this->data.type->schema.of_struct.fields[port];
                 }

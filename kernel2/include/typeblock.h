@@ -69,11 +69,22 @@ namespace qb {
 
         public:
 
+            TypeBlock() {}
+            TypeBlock(const std::vector<TypeDef>& type_defs) {
+                for (uint8_t i = 0; i < type_defs.size(); i++) {
+                    this->add_from_def(type_defs[i]);
+                }
+            }
+
             ~TypeBlock() {
                 for (port_t i = 0; i < this->types.size(); i++) {
                     delete this->types[i];
                 }
                 // free(this->types);
+            }
+
+            size_t size() {
+                return this->types.size();
             }
 
             const Type* get(type_t index) const {

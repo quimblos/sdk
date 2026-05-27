@@ -82,6 +82,91 @@ void qb::mem::copy(const qb::Type* type, qb::data_t target, qb::data_t source) {
     }
 }
 
+// Assign raw values (from code) to pre-allocated memory.
+
+bool qb::mem::copy_raw(const qb::Type* type, qb::data_t target, const qb::byte_t* bytes, const qb::code_addr_t length, qb::code_addr_t* out_parsed_bytes) {
+    switch (type->kind) {
+        case qb::TypeKind::VOID: {
+            *out_parsed_bytes = 0;
+            return true;
+        }
+        case qb::TypeKind::BOOL: {
+            if (length < 1) return false;
+            *(bool*) target = *(bool*) bytes;
+            *out_parsed_bytes = 1;
+            return true;
+        }
+        case qb::TypeKind::INT: {
+            if (length < type->flags.of_int.res) return false;
+            switch (type->flags.of_int.res) {
+                case 1: *(uint8_t*)  target = *(uint8_t*) bytes; *out_parsed_bytes = 1; break;
+                case 2: *(uint16_t*) target = parse_u16(bytes); *out_parsed_bytes = 2; break;
+                case 4: *(uint32_t*) target = parse_u32(bytes); *out_parsed_bytes = 4; break;
+            }
+            return true;
+        }
+        case qb::TypeKind::FLOAT: {
+            if (length < 4) return false;
+            *(float*) target = *(float*) bytes;
+            *out_parsed_bytes = 4;
+            return true;
+        }
+        case qb::TypeKind::STRING: {
+            uint16_t str_len = parse_u16(bytes);
+            if (length < str_len+2) return false;
+            ((std::string*) target)->assign(std::string((char*) bytes+2, str_len));
+            *out_parsed_bytes = str_len;
+            return true;
+        }
+        case qb::TypeKind::REF: {
+            if (length < 2) return false;
+            ((qb::mem::Reference*) target)->block = bytes[0];
+            ((qb::mem::Reference*) target)->port = bytes[1];
+            *out_parsed_bytes = 2;
+            return true;
+        }
+        case qb::TypeKind::REF_SLICE: {
+            if (length < 3) return false;
+            uint8_t dims = bytes[2];
+            if (length < 3 + dims * 4) return false;
+            ((qb::mem::SlicedReference*) target)->block = bytes[0];
+            ((qb::mem::SlicedReference*) target)->port = bytes[1];
+            ((qb::mem::SlicedReference*) target)->shape.resize(dims);
+            for (uint8_t d = 0; d < dims; d++) {
+                ((qb::mem::SlicedReference*) target)->shape[0] = {
+                    .start = parse_u16(bytes+3+d*2),
+                    .end = parse_u16(bytes+4+d*2)
+                };
+            }
+            *out_parsed_bytes = 3+dims*4;
+            return true;
+        }
+        case qb::TypeKind::VECTOR: {
+            uint16_t dims = bytes[2];
+            if (length < 3+dims*2) return false;
+            auto shape = std::vector<index_t>(dims);
+            for (uint8_t i = 0; i < dims; i++) {
+                shape[i] = parse_u16(bytes+3+i*2);
+            }
+            auto vec = (qb::mem::Vector*) target;
+            vec->resize(shape);
+            auto child_type = type->schema.of_map.type;
+            code_addr_t addr = 3+dims*2;
+            for (code_addr_t i = 0; i < vec->size(); i++) {
+                code_addr_t out = 0;
+                bool res = copy_raw(child_type, vec->get(i), bytes+addr, length-addr, &out);
+                if (!res) return false;
+                addr += out;
+            }
+            return true;
+        }            
+        case qb::TypeKind::MAP:       break; // Cannot be assigned directly (for now)
+        case qb::TypeKind::STRUCT:    break; // Cannot be assigned directly (for now)
+        case qb::TypeKind::EVENT:     break; // Cannot be assigned directly (for now)
+    }
+    return false;
+}
+
 // // [ Memory Manipulation ]
 
 // Free C++ allocated resources for a given address

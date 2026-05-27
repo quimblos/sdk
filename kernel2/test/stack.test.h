@@ -20,10 +20,10 @@ qb_suite(test_stack, "stack", {
 
             auto stack = qb::Stack();
             auto method0 = stack.push(res.out.code);
-            qb_assert(method0->block.data.pos.size() == 3)
+            qb_assert(method0->block.data.fields.size() == 3)
             
             auto method1 = stack.push(res.out.code);
-            qb_assert(method1->block.data.pos.size() == 3)
+            qb_assert(method1->block.data.fields.size() == 3)
             qb_assert(method1->parent == method0)
 
             delete res.out.code;
