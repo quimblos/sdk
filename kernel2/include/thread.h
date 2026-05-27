@@ -47,13 +47,17 @@ namespace qb {
             ):
                 node(node),
                 name(name),
-                stack(Stack()),
+                stack(Stack(this)),
                 code(code),
                 block(mem::Block(type_def)) {}
         
-            const std::string& get_name() { return this->name; }
-            State get_state() { return this->state; }
-            uint32_t get_sleep() { return this->sleep; }
+            virtual ~Thread() {}
+
+            const std::string& get_name() const { return this->name; }
+            const mem::Block* get_block() const { return &this->block; }
+            Node* get_node() const { return this->node; }
+            State get_state() const { return this->state; }
+            uint32_t get_sleep() const { return this->sleep; }
 
             void wakeup();
             void reset();

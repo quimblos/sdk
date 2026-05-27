@@ -57,7 +57,7 @@ namespace qb {
             const std::unordered_map<std::string, Node*>& get_nodes() const {
                 return this->nodes;
             }
-            mem::Block& get_block() { return this->block; }
+            const mem::Block* get_block() { return &this->block; }
 
             engine::res_t link_driver(Driver* driver);
             engine::res_t get_driver(std::string name) const;

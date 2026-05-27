@@ -110,7 +110,7 @@ qb_suite(test_parser_code, "parser_code", {
         qb_test("Instructions", {
             TEST_CODE_OK({
                 HEADER_QUIMBLOS,
-                qb::OpCode::SLEEP, BLOCK_METHOD, 0x01,
+                qb::OpCode::SLEEP, BLOCK_CONTEXT, 0x01,
                 qb::OpCode::GOTO, 0x00, 0x00,
             });
             qb_assert(code->instructions.size() == 2)

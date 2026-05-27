@@ -17,14 +17,14 @@
     - **Parser**: Methods to transform a byte sequence into a vector of Instructions.
         - `include/parser.h`
         - `src/parser.cpp`
-- **Runtime**
+- **Context**
     - **Operator**: Methods to perform operations with memory (assign, math, etc).
         - `include/operator.h`
         - `src/operator.cpp`
-    - **Method**: A running quimblos method.
-        - `include/method.h`
-        - `src/method.cpp`
-    - **Stack**: Execution stack to allow method calls.
+    - **Context**: A running quimblos context.
+        - `include/context.h`
+        - `src/context.cpp`
+    - **Stack**: Execution stack to allow context calls.
         - `include/stack.h`
         - `src/stack.cpp`
     - **Thread**: Code executor with it's own memory blocks.
@@ -46,7 +46,7 @@
 |✔ |parser_code   ||
 |✏ |operator_cast |Missing non-bultin types|
 |✏ |operator      |Must expand test cases|
-|✏ |method        ||
+|✏ |context        ||
 |✔ |stack         ||
 |✔ |thread        ||
 |✔ |driver        ||

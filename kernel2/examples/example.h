@@ -4,39 +4,39 @@
 #include <signal.h>
 #include "quimblos.h"
 
-/* Runner */
+/* Thread */
 
-class ThreadRunner : public qb::Runner {
+class NativeThread : public qb::Thread {
     
     public:
-        ThreadRunner(qb::Engine* engine, std::string name, const qb::Program* program)
-            : qb::Runner(engine, name, program) {};
+        NativeThread(qb::Node* node, std::string name, const qb::Code* code, const qb::TypeDef& type_def)
+            : qb::Thread(node, name, code, type_def) {};
             
-        ~ThreadRunner() {
-            delete this->thread;
+        ~NativeThread() {
+            delete this->std_thread;
         }
 
         void run() {
-            this->keepRunning = true;
-            thread = new std::thread(&ThreadRunner::loop, this);
-            thread->join();
+            this->running = true;
+            this->std_thread = new std::thread(&NativeThread::loop, this);
+            this->std_thread->join();
         }
 
         void sigint() {
             std::cout << "SIGINT detected, stopping." << std::endl;
-            this->keepRunning = false;
+            this->running = false;
         }
 
     private:
-        std::thread *thread;
-        bool keepRunning = false;
+        std::thread *std_thread;
+        bool running = false;
         
-        static void loop(ThreadRunner* runner) {
-            runner->start();
-            while (runner->keepRunning && runner->tick()) {
-                if (runner->state == qb::runner::State::SLEEPING) {
-                    std::this_thread::sleep_for(std::chrono::milliseconds(runner->sleep));
-                    runner->wakeup();
+        static void loop(NativeThread* thread) {
+            thread->start();
+            while (thread->running && thread->tick()) {
+                if (thread->state == qb::Thread::State::SLEEPING) {
+                    std::this_thread::sleep_for(std::chrono::milliseconds(thread->sleep));
+                    thread->wakeup();
                 }
             }
         }
@@ -45,62 +45,65 @@ class ThreadRunner : public qb::Runner {
 
 /* Devices */
 
-class LED8 : public qb::Device {
+class LED8Driver : public qb::Driver {
     public:    
 
-    LED8(): qb::Device("LED8", {
-        /* 0x00 */ { "on", qb::mem::u8() }
+    LED8Driver(): qb::Driver("LED8", {
+        qb::TypeDef::_use(B_TYPE_U8)
     }) {}
     
-    void on_tick() {
-        qb::Device::on_tick();
-        auto data = qb::mem::as_u8(this->variables.at(0).second);
-        uint8_t val = data->value;
+    // void on_tick() {
+    //     qb::Device::on_tick();
+    //     auto data = qb::mem::as_u8(this->variables.at(0).second);
+    //     uint8_t val = data->value;
 
-        std::cout << COLOR_YELLOW;
-        for (uint8_t i = 0; i < 8; i++) {
-            std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╔═╗ ";
-        }
-        std::cout << std::endl;
-        for (uint8_t i = 0; i < 8; i++) {
-            std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╚═╝ ";
-        }
-        std::cout << COLOR_NC << std::endl;
-    }
+    //     std::cout << COLOR_YELLOW;
+    //     for (uint8_t i = 0; i < 8; i++) {
+    //         std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╔═╗ ";
+    //     }
+    //     std::cout << std::endl;
+    //     for (uint8_t i = 0; i < 8; i++) {
+    //         std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╚═╝ ";
+    //     }
+    //     std::cout << COLOR_NC << std::endl;
+    // }
 };
 
-/* Invoke Method */
+// /* Invoke Context */
 
-ThreadRunner* runner;
+NativeThread* thread;
 
 int invoke(std::string name, std::string hex) {
     std::cout << "- Creating Engine..." << std::endl;
-    qb::Engine engine;
+    qb::Engine engine({});
 
-    std::cout << "- Linking LED8 device..." << std::endl;
-    LED8* device_led8 = new LED8();
-    engine.link_device(device_led8);
+    std::cout << "- Creating and linking LED8 driver..." << std::endl;
+    auto driver_led8 = new LED8Driver();
+    engine.link_driver(driver_led8);
 
     std::cout << "- Parsing hexcode: " << hex << std::endl;
-
-    auto program_res = qb::Program::make(name, hex);
-    if (program_res.code > 0) {
-        std::cout << "[error] program parsing error:" << +program_res.code << std::endl;
+    auto parser_res = qb::parser::code(hex);
+    if (parser_res.code > 0) {
+        std::cout << "[error] " << qb::i18n::parser.at(parser_res.code) << std::endl; \
         return -1;
     }
-    qb::Program* program = program_res.program;
-    std::cout << program->describe() << std::endl;
+    qb::Code* code = parser_res.out.code;
 
-    std::cout << "- Creating " << name << " Runner... " << std::endl;
-    runner = new ThreadRunner(&engine, name, program);
+    std::cout << "- Parsed code: " << std::endl;
+    std::cout << code->to_str() << std::endl;
+
+    std::cout << "- Creating and linking '" << name << "' Node to Engine... " << std::endl;
+    auto node = new qb::Node(&engine, name, {});
+    engine.link_node(node);
     
-    std::cout << "- Linking " << name << " Runner... " << std::endl;
-    engine.link_runner(runner);
+    std::cout << "- Creating and linking 'main' Thread to '" << name << "' Node... " << std::endl;
+    thread = new NativeThread(node, "main", code, {});
+    node->link_thread(thread);
 
-    std::cout << "- Running... " << std::endl;
-    signal(SIGINT, [](int signum) { runner->sigint(); });
-    runner->run();
+    std::cout << "- Joining and Running 'main' Thread... " << std::endl;
+    signal(SIGINT, [](int signum) { thread->sigint(); });
+    thread->run();
 
-    delete program;
+    delete code;
     return 0;
 }

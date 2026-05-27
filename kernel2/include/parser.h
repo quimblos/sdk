@@ -1,5 +1,6 @@
 #pragma once
 #include "number.h"
+#include "hex.h"
 #include "code.h"
 
 namespace qb {
@@ -39,6 +40,7 @@ namespace qb {
         const res_t type_def(const byte_t* bytes, code_addr_t length, code_addr_t addr = 0, bool force_add = false);
 
         const res_t code(const byte_t* bytes, code_addr_t length, code_addr_t addr = 0);
+        const res_t code(const std::string& hex);
 
     }
 

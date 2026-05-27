@@ -42,7 +42,7 @@ namespace qb {
             // MOD
             // POW
             // LN
-        // 0xD* -> Method
+        // 0xD* -> Context
         RETURN = 0xD0,          // (source:ptr)
         // 0xE* -> Thread
         SLEEP = 0xE0,           // (time:ptr)
@@ -434,7 +434,7 @@ namespace qb {
             }
         };
         
-        // Method
+        // Context
 
         struct Return: public Instruction {
             const mem::Reference source;

@@ -1,17 +1,17 @@
 #include "stack.h"
 
-qb::Method* qb::Stack::push(const Code* code){
+qb::Context* qb::Stack::push(const Code* code){
     auto parent = this->root;
-    auto method = new Method(parent, code);
-    this->root = method;
+    auto context = new Context(this->thread, parent, code);
+    this->root = context;
     this->size += 1;
-    return method;
+    return context;
 }
 
 void qb::Stack::pop(){
     auto parent = this->root->parent;
     delete this->root;
-    this->root = (qb::Method*) parent;
+    this->root = (qb::Context*) parent;
     this->size -= 1;
 }
 

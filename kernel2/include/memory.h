@@ -102,7 +102,7 @@ namespace qb {
                     case BLOCK_THREAD:
                         ss << "const." << +port;
                         break;
-                    case BLOCK_METHOD:
+                    case BLOCK_CONTEXT:
                         ss << "var." << +port;
                         break;
                 }
@@ -410,12 +410,16 @@ namespace qb {
 
             // [ Read ]
 
-            data_t get(port_t port) {
+            const Type* get_type(port_t port) const {
+                return this->type->schema.of_struct.fields[port];
+            }
+
+            data_t get(port_t port) const {
                 return this->data + this->fields[port];
             }
 
             template <typename T>
-            T* __cpp_get(port_t port) {
+            T* __cpp_get(port_t port) const {
                 return (T*)(this->data + this->fields[port]);
             }
 

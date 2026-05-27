@@ -6,7 +6,7 @@
 #include "../parser_code.test.h"
 #include "../operator_cast.test.h"
 #include "../operator.test.h"
-#include "../method.test.h"
+#include "../context.test.h"
 #include "../stack.test.h"
 #include "../thread.test.h"
 #include "../driver.test.h"

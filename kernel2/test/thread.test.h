@@ -84,7 +84,7 @@ qb_suite(test_thread, "thread", {
             MAKE_THREAD({
                 HEADER_QUIMBLOS,
                 qb::OpCode::ADD_VAR, B_TYPE_U32,
-                qb::OpCode::SLEEP, BLOCK_METHOD, 0x01,
+                qb::OpCode::SLEEP, BLOCK_CONTEXT, 0x01,
             })
             qb_assert(thread.get_state() == qb::Thread::State::IDLE);
             thread.start();

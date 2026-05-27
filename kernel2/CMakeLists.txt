@@ -10,14 +10,16 @@ project (quimblos-sdk)
 
 set(SOURCES
     src/types.cpp
+    src/hex.cpp
     src/memory.cpp
     src/parser.cpp
     src/operator.cpp
-    src/method.cpp
+    src/context.cpp
     src/stack.cpp
     src/thread.cpp
     src/node.cpp
     src/engine.cpp
+    src/runtime.cpp
 )
 
 # WASM
@@ -56,5 +58,16 @@ else()
         PUBLIC quimblos
     )
 
+    # Sandbox
+
+    add_executable(sandbox examples/sandbox.cpp)
+
+    target_include_directories(sandbox
+        PRIVATE ${PROJECT_SOURCE_DIR}/include
+    )
+
+    target_link_libraries(sandbox
+        PUBLIC quimblos
+    )
     
 endif()

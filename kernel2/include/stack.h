@@ -1,31 +1,35 @@
 #pragma once
-#include "method.h"
+#include "context.h"
 
 namespace qb {
 
     class Stack {
-        Method* root = nullptr;
+        Thread* thread;
+        Context* root = nullptr;
         uint8_t size = 0;
         
         public:
-            Stack() {}
+            Stack(
+                Thread* thread
+            ):
+                thread(thread) {}
 
             ~Stack() {
                 auto node = this->root;
                 while (node != nullptr) {
-                    auto next = (Method*) node->parent;
+                    auto next = (Context*) node->parent;
                     delete node;
                     node = next;
                 }
             }
 
-            Method* get_root() { return this->root; };
+            Context* get_root() { return this->root; };
             uint8_t get_size() { return this->size; };
 
             bool tick();
             void clear();
 
-            Method* push(const Code* code);
+            Context* push(const Code* code);
             void pop();
     };
 

@@ -342,7 +342,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             })
         }
         
-        // Method
+        // Context
 
         case qb::OpCode::RETURN: {
             PARSE(source, ref)
@@ -458,4 +458,11 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
     OK({
         .code = code
     })
+}
+
+const qb::parser::res_t qb::parser::code(const std::string& hex) {
+    auto bytecode = qb::hex_to_bytecode(hex);
+    auto res = qb::parser::code(bytecode.bytes, bytecode.length);
+    delete[] bytecode.bytes;
+    return res;
 }

@@ -44,6 +44,7 @@ namespace qb {
             }
 
             Engine* get_engine() const { return this->engine; }
+            const mem::Block* get_block() const { return &this->block; }
             const std::string& get_name() const { return this->name; }
             const std::unordered_map<std::string, Thread*>& get_threads() const { return this->threads; }
 

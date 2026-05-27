@@ -1,5 +1,7 @@
 #include "thread.h"
 
+#define QB_THREAD_DEBUG
+
 void qb::Thread::wakeup() {
     #ifdef QB_THREAD_DEBUG
         std::cout << "[wakeup]" << std::endl;
@@ -21,7 +23,7 @@ void qb::Thread::reset() {
 
 void qb::Thread::start() {
     #ifdef QB_THREAD_DEBUG
-        std::cout << "[reset]" << std::endl;
+        std::cout << "[start]" << std::endl;
     #endif
 
     this->reset();

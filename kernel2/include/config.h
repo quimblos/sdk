@@ -6,7 +6,7 @@
 #define BLOCK_ENGINE 0xFF
 #define BLOCK_NODE 0xFE
 #define BLOCK_THREAD 0xFD
-#define BLOCK_METHOD 0xFC
+#define BLOCK_CONTEXT 0xFC
 
 #define PORT_CONST_FALSE 0x00
 #define PORT_CONST_TRUE 0x01

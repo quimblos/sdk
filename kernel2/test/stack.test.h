@@ -18,7 +18,7 @@ qb_suite(test_stack, "stack", {
                 qb_fail()
             }
 
-            auto stack = qb::Stack();
+            auto stack = qb::Stack(nullptr);
             auto method0 = stack.push(res.out.code);
             qb_assert(method0->block.data.fields.size() == 3)
             
@@ -42,7 +42,7 @@ qb_suite(test_stack, "stack", {
                 qb_fail()
             }
 
-            auto stack = qb::Stack();
+            auto stack = qb::Stack(nullptr);
             auto method0 = stack.push(res.out.code);
             auto method1 = stack.push(res.out.code);
             

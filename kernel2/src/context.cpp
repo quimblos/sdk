@@ -1,9 +1,12 @@
-#include "method.h"
+#include "context.h"
+#include "runtime.h"
+
+#define QB_CONTEXT_DEBUG
 
 // 0: output
 // 1~x: args
 // x+1~y: vars
-qb::mem::Block qb::Method::make_block(const Code* code) {
+qb::mem::Block qb::Context::make_block(const Code* code) {
 
     // Make 
 
@@ -34,7 +37,7 @@ qb::mem::Block qb::Method::make_block(const Code* code) {
     return qb::mem::Block(code->types, type_def);
 }
 
-bool qb::Method::init() {
+bool qb::Context::init() {
     this->block.data.clear();
     auto consts = code->consts.size();
     for (code_addr_t i = 0; i < consts; i++) {
@@ -45,9 +48,9 @@ bool qb::Method::init() {
     return true;
 }
 
-bool qb::Method::tick() {
+bool qb::Context::tick() {
     if (this->cursor >= this->length) {
-        #ifdef QB_METHOD_DEBUG
+        #ifdef QB_CONTEXT_DEBUG
             std::cout << "[done]" << std::endl;
         #endif
         return false;
@@ -55,11 +58,12 @@ bool qb::Method::tick() {
 
     qb::Instruction* instr = this->code->instructions.at(this->cursor);
     
-    #ifdef QB_METHOD_DEBUG
+    #ifdef QB_CONTEXT_DEBUG
         std::cout << "[tick] " << this->cursor << "/" << this->length << "\t" << instr->to_str() << std::endl;
     #endif
 
-    qb::code_addr_t next = this->cursor + 1;
+    qb::code_addr_t next = this->run_instruction(instr);
+
     // qb::code_addr_t next = this->run_instruction(instr);
 
     // // Program is ending
@@ -78,4 +82,45 @@ bool qb::Method::tick() {
 
     this->cursor = next;
     return true;
+}
+
+qb::code_addr_t qb::Context::run_instruction(qb::Instruction* instr) {
+    std::cout << instr->to_str() << std::endl;
+    switch (instr->type) {
+        case qb::OpCode::SET:
+            qb::runtime::resolve_ref(*this, ((qb::instruction::Set*)instr)->target);
+            std::cout << "SET" << std::endl;
+            break;
+        case qb::OpCode::HOLD:
+            std::cout << "HOLD" << std::endl;
+            break;
+        case qb::OpCode::RELEASE:
+            std::cout << "RELEASE" << std::endl;
+            break;
+        case qb::OpCode::GOTO:
+            std::cout << "GOTO" << std::endl;
+            break;
+        case qb::OpCode::IF:
+            std::cout << "IF" << std::endl;
+            break;
+        case qb::OpCode::SET_IF:
+            std::cout << "SET_IF" << std::endl;
+            break;
+        case qb::OpCode::MATH:
+            std::cout << "MATH" << std::endl;
+            break;
+        case qb::OpCode::RETURN:
+            std::cout << "RETURN" << std::endl;
+            break;
+        case qb::OpCode::SLEEP:
+            std::cout << "SLEEP" << std::endl;
+            break;
+        case qb::OpCode::PUBLISH:
+            std::cout << "PUBLISH" << std::endl;
+            break;
+        case qb::OpCode::REBOOT:
+            std::cout << "REBOOT" << std::endl;
+            break;
+    }
+    return this->cursor + 1;
 }
