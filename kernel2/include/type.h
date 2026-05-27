@@ -74,7 +74,10 @@ namespace qb {
                 case qb::TypeKind::STRING:
                     break;
                 case qb::TypeKind::REF:
-                    // this->schema.of_map.~_ref();
+                    // this->schema.of_map.~_ref(); ?
+                    break;
+                case qb::TypeKind::REF_SLICE:
+                    // this->schema.of_map.~_ref(); ?
                     break;
                 case qb::TypeKind::VECTOR:
                     this->schema.of_map.~_ref();

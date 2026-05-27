@@ -35,10 +35,17 @@
     addr += 4;
 
 #define PARSE(NAME, TYPE) \
-    auto NAME##_res = TYPE(bytes, length, addr); \
+    auto NAME##_res = qb::parser::TYPE(bytes, length, addr); \
     if (NAME##_res.code != 0) return NAME##_res; \
     auto NAME = *NAME##_res.out.TYPE; \
     delete NAME##_res.out.TYPE; \
+    addr = NAME##_res.addr;
+
+#define PARSE_TYPE_DEF(NAME, FORCE_ADD) \
+    auto NAME##_res = qb::parser::type_def(bytes, length, addr, FORCE_ADD); \
+    if (NAME##_res.code != 0) return NAME##_res; \
+    auto NAME = *NAME##_res.out.type_def; \
+    delete NAME##_res.out.type_def; \
     addr = NAME##_res.addr;
 
 #define DEBUG() \
@@ -62,6 +69,66 @@ const qb::parser::res_t qb::parser::ref(const byte_t* bytes, code_addr_t length,
     })
 }
 
+const qb::parser::res_t qb::parser::type_def(const byte_t* bytes, code_addr_t length, code_addr_t addr, bool force_add) {
+    bool is_add = force_add;
+    if (!force_add) {
+        PARSE_U8(add_flag)
+        is_add = add_flag;
+    }
+    if (!is_add) {
+        PARSE_U8(type)
+        auto type_def = new TypeDef();
+        type_def->use = type;
+        OK({
+            .type_def = type_def
+        })
+    }
+
+    PARSE_U8(kind)
+    switch (kind) {
+        case qb::TypeKind::VOID:
+        case qb::TypeKind::BOOL:
+        case qb::TypeKind::INT:
+        case qb::TypeKind::FLOAT:
+        case qb::TypeKind::STRING:
+        case qb::TypeKind::REF:
+        case qb::TypeKind::REF_SLICE:
+            ERROR(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE)
+        case qb::TypeKind::VECTOR:
+        case qb::TypeKind::MAP:
+        case qb::TypeKind::EVENT:
+        case qb::TypeKind::FN: {
+            PARSE_TYPE_DEF(child, false)
+            auto type_def = new TypeDef({
+                .add = {
+                    .kind = (qb::TypeKind) kind,
+                    .children = { child }
+                }
+            });
+            type_def->add.kind = (qb::TypeKind) kind;
+            type_def->add.children.resize(1);
+            type_def->add.children = { child };
+            OK({
+                .type_def = type_def
+            })
+        }
+        case qb::TypeKind::STRUCT: {
+            PARSE_U8(n_fields)
+            auto type_def = new TypeDef();
+            type_def->add.kind = (qb::TypeKind) kind;
+            type_def->add.children = std::vector<TypeDef>(n_fields);
+            for (port_t i = 0; i < n_fields; i++) {
+                PARSE_TYPE_DEF(child, false)
+                type_def->add.children[i] = child;
+            }
+            OK({
+                .type_def = type_def
+            })
+        }
+    } 
+    ERROR(qb::parser::res_t::Code::UNKNOWN_TYPE_KIND)
+}
+
 const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t length, code_addr_t addr) {
 
     PARSE_BYTE(qb::OpCode, op_code)
@@ -74,6 +141,12 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             PARSE(str, string)
             OK({
                 .instruction = new qb::instruction::UseDriver(str)
+            })
+        }
+        case qb::OpCode::ADD_TYPE: {
+            PARSE_TYPE_DEF(type_def, true)
+            OK({
+                .instruction = new qb::instruction::AddType(type_def)
             })
         }
         case qb::OpCode::ADD_CONST: {
@@ -90,10 +163,11 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 case B_TYPE_U32: n_bytes = 4; break;
                 case B_TYPE_I32: n_bytes = 4; break;
                 case B_TYPE_F32: n_bytes = 4; break;
-                case B_TYPE_REF: n_bytes = 4; break;
+                case B_TYPE_REF: n_bytes = 2; break;
                 case B_TYPE_REF_SLICE: {
-                    PARSE_U16(dims);
-                    n_bytes = dims*4;
+                    ASSERT_N_BYTES(3)
+                    uint8_t dims = bytes[addr+2];
+                    n_bytes = 3 + dims*4;
                     break;
                 }
                 default: {
@@ -102,8 +176,11 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                     break;
                 }
             }
+            ASSERT_N_BYTES(n_bytes);
+            auto data = n_bytes == 0 ? nullptr : bytes+addr;
+            addr += n_bytes;
             OK({
-                .instruction = new qb::instruction::AddConst(type, bytes+addr, n_bytes)
+                .instruction = new qb::instruction::AddConst(type, data, n_bytes)
             })
         }
 
@@ -119,42 +196,6 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
             OK({
                 .instruction = new qb::instruction::AddVar(type)
             })
-        }
-
-        case qb::OpCode::ADD_TYPE: {
-            PARSE_U8(kind)
-            switch (kind) {
-                case qb::TypeKind::VOID:
-                case qb::TypeKind::BOOL:
-                case qb::TypeKind::INT:
-                case qb::TypeKind::FLOAT:
-                case qb::TypeKind::STRING:
-                case qb::TypeKind::REF:
-                    ERROR(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE)
-                case qb::TypeKind::VECTOR:
-                case qb::TypeKind::MAP:
-                case qb::TypeKind::EVENT:
-                case qb::TypeKind::FN: {
-                    PARSE_U8(type_child)
-                    type_t* schema = new type_t[1];
-                    schema[0] = type_child;
-                    OK({
-                        .instruction = new qb::instruction::AddType((qb::TypeKind) kind, schema)
-                    })
-                }
-                case qb::TypeKind::STRUCT: {
-                    PARSE_U8(n_fields)
-                    type_t* schema = new type_t[n_fields];
-                    for (port_t i = 0; i < n_fields; i++) {
-                        PARSE_U8(type_child)
-                        schema[i] = type_child;
-                    }
-                    OK({
-                        .instruction = new qb::instruction::AddType((qb::TypeKind) kind, schema)
-                    })
-                }
-            } 
-            ERROR(qb::parser::res_t::Code::UNKNOWN_TYPE_KIND)
         }
 
         // Data Manipulation
@@ -352,11 +393,12 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
     addr += 4;
 
     std::vector<std::string> drivers;
-    qb::mem::Reference* out_value = nullptr;
-    std::vector<std::pair<type_t, data_t>> consts;
+    std::vector<TypeDef> types;
+    std::vector<qb::Code::Data> consts;
     std::vector<type_t> args;
     std::vector<type_t> vars;
     std::vector<Instruction*> instructions;
+    qb::mem::Reference* out_value = nullptr;
 
     while (addr < length) {
         auto res = instruction(bytes, length, addr);
@@ -367,10 +409,22 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
                 drivers.push_back(((qb::instruction::UseDriver*)res.out.instruction)->name);
                 delete res.out.instruction;
                 break;
-            case qb::OpCode::ADD_CONST:
-                // TODO
+            case qb::OpCode::ADD_TYPE: {
+                auto instruction = (qb::instruction::AddType*)res.out.instruction;
+                types.push_back(instruction->type_def);
                 delete res.out.instruction;
                 break;
+            }
+            case qb::OpCode::ADD_CONST: {
+                auto instruction = (qb::instruction::AddConst*)res.out.instruction;
+                consts.push_back({
+                    .tdx = instruction->tdx,
+                    .bytes = instruction->bytes,
+                    .length = instruction->length
+                });
+                delete res.out.instruction;
+                break;
+            }
             case qb::OpCode::ADD_ARG:
                 args.push_back(((qb::instruction::AddArg*)res.out.instruction)->tdx);
                 delete res.out.instruction;
@@ -379,13 +433,9 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
                 vars.push_back(((qb::instruction::AddVar*)res.out.instruction)->tdx);
                 delete res.out.instruction;
                 break;
-            case qb::OpCode::ADD_TYPE:
-                // TODO
-                delete res.out.instruction;
-                break;
             case qb::OpCode::RETURN:
-                // TODO
                 out_value = ((qb::instruction::Return*)res.out.instruction)->source.copy();
+                delete res.out.instruction;
                 break;
             default:
                 instructions.push_back(res.out.instruction);
@@ -396,11 +446,12 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
 
     qb::Code* code = new qb::Code(
         drivers,
-        out_value,
+        types,
         consts,
         args,
         vars,
-        instructions
+        instructions,
+        out_value
     );
 
     OK({

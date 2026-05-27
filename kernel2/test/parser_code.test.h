@@ -28,6 +28,54 @@ qb_suite(test_parser_code, "parser_code", {
             delete code;
         })
 
+        qb_test("Types", {
+            TEST_CODE_OK({
+                HEADER_QUIMBLOS,
+                qb::OpCode::ADD_TYPE, qb::TypeKind::VECTOR, false, B_TYPE_U8,
+                qb::OpCode::ADD_TYPE, qb::TypeKind::STRUCT, 3, false, B_TYPE_BOOL, false, 0, false, B_TYPE_U8,
+            });
+            qb_assert(code->types.size() == 2)
+            qb_assert(code->types[0].add.kind == qb::TypeKind::VECTOR)
+            qb_assert(code->types[0].add.children.size() == 1)
+            qb_assert(code->types[0].add.children[0].use == B_TYPE_U8)
+            qb_assert(code->types[1].add.kind == qb::TypeKind::STRUCT)
+            qb_assert(code->types[1].add.children.size() == 3)
+            qb_assert(code->types[1].add.children[0].use == B_TYPE_BOOL)
+            qb_assert(code->types[1].add.children[1].use == 0)
+            qb_assert(code->types[1].add.children[2].use == B_TYPE_U8)
+            delete code;
+        })
+
+        qb_test("Consts", {
+            TEST_CODE_OK({
+                HEADER_QUIMBLOS,
+                qb::OpCode::ADD_CONST, B_TYPE_U16, 0x12, 0x34,
+                qb::OpCode::ADD_CONST, B_TYPE_STR, 0x00, 0x04, 't', 'e', 's', 't',
+                qb::OpCode::ADD_TYPE, qb::TypeKind::VECTOR, false, B_TYPE_U16,
+                qb::OpCode::ADD_CONST, 0, 0x00, 0x06, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03,
+
+            });
+            qb_assert(code->consts.size() == 3)
+            qb_assert(code->consts[0].tdx == B_TYPE_U16)
+            qb_assert(code->consts[0].length == 2)
+            qb_assert(code->consts[0].bytes[0] == 0x12)
+            qb_assert(code->consts[0].bytes[1] == 0x34)
+            qb_assert(code->consts[1].tdx == B_TYPE_STR)
+            qb_assert(code->consts[1].length == 4)
+            qb_assert(code->consts[1].bytes[0] == 't')
+            qb_assert(code->consts[1].bytes[1] == 'e')
+            qb_assert(code->consts[1].bytes[2] == 's')
+            qb_assert(code->consts[1].bytes[3] == 't')
+            qb_assert(code->consts[2].length == 6)
+            qb_assert(code->consts[2].bytes[0] == 0x00)
+            qb_assert(code->consts[2].bytes[1] == 0x01)
+            qb_assert(code->consts[2].bytes[2] == 0x00)
+            qb_assert(code->consts[2].bytes[3] == 0x02)
+            qb_assert(code->consts[2].bytes[4] == 0x00)
+            qb_assert(code->consts[2].bytes[5] == 0x03)
+            delete code;
+        })
+
         qb_test("Args", {
             TEST_CODE_OK({
                 HEADER_QUIMBLOS,

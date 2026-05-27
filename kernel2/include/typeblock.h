@@ -29,6 +29,10 @@ namespace qb {
         } add = {};
         type_t use = B_TYPE_VOID;
 
+        ~TypeDef() {
+            
+        }
+
         static TypeDef block(const std::vector<TypeDef>& children) {
             return TypeDef({
                 .add = {

@@ -11,23 +11,25 @@ namespace qb {
     */
     
     enum OpCode {
-        // 0x0* -> Parser
+        // 0x0* -> Node
         USE_DRIVER = 0x01,      // (driver:str)
-        ADD_CONST = 0x06,       // (type:_t, ...data)
-        ADD_ARG = 0x07,         // (type:_t)
-        ADD_VAR = 0x08,         // (type:_t)
-        ADD_TYPE = 0x09,        // (kind:8, flags:8, ...schema)
-        // 0x1* -> Memory Manipulation
-        SET = 0x10,             // (flags:8, target:ptr, source:ptr)
-        HOLD = 0x1A,            // (driver:str)
-        RELEASE = 0x1B,         // (driver:str)
-        // 0x2* -> Flow control 
-        GOTO = 0x20,            // (addr:_t)
-        IF = 0x21,              // (flags:8, source:ptr, true_addr:_t, false_addr: _t)
-        // 0x3* -> Conditional data manipulation 
-        SET_IF = 0x30,          // (flags:8, target:ptr, left:ptr, right:ptr, true:ptr?, false:ptr?)
-        // 0x4* -> Math 
-        MATH = 0x40,       // (flags:8, target:ptr, source:ptr)
+        USE_REF = 0x02,         // (code:str, source:ptr)
+        // 0x1* -> Parser
+        ADD_TYPE = 0x06,        // (kind:8, ...type_def)
+        ADD_CONST = 0x07,       // (type:_t, ...data)
+        ADD_ARG = 0x08,         // (type:_t)
+        ADD_VAR = 0x09,         // (type:_t)
+        // 0x2* -> Memory Manipulation
+        SET = 0x20,             // (flags:8, target:ptr, source:ptr)
+        HOLD = 0x2A,            // (driver:str)
+        RELEASE = 0x2B,         // (driver:str)
+        // 0x3* -> Flow control 
+        GOTO = 0x30,            // (addr:_t)
+        IF = 0x31,              // (flags:8, source:ptr, true_addr:_t, false_addr: _t)
+        // 0x4* -> Conditional data manipulation 
+        SET_IF = 0x40,          // (flags:8, target:ptr, left:ptr, right:ptr, true:ptr?, false:ptr?)
+        // 0x5* -> Math 
+        MATH = 0x50,       // (flags:8, target:ptr, source:ptr)
             // NOT
             // AND
             // OR
@@ -45,7 +47,6 @@ namespace qb {
         // 0xE* -> Thread
         SLEEP = 0xE0,           // (time:ptr)
         // 0xF* -> Engine
-        RESET = 0xF0,           // ()
         PUBLISH = 0xF1,         // (topic:str, source:ptr)
         REBOOT = 0xFF,          // ()
     };
@@ -58,6 +59,7 @@ namespace qb {
         const OpCode type;
     
         Instruction(OpCode type) : type(type) {}
+        virtual ~Instruction() {}
 
         virtual const std::string to_str() const = 0;
     };
@@ -67,30 +69,39 @@ namespace qb {
     */
 
     struct Code {
+        struct Data {
+            const type_t tdx;
+            const byte_t* bytes;
+            code_addr_t length;
+        };
+        
         const std::vector<std::string> drivers;
-        const mem::Reference* out_value;
-        const std::vector<std::pair<type_t, data_t>> consts;
+        const std::vector<TypeDef> types;
+        const std::vector<Data> consts;
         const std::vector<type_t> args;
         const std::vector<type_t> vars;
         const std::vector<Instruction*> instructions;
         const std::vector<Code*> children;
+        const mem::Reference* out_value;
 
         Code(
             const std::vector<std::string>& drivers,
-            const mem::Reference* out_value,
-            const std::vector<std::pair<type_t, data_t>> consts,
+            const std::vector<TypeDef> types,
+            const std::vector<Data> consts,
             const std::vector<type_t>& args,
             const std::vector<type_t>& vars,
-            const std::vector<Instruction*>& instructions
+            const std::vector<Instruction*>& instructions,
             // const std::vector<Code*>& children
+            const mem::Reference* out_value
         ) :
             drivers(drivers),
-            out_value(out_value),
+            types(types),
             consts(consts),
             args(args),
             vars(vars),
-            instructions(instructions) {}
-            // children(children) {}
+            instructions(instructions),
+            // children(children),
+            out_value(out_value) {}
 
         ~Code() {
             for (size_t i = 0; i < this->instructions.size(); i++) {
@@ -130,14 +141,52 @@ namespace qb {
             }
         };
 
+        struct UseRef: public Instruction {
+            const std::string name;
+            const mem::Reference source;
+
+            UseRef(const std::string& name, const mem::Reference& source):
+                Instruction(OpCode::USE_REF),
+                name(name),
+                source(source)
+            {}
+
+            const std::string to_str() const {
+                std::stringstream ss;
+                ss << "#block " << this->name;
+                return ss.str();
+            }
+        };
+
+        struct AddType: public Instruction {
+            const TypeDef type_def;
+
+            AddType(const TypeDef& type_def):
+                Instruction(OpCode::ADD_TYPE),
+                type_def(type_def)
+            {}
+
+            const std::string to_str() const {
+                std::stringstream ss;
+                ss << "type:...";
+                return ss.str();
+                // auto type = Type({
+                //     .kind = this->kind,
+                //     .flags = this->flags,
+                //     .schema = this->schema == nullptr ? {} : *this->schema,
+                // });
+                // return type.to_str();
+            }
+        };
+
         struct AddConst: public Instruction {
-            const type_t type;
+            const type_t tdx;
             const byte_t* bytes;
             code_addr_t length;
 
-            AddConst(type_t type, const byte_t* bytes, code_addr_t length):
+            AddConst(type_t tdx, const byte_t* bytes, code_addr_t length):
                 Instruction(OpCode::ADD_CONST),
-                type(type),
+                tdx(tdx),
                 bytes(bytes),
                 length(length)
             {}
@@ -176,33 +225,6 @@ namespace qb {
                 std::stringstream ss;
                 ss << "var:" << +this->tdx;
                 return ss.str();
-            }
-        };
-
-        struct AddType: public Instruction {
-            const TypeKind kind;
-            const type_t* schema;
-
-            AddType(TypeKind kind, const type_t* schema):
-                Instruction(OpCode::ADD_TYPE),
-                kind(kind),
-                schema(schema)
-            {}
-
-            ~AddType() {
-                delete[] this->schema;
-            }
-
-            const std::string to_str() const {
-                std::stringstream ss;
-                ss << "type:...";
-                return ss.str();
-                // auto type = Type({
-                //     .kind = this->kind,
-                //     .flags = this->flags,
-                //     .schema = this->schema == nullptr ? {} : *this->schema,
-                // });
-                // return type.to_str();
             }
         };
         

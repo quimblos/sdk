@@ -17,12 +17,13 @@
     qb::byte_t code[] = CODE; \
     auto res = qb::parser::instruction(code, sizeof(code)/sizeof(qb::byte_t)); \
     auto res_code = res.code; \
+    LOG(res_code) \
     delete res.out.instruction; \
     qb_assert(res_code == EXPECTED_ERROR)
 
 qb_suite(test_parser, "parser", {
 
-    qb_describe("Instruction: Parser", {
+    qb_describe("Instruction: Node", {
     
         qb_test("USE_DRIVER", {
             TEST_INSTRUCTION_OK(qb::instruction::UseDriver, {
@@ -33,9 +34,878 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.type == qb::OpCode::USE_DRIVER)
             qb_assert(instruction.name == "test")
         })
+    })
 
-        // TODO: ADD_CONST
+    qb_describe("Instruction: Parser (Type)", {
+
+        qb_test("ADD_TYPE:VOID (should fail)", {
+            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VOID       // kind
+            })
+        })
     
+        qb_test("ADD_TYPE:BOOL (should fail)", {
+            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::BOOL,      // kind
+            })
+        })
+    
+        qb_test("ADD_TYPE:INT (should fail)", {
+            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::INT,      // kind
+            })
+        })
+    
+        qb_test("ADD_TYPE:FLOAT (should fail)", {
+            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FLOAT,    // kind
+            })
+        })
+    
+        qb_test("ADD_TYPE:STRING (should fail)", {
+            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::STRING,   // kind
+            })
+        })
+    
+        qb_test("ADD_TYPE:REF (should fail)", {
+            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::REF,   // kind
+            })
+        })
+        qb_test("ADD_TYPE:REF_SLICE (should fail)", {
+            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::REF_SLICE,   // kind
+            })
+        })
+        qb_test("ADD_TYPE:VECTOR <bool>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,   // kind
+                false,                  // use
+                B_TYPE_BOOL
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_BOOL)
+        })
+        qb_test("ADD_TYPE:VECTOR <u8>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,   // kind
+                false,                  // use
+                B_TYPE_U8
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:VECTOR <f32>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,   // kind
+                false,                  // use
+                B_TYPE_F32
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_F32)
+        })
+        qb_test("ADD_TYPE:VECTOR <str>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,   // kind
+                false,                  // use
+                B_TYPE_STR
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_STR)
+        })
+        qb_test("ADD_TYPE:VECTOR <ref>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,   // kind
+                false,                  // use
+                B_TYPE_REF
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:MAP <bool>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,   // kind
+                false,                  // use
+                B_TYPE_BOOL
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_BOOL)
+        })
+        qb_test("ADD_TYPE:MAP <u8>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,   // kind
+                false,                  // use
+                B_TYPE_U8
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:MAP <f32>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,   // kind
+                false,                  // use
+                B_TYPE_F32
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_F32)
+        })
+        qb_test("ADD_TYPE:MAP <str>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,   // kind
+                false,                  // use
+                B_TYPE_STR
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_STR)
+        })
+        qb_test("ADD_TYPE:MAP <ref>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,   // kind
+                false,                  // use
+                B_TYPE_REF
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:EVENT <bool>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,   // kind
+                false,                  // use
+                B_TYPE_BOOL
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_BOOL)
+        })
+        qb_test("ADD_TYPE:EVENT <u8>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,   // kind
+                false,                  // use
+                B_TYPE_U8
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:EVENT <f32>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,   // kind
+                false,                  // use
+                B_TYPE_F32
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_F32)
+        })
+        qb_test("ADD_TYPE:EVENT <str>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,   // kind
+                false,                  // use
+                B_TYPE_STR
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_STR)
+        })
+        qb_test("ADD_TYPE:EVENT <ref>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,   // kind
+                false,                  // use
+                B_TYPE_REF
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:FN <bool>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,   // kind
+                false,                  // use
+                B_TYPE_BOOL
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_BOOL)
+        })
+        qb_test("ADD_TYPE:FN <u8>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,   // kind
+                false,                  // use
+                B_TYPE_U8
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:FN <f32>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,   // kind
+                false,                  // use
+                B_TYPE_F32
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_F32)
+        })
+        qb_test("ADD_TYPE:FN <str>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,   // kind
+                false,                  // use
+                B_TYPE_STR
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_STR)
+        })
+        qb_test("ADD_TYPE:FN <ref>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,   // kind
+                false,                  // use
+                B_TYPE_REF
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:STRUCT", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::STRUCT,   // kind
+                5,
+                false, B_TYPE_BOOL,
+                false, B_TYPE_U8,
+                false, B_TYPE_F32,
+                false, B_TYPE_STR,
+                false, B_TYPE_REF,
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::STRUCT)
+            qb_assert(instruction.type_def.add.children.size() == 5)
+            qb_assert(instruction.type_def.add.children[0].use == B_TYPE_BOOL)
+            qb_assert(instruction.type_def.add.children[1].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[2].use == B_TYPE_F32)
+            qb_assert(instruction.type_def.add.children[3].use == B_TYPE_STR)
+            qb_assert(instruction.type_def.add.children[4].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:VECTOR <vector<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,       // kind
+                true, qb::TypeKind::VECTOR, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:VECTOR <map<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,       // kind
+                true, qb::TypeKind::MAP, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:VECTOR <event<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,       // kind
+                true, qb::TypeKind::EVENT, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:VECTOR <fn<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,       // kind
+                true, qb::TypeKind::FN, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:VECTOR <struct>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::VECTOR,       // kind
+                true, qb::TypeKind::STRUCT, // child
+                    3,
+                    false, B_TYPE_U8,       // subchild
+                    false, B_TYPE_STR,      // subchild
+                    false, B_TYPE_REF,      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::STRUCT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 3)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[0].add.children[1].use == B_TYPE_STR)
+            qb_assert(instruction.type_def.add.children[0].add.children[2].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:MAP <vector<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,       // kind
+                true, qb::TypeKind::VECTOR, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:MAP <map<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,       // kind
+                true, qb::TypeKind::MAP, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:MAP <event<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,       // kind
+                true, qb::TypeKind::EVENT, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:MAP <fn<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,       // kind
+                true, qb::TypeKind::FN, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:MAP <struct>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::MAP,       // kind
+                true, qb::TypeKind::STRUCT, // child
+                    3,
+                    false, B_TYPE_U8,       // subchild
+                    false, B_TYPE_STR,      // subchild
+                    false, B_TYPE_REF,      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::STRUCT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 3)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[0].add.children[1].use == B_TYPE_STR)
+            qb_assert(instruction.type_def.add.children[0].add.children[2].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:EVENT <vector<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,       // kind
+                true, qb::TypeKind::VECTOR, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:EVENT <map<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,       // kind
+                true, qb::TypeKind::MAP, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:EVENT <event<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,       // kind
+                true, qb::TypeKind::EVENT, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:EVENT <fn<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,       // kind
+                true, qb::TypeKind::FN, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:EVENT <struct>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,       // kind
+                true, qb::TypeKind::STRUCT, // child
+                    3,
+                    false, B_TYPE_U8,       // subchild
+                    false, B_TYPE_STR,      // subchild
+                    false, B_TYPE_REF,      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::STRUCT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 3)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[0].add.children[1].use == B_TYPE_STR)
+            qb_assert(instruction.type_def.add.children[0].add.children[2].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:FN <vector<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,       // kind
+                true, qb::TypeKind::VECTOR, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:FN <map<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,       // kind
+                true, qb::TypeKind::MAP, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:FN <event<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,       // kind
+                true, qb::TypeKind::EVENT, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:FN <fn<u8>>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::FN,       // kind
+                true, qb::TypeKind::FN, // child
+                    false, B_TYPE_U8      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+        })
+        qb_test("ADD_TYPE:EVENT <struct>", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::EVENT,       // kind
+                true, qb::TypeKind::STRUCT, // child
+                    3,
+                    false, B_TYPE_U8,       // subchild
+                    false, B_TYPE_STR,      // subchild
+                    false, B_TYPE_REF,      // subchild
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::STRUCT)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 3)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[0].add.children[1].use == B_TYPE_STR)
+            qb_assert(instruction.type_def.add.children[0].add.children[2].use == B_TYPE_REF)
+        })
+        qb_test("ADD_TYPE:STRUCT (complex)", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddType, {
+                qb::OpCode::ADD_TYPE,
+                qb::TypeKind::STRUCT,       // kind
+                5,
+                true, qb::TypeKind::VECTOR, 
+                    false, B_TYPE_U8,
+                true, qb::TypeKind::MAP, 
+                    false, B_TYPE_U8,
+                true, qb::TypeKind::EVENT, 
+                    false, B_TYPE_U8,
+                true, qb::TypeKind::FN, 
+                    false, B_TYPE_U8,
+                true, qb::TypeKind::STRUCT, 
+                    3,
+                    false, B_TYPE_U8,
+                    false, B_TYPE_STR,
+                    false, B_TYPE_REF,
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_TYPE)
+            qb_assert(instruction.type_def.add.kind == qb::TypeKind::STRUCT)
+            qb_assert(instruction.type_def.add.children.size() == 5)
+            qb_assert(instruction.type_def.add.children[0].add.kind == qb::TypeKind::VECTOR)
+            qb_assert(instruction.type_def.add.children[0].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[0].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[1].add.kind == qb::TypeKind::MAP)
+            qb_assert(instruction.type_def.add.children[1].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[1].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[2].add.kind == qb::TypeKind::EVENT)
+            qb_assert(instruction.type_def.add.children[2].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[2].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[3].add.kind == qb::TypeKind::FN)
+            qb_assert(instruction.type_def.add.children[3].add.children.size() == 1)
+            qb_assert(instruction.type_def.add.children[3].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[4].add.kind == qb::TypeKind::STRUCT)
+            qb_assert(instruction.type_def.add.children[4].add.children.size() == 3)
+            qb_assert(instruction.type_def.add.children[4].add.children[0].use == B_TYPE_U8)
+            qb_assert(instruction.type_def.add.children[4].add.children[1].use == B_TYPE_STR)
+            qb_assert(instruction.type_def.add.children[4].add.children[2].use == B_TYPE_REF)
+        })
+    })
+
+    qb_describe("Instruction: Parser (Const)", {
+
+        qb_test("ADD_CONST:VOID", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_VOID,          // type
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_VOID)
+            qb_assert(instruction.length == 0)
+            qb_assert(instruction.bytes == nullptr)
+        })
+
+        qb_test("ADD_CONST:NULL", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_NULL,          // type
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_NULL)
+            qb_assert(instruction.length == 0)
+            qb_assert(instruction.bytes == nullptr)
+        })
+
+        qb_test("ADD_CONST:BOOL", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_BOOL,          // type
+                true
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_BOOL)
+            qb_assert(instruction.length == 1)
+            qb_assert(instruction.bytes[0] == true)
+        })
+
+        qb_test("ADD_CONST:U8", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_U8,          // type
+                123
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_U8)
+            qb_assert(instruction.length == 1)
+            qb_assert(instruction.bytes[0] == 123)
+        })
+
+        qb_test("ADD_CONST:I8", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_I8,          // type
+                (qb::byte_t) -123
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_I8)
+            qb_assert(instruction.length == 1)
+            qb_assert(((int8_t*)instruction.bytes)[0] == -123)
+        })
+
+        qb_test("ADD_CONST:U16", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_U16,          // type
+                0x12, 0x34
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_U16)
+            qb_assert(instruction.length == 2)
+            qb_assert(instruction.bytes[0] == 0x12)
+            qb_assert(instruction.bytes[1] == 0x34)
+        })
+
+        qb_test("ADD_CONST:I16", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_I16,          // type
+                0x12, 0x34
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_I16)
+            qb_assert(instruction.length == 2)
+            qb_assert(instruction.bytes[0] == 0x12)
+            qb_assert(instruction.bytes[1] == 0x34)
+        })
+
+        qb_test("ADD_CONST:U32", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_U32,          // type
+                0x12, 0x34, 0x56, 0x78
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_U32)
+            qb_assert(instruction.length == 4)
+            qb_assert(instruction.bytes[0] == 0x12)
+            qb_assert(instruction.bytes[1] == 0x34)
+            qb_assert(instruction.bytes[2] == 0x56)
+            qb_assert(instruction.bytes[3] == 0x78)
+        })
+
+        qb_test("ADD_CONST:I32", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_I32,          // type
+                0x12, 0x34, 0x56, 0x78
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_I32)
+            qb_assert(instruction.length == 4)
+            qb_assert(instruction.bytes[0] == 0x12)
+            qb_assert(instruction.bytes[1] == 0x34)
+            qb_assert(instruction.bytes[2] == 0x56)
+            qb_assert(instruction.bytes[3] == 0x78)
+        })
+
+        qb_test("ADD_CONST:F32", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_F32,          // type
+                0x12, 0x34, 0x56, 0x78
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_F32)
+            qb_assert(instruction.length == 4)
+            qb_assert(instruction.bytes[0] == 0x12)
+            qb_assert(instruction.bytes[1] == 0x34)
+            qb_assert(instruction.bytes[2] == 0x56)
+            qb_assert(instruction.bytes[3] == 0x78)
+        })
+
+        qb_test("ADD_CONST:STR", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_STR,          // type
+                0x00, 0x04,          // length
+                't', 'e', 's', 't'
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_STR)
+            qb_assert(instruction.length == 4)
+            qb_assert(instruction.bytes[0] == 't')
+            qb_assert(instruction.bytes[1] == 'e')
+            qb_assert(instruction.bytes[2] == 's')
+            qb_assert(instruction.bytes[3] == 't')
+        })
+
+        qb_test("ADD_CONST:REF", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_REF,          // type
+                BLOCK_ENGINE,
+                PORT_CONST_TRUE
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_REF)
+            qb_assert(instruction.length == 2)
+            qb_assert(instruction.bytes[0] == BLOCK_ENGINE)
+            qb_assert(instruction.bytes[1] == PORT_CONST_TRUE)
+        })
+
+        qb_test("ADD_CONST:REF_SLICE", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                B_TYPE_REF_SLICE,          // type
+                BLOCK_ENGINE,
+                PORT_CONST_TRUE,
+                2,
+                0x12, 0x34, 0x56, 0x78,
+                0xAA, 0xBB, 0xCC, 0xDD,
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == B_TYPE_REF_SLICE)
+            qb_assert(instruction.length == 11)
+            qb_assert(instruction.bytes[0] == BLOCK_ENGINE)
+            qb_assert(instruction.bytes[1] == PORT_CONST_TRUE)
+            qb_assert(instruction.bytes[2] == 2)
+            qb_assert(instruction.bytes[3] == 0x12)
+            qb_assert(instruction.bytes[4] == 0x34)
+            qb_assert(instruction.bytes[5] == 0x56)
+            qb_assert(instruction.bytes[6] == 0x78)
+            qb_assert(instruction.bytes[7] == 0xAA)
+            qb_assert(instruction.bytes[8] == 0xBB)
+            qb_assert(instruction.bytes[9] == 0xCC)
+            qb_assert(instruction.bytes[10] == 0xDD)
+        })
+
+        qb_test("ADD_CONST:CUSTOM", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddConst, {
+                qb::OpCode::ADD_CONST,
+                0,          // type
+                0x00, 0x06, // length
+                0x12, 0x34, // item 0
+                0x56, 0x78, // item 1
+                0x9A, 0xBC, // item 2
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_CONST)
+            qb_assert(instruction.tdx == 0)
+            qb_assert(instruction.length == 6)
+            qb_assert(instruction.bytes[0] == 0x12)
+            qb_assert(instruction.bytes[1] == 0x34)
+            qb_assert(instruction.bytes[2] == 0x56)
+            qb_assert(instruction.bytes[3] == 0x78)
+            qb_assert(instruction.bytes[4] == 0x9A)
+            qb_assert(instruction.bytes[5] == 0xBC)
+        })
+    })
+
+    qb_describe("Instruction: Parser (Arg/Var)", {
+
+        qb_test("ADD_ARG", {
+            TEST_INSTRUCTION_OK(qb::instruction::AddVar, {
+                qb::OpCode::ADD_ARG,
+                B_TYPE_U8,          // type
+            })
+            qb_assert(instruction.type == qb::OpCode::ADD_ARG)
+            qb_assert(instruction.tdx == B_TYPE_U8)
+        })
+
         qb_test("ADD_VAR", {
             TEST_INSTRUCTION_OK(qb::instruction::AddVar, {
                 qb::OpCode::ADD_VAR,
@@ -44,57 +914,10 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.type == qb::OpCode::ADD_VAR)
             qb_assert(instruction.tdx == B_TYPE_U8)
         })
-    
-        qb_test("ADD_TYPE:VOID (should fail)", {
-            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
-                qb::OpCode::ADD_TYPE,
-                qb::TypeKind::VOID,      // kind
-                0b00000000               // flags
-            })
-        })
-    
-        qb_test("ADD_TYPE:BOOL (should fail)", {
-            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
-                qb::OpCode::ADD_TYPE,
-                qb::TypeKind::BOOL,      // kind
-                0b000000000              // flags
-            })
-        })
-    
-        qb_test("ADD_TYPE:INT (should fail)", {
-            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
-                qb::OpCode::ADD_TYPE,
-                qb::TypeKind::INT,      // kind
-                0b00000011              // flags
-            })
-        })
-    
-        qb_test("ADD_TYPE:FLOAT (should fail)", {
-            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
-                qb::OpCode::ADD_TYPE,
-                qb::TypeKind::FLOAT,    // kind
-                0b00000000              // flags
-            })
-        })
-    
-        qb_test("ADD_TYPE:STRING (should fail)", {
-            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
-                qb::OpCode::ADD_TYPE,
-                qb::TypeKind::STRING,   // kind
-                0b00000000              // flags
-            })
-        })
-    
-        qb_test("ADD_TYPE:REF (should fail)", {
-            TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CUSTOM_PRIMITIVE_TYPE, {
-                qb::OpCode::ADD_TYPE,
-                qb::TypeKind::REF,   // kind
-                0b00000000           // flags
-            })
-        })
+
     })
 
-    qb_describe("Instruction: Data Manipulation", {
+    qb_describe("Instruction: Memory Manipulation", {
     
         qb_test("SET:const (should fail)", {
             TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CONST_ASSIGNMENT, {
@@ -188,6 +1011,9 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.addr_true == 0x1234)
             qb_assert(instruction.addr_false == 0x5678)
         })
+    })
+
+    qb_describe("Instruction: Conditional data manipulation", {
 
         qb_test("SET_IF:const (should fail)", {
             TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CONST_ASSIGNMENT, {
@@ -403,7 +1229,7 @@ qb_suite(test_parser, "parser", {
 
     })
 
-    qb_describe("Instruction: TMethodhread", {
+    qb_describe("Instruction: Method", {
 
         qb_test("RETURN", {
             TEST_INSTRUCTION_OK(qb::instruction::Return, {

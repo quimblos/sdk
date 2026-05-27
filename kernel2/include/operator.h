@@ -63,6 +63,7 @@ namespace qb {
         res_t cast_to_float(const Type* from_type, data_t value);
         res_t cast_to_string(const Type* from_type, data_t value);
         res_t cast_to_ref(const Type* from_type, data_t value);
+        res_t cast_to_ref_slice(const Type* from_type, data_t value);
         res_t cast(const Type* to_type, const Type* from_type, data_t value, bool is_explicit = false);
 
         // assign

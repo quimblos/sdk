@@ -140,7 +140,7 @@ qb_suite(test_memory, "memory", {
                 qb::TypeDef::_use(B_TYPE_REF_SLICE)
             });
             auto block = qb::mem::Block(type_def);
-            block.data.__cpp_set(0, qb::mem::SlicedReference(BLOCK_ENGINE, PORT_CONST_TRUE, 2, {
+            block.data.__cpp_set(0, qb::mem::SlicedReference(BLOCK_ENGINE, PORT_CONST_TRUE, {
                 { .start = 1, .end = 3 },
                 { .start = 2, .end = 4 },
             }));

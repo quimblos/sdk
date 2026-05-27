@@ -116,22 +116,19 @@ namespace qb {
                 index_t end = 0;
             };
 
-            uint8_t dims = 0;
             std::vector<Slice> shape;
     
             SlicedReference() {}
 
-            SlicedReference(block_t block, port_t port, uint8_t dims, const std::vector<Slice>& shape) {
+            SlicedReference(block_t block, port_t port, const std::vector<Slice>& shape) {
                 this->block = block;
                 this->port = port;
-                this->dims = dims;
                 this->shape = shape;
             }
 
             void assign(SlicedReference* other) {
                 this->block = other->block;
                 this->port = other->port;
-                this->dims = other->dims;
                 this->shape = other->shape;
             }
 
@@ -148,7 +145,7 @@ namespace qb {
             const std::string to_str() const {
                 std::stringstream ss;
                 ss << Reference::to_str();
-                for (uint8_t i = 0; i < this->dims; i++) {
+                for (uint8_t i = 0; i < this->shape.size(); i++) {
                     ss << '[' << this->shape[i].start << ':' << this->shape[i].end << ']';
                 }
                 return ss.str();
