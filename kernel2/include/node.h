@@ -51,6 +51,8 @@ namespace qb {
             node::res_t link_thread(Thread* thread);
             node::res_t get_thread(std::string name) const;
             node::res_t delete_thread(std::string name);
+
+            void print_debug() const;
     };
     
 }

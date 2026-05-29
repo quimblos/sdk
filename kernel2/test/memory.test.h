@@ -132,7 +132,7 @@ qb_suite(test_memory, "memory", {
             block.data.__cpp_set(0, qb::mem::Reference(BLOCK_ENGINE, PORT_CONST_TRUE));
 
             auto data = block.data.__cpp_get<qb::mem::Reference>(0);
-            qb_assert(data->to_str() == "<engine.true>");
+            qb_assert(data->to_str() == "@engine:true");
         })
     
         qb_test("ref_slice", {
@@ -146,7 +146,7 @@ qb_suite(test_memory, "memory", {
             }));
 
             auto data = block.data.__cpp_get<qb::mem::SlicedReference>(0);
-            qb_assert(data->to_str() == "<engine.true>[1:3][2:4]");
+            qb_assert(data->to_str() == "@engine:true[1~3][2~4]");
         })
 
         qb_test("multiple", {
@@ -173,7 +173,7 @@ qb_suite(test_memory, "memory", {
             qb_assert(*block.data.__cpp_get<uint8_t>(3) == 123);
             qb_assert(abs(*block.data.__cpp_get<float>(4) - 123.456) < EPSILON);
             qb_assert(*block.data.__cpp_get<std::string>(5) == "test");
-            qb_assert(block.data.__cpp_get<qb::mem::Reference>(6)->to_str() == "<engine.true>");
+            qb_assert(block.data.__cpp_get<qb::mem::Reference>(6)->to_str() == "@engine:true");
         })
 
     })
@@ -261,8 +261,8 @@ qb_suite(test_memory, "memory", {
             data->__cpp_set(1, qb::mem::Reference(BLOCK_NODE, 0x02));
 
             qb_assert(data->size() == 2);
-            qb_assert(data->__cpp_get<qb::mem::Reference>(0)->to_str() == "<engine.true>");
-            qb_assert(data->__cpp_get<qb::mem::Reference>(1)->to_str() == "<node.2>");
+            qb_assert(data->__cpp_get<qb::mem::Reference>(0)->to_str() == "@engine:true");
+            qb_assert(data->__cpp_get<qb::mem::Reference>(1)->to_str() == "@node:2");
         })
    
     })
@@ -345,8 +345,8 @@ qb_suite(test_memory, "memory", {
             data->__cpp_set("b", qb::mem::Reference(BLOCK_NODE, 0x02));
 
             qb_assert(data->size() == 2);
-            qb_assert(data->__cpp_get<qb::mem::Reference>("a")->to_str() == "<engine.true>");
-            qb_assert(data->__cpp_get<qb::mem::Reference>("b")->to_str() == "<node.2>");
+            qb_assert(data->__cpp_get<qb::mem::Reference>("a")->to_str() == "@engine:true");
+            qb_assert(data->__cpp_get<qb::mem::Reference>("b")->to_str() == "@node:2");
         })
    
     })

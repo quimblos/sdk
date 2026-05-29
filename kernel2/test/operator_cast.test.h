@@ -14,7 +14,7 @@
     TO_C_TYPE out = res.out == nullptr ? 0 : *(TO_C_TYPE*) res.out; \
     LOG(out) \
     delete value; \
-    if (res.temp) delete res.out;
+    if (res.temp) qb::op::delete_temp(to_type, (qb::data_t) res.out);
 
 #define TEST_CAST_OK(TO_TYPE, FROM_TYPE, TO_C_TYPE, FROM_C_TYPE, INIT...) _TEST_CAST_OK(false, TO_TYPE, FROM_TYPE, TO_C_TYPE, FROM_C_TYPE, INIT)
 #define TEST_EXPLICIT_CAST_OK(TO_TYPE, FROM_TYPE, TO_C_TYPE, FROM_C_TYPE, INIT...) _TEST_CAST_OK(true, TO_TYPE, FROM_TYPE, TO_C_TYPE, FROM_C_TYPE, INIT)
@@ -25,7 +25,7 @@
     auto value = new FROM_C_TYPE(INIT); \
     auto res = qb::op::cast(to_type, from_type, (qb::data_t) value, EXPLICIT); \
     delete value; \
-    if (res.temp) delete res.out; \
+    if (res.temp) qb::op::delete_temp(to_type, (qb::data_t) res.out); \
     qb_assert(res.code == qb::op::res_t::Code::EXPECTED_ERROR)
 
 #define TEST_CAST_FAIL(EXPECTED_ERROR, TO_TYPE, FROM_TYPE, FROM_C_TYPE, INIT...) _TEST_CAST_FAIL(false, EXPECTED_ERROR, TO_TYPE, FROM_TYPE, FROM_C_TYPE, INIT) 
@@ -340,5 +340,93 @@ qb_suite(test_operator_cast, "operator: cast", {
             })
         }
 
+    })
+
+
+    qb_describe("built-in: str", {
+
+        qb_test("STR <- VOID", {
+            TEST_CAST_FAIL(CAST_VOID_TO_STRING, B_TYPE_STR, B_TYPE_VOID, qb::void_t, 0)
+        })
+        qb_test("STR <- BOOL", {
+            TEST_CAST_FAIL(CAST_BOOL_TO_STRING, B_TYPE_STR, B_TYPE_BOOL, bool, true)
+        })
+        qb_test("STR <- I16", {
+            TEST_CAST_FAIL(CAST_INT_TO_STRING, B_TYPE_STR, B_TYPE_I16, int16_t, 123)
+        })
+        qb_test("STR <- F32", {
+            TEST_CAST_FAIL(CAST_FLOAT_TO_STRING, B_TYPE_STR, B_TYPE_F32, float, 12.34)
+        })
+        qb_test("STR <- STR", {
+            TEST_CAST_OK(B_TYPE_STR, B_TYPE_STR, std::string, std::string, "test")
+            qb_assert(out == "test")
+        })
+        qb_test("STR <- REF", {
+            TEST_CAST_FAIL(CAST_REF_TO_STRING, B_TYPE_STR, B_TYPE_REF, qb::mem::Reference, {})
+        })
+    
+        qb_test("STR <- VOID: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_VOID, std::string, qb::void_t, 0)
+            qb_assert(out == "void")
+        })
+        qb_test("STR <- NULL: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_NULL, std::string, qb::void_t, 0)
+            qb_assert(out == "null")
+        })
+        qb_test("STR <- BOOL: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_BOOL, std::string, bool, false)
+            qb_assert(out == "false")
+        })
+        qb_test("STR <- BOOL: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_BOOL, std::string, bool, true)
+            qb_assert(out == "true")
+        })
+        qb_test("STR <- U8: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_U8, std::string, uint8_t, 123)
+            qb_assert(out == "123")
+        })
+        qb_test("STR <- I8: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_I8, std::string, int8_t, -123)
+            qb_assert(out == "-123")
+        })
+        qb_test("STR <- U16: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_U16, std::string, uint16_t, 12345)
+            qb_assert(out == "12345")
+        })
+        qb_test("STR <- I16: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_I16, std::string, int16_t, -12345)
+            qb_assert(out == "-12345")
+        })
+        qb_test("STR <- U32: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_U32, std::string, uint32_t, 123456)
+            qb_assert(out == "123456")
+        })
+        qb_test("STR <- I32: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_I32, std::string, int32_t, -123456)
+            qb_assert(out == "-123456")
+        })
+        qb_test("STR <- F32: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_F32, std::string, float, -12.34)
+            qb_assert(out == "-12.340000")
+        })
+        qb_test("STR <- STR: explicit", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_STR, std::string, std::string, "test")
+            qb_assert(out == "test")
+        })
+        qb_test("STR <- REF", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_REF, std::string, qb::mem::Reference, 2, 3)
+            qb_assert(out == "@2:3")
+        })
+        qb_test("STR <- REF_SLICE", {
+            TEST_EXPLICIT_CAST_OK(B_TYPE_STR, B_TYPE_REF_SLICE, std::string, qb::mem::SlicedReference, 2, 3, {
+                { .start=1, .end=2 },
+                { .start=3, .end=4 }
+            })
+            qb_assert(out == "@2:3[1~2][3~4]")
+        })
+        // TODO: VEC
+        // TODO: MAP
+        // TODO: EVENT
+        // TODO: STRUCT
     })
 })

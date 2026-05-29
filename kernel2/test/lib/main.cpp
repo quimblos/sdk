@@ -2,6 +2,7 @@
 #include "test.h"
 #include "../type.test.h"
 #include "../memory.test.h"
+#include "../memory_raw.test.h"
 #include "../parser.test.h"
 #include "../parser_code.test.h"
 #include "../operator_cast.test.h"
@@ -17,11 +18,12 @@ int main(int argc, char* argv[]) {
     
     test_type();
     test_memory();
+    test_memory_raw();
     test_parser();
     test_parser_code();
     test_operator_cast();
     test_operator();
-    test_method();
+    test_context();
     test_stack();
     test_thread();
     test_driver();

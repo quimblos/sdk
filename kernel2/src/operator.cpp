@@ -51,6 +51,40 @@
     }
 
 
+// [delete temp]
+
+void qb::op::delete_temp(const Type* type, data_t value) {
+    switch (type->kind) {
+        case qb::TypeKind::VOID:      return;
+        case qb::TypeKind::BOOL:      delete (bool*) value; break;
+        case qb::TypeKind::INT:       {
+            if (type->flags.of_int.is_unsigned) {
+                switch (type->flags.of_int.res) {
+                    case 1: delete (uint8_t*) value; break;
+                    case 2: delete (uint16_t*) value; break;
+                    case 4: delete (uint32_t*) value; break;
+                }
+            }
+            else {
+                switch (type->flags.of_int.res) {
+                    case 1: delete (int8_t*) value; break;
+                    case 2: delete (int16_t*) value; break;
+                    case 4: delete (int32_t*) value; break;
+                }
+            }
+            break;
+        }
+        case qb::TypeKind::FLOAT:     delete (float*) value; break;
+        case qb::TypeKind::STRING:    delete (std::string*) value; break;
+        case qb::TypeKind::REF:       delete (qb::mem::Reference*) value; break;
+        case qb::TypeKind::REF_SLICE: delete (qb::mem::SlicedReference*) value; break;
+        case qb::TypeKind::VECTOR:    delete (qb::mem::Vector*) value; break;
+        case qb::TypeKind::MAP:       delete (qb::mem::Map*) value; break;
+        case qb::TypeKind::STRUCT:    delete (qb::mem::Struct*) value; break;
+        case qb::TypeKind::EVENT:     delete (qb::mem::Event*) value; break;
+    }
+}
+
 // [cast: bool <- ?]
 
 qb::op::res_t qb::op::cast_to_bool(const Type* from_type, data_t value) {
@@ -182,19 +216,82 @@ qb::op::res_t qb::op::cast_to_float(const Type* from_type, data_t value) {
 
 // [cast: string <- ?]
 
-qb::op::res_t qb::op::cast_to_string(const Type* from_type, data_t value) {
-    switch (from_type->kind) {
-        case qb::TypeKind::VOID:      ERROR(CAST_VOID_TO_STRING)
-        case qb::TypeKind::BOOL:      ERROR(CAST_BOOL_TO_STRING)
-        case qb::TypeKind::INT:       ERROR(CAST_INT_TO_STRING)
-        case qb::TypeKind::FLOAT:     ERROR(CAST_FLOAT)
-        case qb::TypeKind::STRING:    OK(value)
-        case qb::TypeKind::REF:       ERROR(CAST_REF_TO_STRING)
-        case qb::TypeKind::REF_SLICE: ERROR(CAST_REF_TO_STRING)
-        case qb::TypeKind::VECTOR:    ERROR(CAST_VECTOR_TO_STRING)
-        case qb::TypeKind::MAP:       ERROR(CAST_MAP_TO_STRING)
-        case qb::TypeKind::STRUCT:    ERROR(CAST_STRUCT_TO_STRING)
-        case qb::TypeKind::EVENT:     ERROR(CAST_EVENT_TO_STRING)
+qb::op::res_t qb::op::cast_to_string(const Type* from_type, data_t value, bool is_explicit) {
+    if (is_explicit) {
+        switch (from_type->kind) {
+            case qb::TypeKind::VOID:      OK_TEMP(std::string, from_type->flags.of_void.is_void ? "void" : "null")
+            case qb::TypeKind::BOOL:      OK_TEMP(std::string, *(bool*) value ? "true" : "false")
+            case qb::TypeKind::INT:       {
+                if (from_type->flags.of_int.is_unsigned) {
+                    switch (from_type->flags.of_int.res) {
+                        case 1: OK_TEMP(std::string, std::to_string(*(uint8_t*) value));
+                        case 2: OK_TEMP(std::string, std::to_string(*(uint16_t*) value));
+                        case 4: OK_TEMP(std::string, std::to_string(*(uint32_t*) value));
+                    }
+                }
+                else {
+                    switch (from_type->flags.of_int.res) {
+                        case 1: OK_TEMP(std::string, std::to_string(*(int8_t*) value));
+                        case 2: OK_TEMP(std::string, std::to_string(*(int16_t*) value));
+                        case 4: OK_TEMP(std::string, std::to_string(*(int32_t*) value));
+                    }
+                }
+            }
+            case qb::TypeKind::FLOAT:     OK_TEMP(std::string, std::to_string(*(float*) value));
+            case qb::TypeKind::STRING:    OK(value)
+            case qb::TypeKind::REF:       {
+                auto ref = (qb::mem::Reference*) value;
+                std::stringstream ss;
+                ss << '@' << +ref->block << ':' << +ref->port;
+                OK_TEMP(std::string, ss.str());
+            }
+            case qb::TypeKind::REF_SLICE: {
+                auto ref = (qb::mem::SlicedReference*) value;
+                std::stringstream ss;
+                ss << '@' << +ref->block << ':' << +ref->port;
+                for (const auto& it: ref->shape) {
+                    ss << '[' << it.start << '~' << it.end << ']';
+                }
+                OK_TEMP(std::string, ss.str());
+            }
+            case qb::TypeKind::VECTOR: {
+                auto vec = (qb::mem::Vector*) value;
+                std::stringstream ss;
+                ss << '[';
+                auto n = vec->shape.size();
+                for (index_t i = 0; i < n; i++) {
+                    auto res = qb::op::cast_to_string(vec->item_type, vec->get(i), true);
+                    if (res.code != qb::op::res_t::Code::OK) {
+                        ss << "??";
+                    }
+                    else {
+                        ss << *(std::string*)(res.out);
+                        if (res.temp) delete (std::string*) res.out;
+                    }
+                    if (i < n-1) ss << ',';
+                }
+                ss << ']';
+                OK_TEMP(std::string, ss.str());
+            }
+            case qb::TypeKind::MAP:       ERROR(CAST_MAP_TO_STRING)
+            case qb::TypeKind::STRUCT:    ERROR(CAST_STRUCT_TO_STRING)
+            case qb::TypeKind::EVENT:     ERROR(CAST_EVENT_TO_STRING)
+        }
+    }
+    else {
+        switch (from_type->kind) {
+            case qb::TypeKind::VOID:      ERROR(CAST_VOID_TO_STRING)
+            case qb::TypeKind::BOOL:      ERROR(CAST_BOOL_TO_STRING)
+            case qb::TypeKind::INT:       ERROR(CAST_INT_TO_STRING)
+            case qb::TypeKind::FLOAT:     ERROR(CAST_FLOAT_TO_STRING)
+            case qb::TypeKind::STRING:    OK(value)
+            case qb::TypeKind::REF:       ERROR(CAST_REF_TO_STRING)
+            case qb::TypeKind::REF_SLICE: ERROR(CAST_REF_TO_STRING)
+            case qb::TypeKind::VECTOR:    ERROR(CAST_VECTOR_TO_STRING)
+            case qb::TypeKind::MAP:       ERROR(CAST_MAP_TO_STRING)
+            case qb::TypeKind::STRUCT:    ERROR(CAST_STRUCT_TO_STRING)
+            case qb::TypeKind::EVENT:     ERROR(CAST_EVENT_TO_STRING)
+        }
     }
     ERROR(UNKNOWN_SOURCE_TYPE)
 }
@@ -252,7 +349,7 @@ qb::op::res_t qb::op::cast(const Type* to_type, const Type* from_type, data_t va
         case qb::TypeKind::BOOL:      return cast_to_bool(from_type, value);
         case qb::TypeKind::INT:       return cast_to_int(to_type, from_type, value, is_explicit);
         case qb::TypeKind::FLOAT:     return cast_to_float(from_type, value);
-        case qb::TypeKind::STRING:    return cast_to_string(from_type, value);
+        case qb::TypeKind::STRING:    return cast_to_string(from_type, value, is_explicit);
         case qb::TypeKind::REF:       return cast_to_ref(from_type, value);
         case qb::TypeKind::REF_SLICE: return cast_to_ref_slice(from_type, value);
         case qb::TypeKind::VECTOR:    ERROR(NOT_IMPLEMENTED)
@@ -284,7 +381,7 @@ qb::op::res_t qb::op::assign(mem::Block& t_block, port_t t_port, mem::Block& s_b
     t_block.data.set(t_port, res.out);
 
     // Delete temporary value (created by cast)
-    if (res.temp) delete res.out;
+    if (res.temp) qb::op::delete_temp(t_type, res.out);
 }
 
 #define OP_MATH(OP) { \
@@ -385,5 +482,5 @@ qb::op::res_t qb::op::math(qb::instruction::Math::Flags::Op op, mem::Block& t_bl
     }
 
     // Delete temporary value (created by cast)
-    if (res.temp) delete res.out;
+    if (res.temp) qb::op::delete_temp(t_type, res.out);
 }

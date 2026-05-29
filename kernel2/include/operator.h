@@ -34,7 +34,7 @@ namespace qb {
                 CAST_VOID_TO_STRING,
                 CAST_BOOL_TO_STRING,
                 CAST_INT_TO_STRING,
-                CAST_FLOAT,
+                CAST_FLOAT_TO_STRING,
                 CAST_REF_TO_STRING,
                 CAST_VECTOR_TO_STRING,
                 CAST_MAP_TO_STRING,
@@ -56,12 +56,15 @@ namespace qb {
             data_t out;
         };
 
+        // delete temp
+        void delete_temp(const Type* type, data_t value);
+
         // cast
 
         res_t cast_to_bool(const Type* from_type, data_t value);
         res_t cast_to_int(const Type* to_type, const Type* from_type, data_t value, bool is_explicit = false);
         res_t cast_to_float(const Type* from_type, data_t value);
-        res_t cast_to_string(const Type* from_type, data_t value);
+        res_t cast_to_string(const Type* from_type, data_t value, bool is_explicit = false);
         res_t cast_to_ref(const Type* from_type, data_t value);
         res_t cast_to_ref_slice(const Type* from_type, data_t value);
         res_t cast(const Type* to_type, const Type* from_type, data_t value, bool is_explicit = false);

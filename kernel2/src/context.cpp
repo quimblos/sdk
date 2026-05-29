@@ -5,33 +5,34 @@
 
 // 0: output
 // 1~x: args
-// x+1~y: vars
+// x+1~y: consts
+// y+1~z: vars
 qb::mem::Block qb::Context::make_block(const Code* code) {
 
     // Make 
 
-    auto consts = code->consts.size();
     auto args = code->args.size();
+    auto consts = code->consts.size();
     auto vars = code->vars.size();
 
     auto type_def = qb::TypeDef::block(
-        std::vector<qb::TypeDef>(1 + consts + args + vars)
+        std::vector<qb::TypeDef>(1 + args + consts + vars)
     );
-    // Types
-    
+
     // Return
     type_def.add.children[0].use = B_TYPE_VOID;
-    // Constants
-    for (code_addr_t i = 0; i < consts; i++) {
-        type_def.add.children[i+1].use = code->consts[i].tdx;
-    }
     // Arguments
     for (code_addr_t i = 0; i < args; i++) {
-        type_def.add.children[i+1+consts].use = code->args[i];
+        type_def.add.children[i+1].use = code->args[i];
+    }
+    // Constants
+    for (code_addr_t i = 0; i < consts; i++) {
+        type_def.add.children[i+1+args].use = code->consts[i].tdx;
+        type_def.add.children[i+1+args].is_const = true;
     }
     // Variables
     for (code_addr_t i = 0; i < vars; i++) {
-        type_def.add.children[i+1+consts+args].use = code->vars[i];
+        type_def.add.children[i+1+args+consts].use = code->vars[i];
     }
 
     return qb::mem::Block(code->types, type_def);
@@ -45,6 +46,10 @@ bool qb::Context::init() {
         bool res = this->block.data.set_raw(i+1, data.bytes, data.length);
         if (!res) return false;
     }
+    #ifdef QB_CONTEXT_DEBUG
+        this->print_debug();
+        this->thread->print_debug();
+    #endif
     return true;
 }
 
@@ -62,9 +67,13 @@ bool qb::Context::tick() {
         std::cout << "[tick] " << this->cursor << "/" << this->length << "\t" << instr->to_str() << std::endl;
     #endif
 
-    qb::code_addr_t next = this->run_instruction(instr);
+    qb::runtime::Error* error;
+    qb::code_addr_t next = qb::runtime::run_instruction(this, this->cursor, instr, error);
 
-    // qb::code_addr_t next = this->run_instruction(instr);
+    #ifdef QB_CONTEXT_DEBUG
+        this->print_debug();
+        this->thread->print_debug();
+    #endif
 
     // // Program is ending
     // if (next >= this->length) {
@@ -84,43 +93,12 @@ bool qb::Context::tick() {
     return true;
 }
 
-qb::code_addr_t qb::Context::run_instruction(qb::Instruction* instr) {
-    std::cout << instr->to_str() << std::endl;
-    switch (instr->type) {
-        case qb::OpCode::SET:
-            qb::runtime::resolve_ref(*this, ((qb::instruction::Set*)instr)->target);
-            std::cout << "SET" << std::endl;
-            break;
-        case qb::OpCode::HOLD:
-            std::cout << "HOLD" << std::endl;
-            break;
-        case qb::OpCode::RELEASE:
-            std::cout << "RELEASE" << std::endl;
-            break;
-        case qb::OpCode::GOTO:
-            std::cout << "GOTO" << std::endl;
-            break;
-        case qb::OpCode::IF:
-            std::cout << "IF" << std::endl;
-            break;
-        case qb::OpCode::SET_IF:
-            std::cout << "SET_IF" << std::endl;
-            break;
-        case qb::OpCode::MATH:
-            std::cout << "MATH" << std::endl;
-            break;
-        case qb::OpCode::RETURN:
-            std::cout << "RETURN" << std::endl;
-            break;
-        case qb::OpCode::SLEEP:
-            std::cout << "SLEEP" << std::endl;
-            break;
-        case qb::OpCode::PUBLISH:
-            std::cout << "PUBLISH" << std::endl;
-            break;
-        case qb::OpCode::REBOOT:
-            std::cout << "REBOOT" << std::endl;
-            break;
+void qb::Context::print_debug() const {
+    std::cout << "┌─── context ───" << std::endl;
+    std::cout << "│ cursor: " << this->cursor << '/' << this->length << std::endl;
+    if (this->block.data.size()) {
+        std::cout << "│ #memory" << std::endl;
+        std::cout << qb::runtime::block_to_str(&this->block, "│ ") << std::endl;
     }
-    return this->cursor + 1;
+    std::cout << "└───────────────" << std::endl;
 }

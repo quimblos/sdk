@@ -89,7 +89,7 @@ int invoke(std::string name, std::string hex) {
     }
     qb::Code* code = parser_res.out.code;
 
-    std::cout << "- Parsed code: " << std::endl;
+    std::cout << "- Parsed code: " << std::endl << std::endl;
     std::cout << code->to_str() << std::endl;
 
     std::cout << "- Creating and linking '" << name << "' Node to Engine... " << std::endl;

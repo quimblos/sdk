@@ -9,9 +9,10 @@
         qb_fail() \
     } \
     std::cout << res.out.code->to_str() << std::endl; \
-    auto context = qb::Context(nullptr, nullptr, res.out.code);
+    auto thread = qb::Thread(nullptr, "test", nullptr, {}); \
+    auto context = qb::Context(&thread, nullptr, res.out.code);
 
-qb_suite(test_method, "context", {
+qb_suite(test_context, "context", {
 
     qb_describe("Context", {
     
@@ -45,18 +46,20 @@ qb_suite(test_method, "context", {
             MAKE_CONTEXT({
                 HEADER_QUIMBLOS,
                 qb::OpCode::ADD_CONST, B_TYPE_U16, 0x12, 0x34,
+                qb::OpCode::ADD_CONST, B_TYPE_U32, 0x12, 0x34, 0x56, 0x78,
                 qb::OpCode::ADD_CONST, B_TYPE_STR, 0x00, 0x04, 't', 'e', 's', 't',
                 qb::OpCode::ADD_TYPE, qb::TypeKind::VECTOR, false, B_TYPE_U16,
                 qb::OpCode::ADD_CONST, 0, 0x00, 0x09, 0x01, 0x00, 0x03, 0x12, 0x34, 0x56, 0x78, 0x9A, 0xBC,
             });
             bool init_res = context.init();
             qb_assert(init_res == true)
-            qb_assert(context.block.data.size() == 4)
+            qb_assert(context.block.data.size() == 5)
             qb_assert(*context.block.data.__cpp_get<uint16_t>(1) == 0x1234)
-            qb_assert(*context.block.data.__cpp_get<std::string>(2) == "test")
-            qb_assert(*context.block.data.__cpp_get<qb::mem::Vector>(3)->__cpp_get<uint16_t>(0) == 0x1234)
-            qb_assert(*context.block.data.__cpp_get<qb::mem::Vector>(3)->__cpp_get<uint16_t>(1) == 0x5678)
-            qb_assert(*context.block.data.__cpp_get<qb::mem::Vector>(3)->__cpp_get<uint16_t>(2) == 0x9ABC)
+            qb_assert(*context.block.data.__cpp_get<uint32_t>(2) == 0x12345678)
+            qb_assert(*context.block.data.__cpp_get<std::string>(3) == "test")
+            qb_assert(*context.block.data.__cpp_get<qb::mem::Vector>(4)->__cpp_get<uint16_t>(0) == 0x1234)
+            qb_assert(*context.block.data.__cpp_get<qb::mem::Vector>(4)->__cpp_get<uint16_t>(1) == 0x5678)
+            qb_assert(*context.block.data.__cpp_get<qb::mem::Vector>(4)->__cpp_get<uint16_t>(2) == 0x9ABC)
             delete res.out.code;
         })
         

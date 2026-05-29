@@ -23,8 +23,8 @@ namespace qb {
                 }
             }
 
-            Context* get_root() { return this->root; };
-            uint8_t get_size() { return this->size; };
+            Context* get_root() const { return this->root; };
+            uint8_t get_size() const { return this->size; };
 
             bool tick();
             void clear();

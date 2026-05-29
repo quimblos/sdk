@@ -178,11 +178,19 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 }
             }
             ASSERT_N_BYTES(n_bytes);
-            auto data = n_bytes == 0 ? nullptr : bytes+addr;
-            addr += n_bytes;
-            OK({
-                .instruction = new qb::instruction::AddConst(type, data, n_bytes)
-            })
+            if (n_bytes == 0) {
+                OK({
+                    .instruction = new qb::instruction::AddConst(type, nullptr, 0)
+                })
+            }
+            else {
+                auto data = new qb::byte_t[n_bytes];
+                memcpy(data, bytes+addr, n_bytes);
+                addr += n_bytes;
+                OK({
+                    .instruction = new qb::instruction::AddConst(type, data, n_bytes)
+                })
+            }
         }
 
         case qb::OpCode::ADD_ARG: {
@@ -395,8 +403,8 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
 
     std::vector<std::string> drivers;
     std::vector<TypeDef> types;
-    std::vector<qb::Code::Data> consts;
     std::vector<type_t> args;
+    std::vector<qb::Code::Data> consts;
     std::vector<type_t> vars;
     std::vector<Instruction*> instructions;
     qb::mem::Reference* out_value = nullptr;
@@ -416,6 +424,10 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
                 delete res.out.instruction;
                 break;
             }
+            case qb::OpCode::ADD_ARG:
+                args.push_back(((qb::instruction::AddArg*)res.out.instruction)->tdx);
+                delete res.out.instruction;
+                break;
             case qb::OpCode::ADD_CONST: {
                 auto instruction = (qb::instruction::AddConst*)res.out.instruction;
                 consts.push_back({
@@ -426,10 +438,6 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
                 delete res.out.instruction;
                 break;
             }
-            case qb::OpCode::ADD_ARG:
-                args.push_back(((qb::instruction::AddArg*)res.out.instruction)->tdx);
-                delete res.out.instruction;
-                break;
             case qb::OpCode::ADD_VAR:
                 vars.push_back(((qb::instruction::AddVar*)res.out.instruction)->tdx);
                 delete res.out.instruction;
@@ -448,8 +456,8 @@ const qb::parser::res_t qb::parser::code(const byte_t* bytes, code_addr_t length
     qb::Code* code = new qb::Code(
         drivers,
         types,
-        consts,
         args,
+        consts,
         vars,
         instructions,
         out_value

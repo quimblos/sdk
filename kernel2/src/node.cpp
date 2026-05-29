@@ -1,4 +1,5 @@
 #include "node.h"
+#include "runtime.h"
 
 #define NODE_ERROR(CODE) \
     return { \
@@ -36,4 +37,14 @@ qb::node::res_t qb::Node::delete_thread(std::string name) {
     delete thread;
     this->threads.erase(name);
     NODE_OK(nullptr);
+}
+
+void qb::Node::print_debug() const {
+    std::cout << "┌─── node ───" << std::endl;
+    std::cout << "│ name: " << this->name << std::endl;
+    if (this->block.data.size()) {
+        std::cout << "│ #memory" << std::endl;
+        std::cout << qb::runtime::block_to_str(&this->block, "│ ") << std::endl;
+    }
+    std::cout << "└───────────────" << std::endl;
 }

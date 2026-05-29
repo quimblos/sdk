@@ -28,6 +28,7 @@ namespace qb {
             std::vector<TypeDef> children = {};
         } add = {};
         type_t use = B_TYPE_VOID;
+        bool is_const = false;
 
         ~TypeDef() {
             

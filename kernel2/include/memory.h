@@ -83,10 +83,10 @@ namespace qb {
 
             const std::string to_str() const {
                 std::stringstream ss;
-                ss << '<';
+                ss << '@';
                 switch (this->block) {
                     case BLOCK_ENGINE:
-                        ss << "engine.";
+                        ss << "engine:";
                         switch (this->port) {
                             case PORT_CONST_FALSE:
                                 ss << "false";
@@ -97,16 +97,15 @@ namespace qb {
                         }
                         break;
                     case BLOCK_NODE:
-                        ss << "node." << +port;
+                        ss << "node:" << +port;
                         break;
                     case BLOCK_THREAD:
-                        ss << "const." << +port;
+                        ss << "thread:" << +port;
                         break;
                     case BLOCK_CONTEXT:
-                        ss << "var." << +port;
+                        ss << "ctx:" << +port;
                         break;
                 }
-                ss << '>';
                 return ss.str();
             }
 
@@ -151,7 +150,7 @@ namespace qb {
                 std::stringstream ss;
                 ss << Reference::to_str();
                 for (uint8_t i = 0; i < this->shape.size(); i++) {
-                    ss << '[' << this->shape[i].start << ':' << this->shape[i].end << ']';
+                    ss << '[' << this->shape[i].start << '~' << this->shape[i].end << ']';
                 }
                 return ss.str();
             }
@@ -264,7 +263,7 @@ namespace qb {
                 }
             }
 
-            index_t size() {
+            index_t size() const {
                 return this->data.size() / this->item_size;
             }
 
@@ -301,7 +300,7 @@ namespace qb {
                 }
             }
 
-            index_t size() {
+            index_t size() const {
                 return this->data.size();
             }
 
@@ -334,7 +333,7 @@ namespace qb {
                 type(type)
             {
                 port_t ports = type->schema.of_struct.n_fields;
-                fields.resize(type->schema.of_struct.n_fields);
+                this->fields.resize(type->schema.of_struct.n_fields);
 
                 index_t offset = 0;
                 for (index_t i = 0; i < ports; i++) {
@@ -351,7 +350,7 @@ namespace qb {
                 this->init();
             }
 
-            index_t size() {
+            index_t size() const {
                 return this->fields.size();
             }
 
@@ -484,13 +483,28 @@ namespace qb {
             public:
                 TypeBlock type_block;
                 Struct data;
+                std::vector<bool> is_const;
                                 
                 Block(const TypeDef& type_def):
-                    data(this->type_block.get(this->type_block.add_from_def(type_def))) {}
+                    data(this->type_block.get(this->type_block.add_from_def(type_def)))
+                {    
+                    auto ports = type_def.add.children.size();
+                    this->is_const.resize(ports);
+                    for (index_t i = 0; i < ports; i++) {
+                        this->is_const[i] = type_def.add.children[i].is_const;
+                    }
+                }
                 
                 Block(const std::vector<TypeDef>& custom_types, const TypeDef& type_def):
                     type_block(custom_types),
-                    data(this->type_block.get(this->type_block.add_from_def(type_def))) {}
+                    data(this->type_block.get(this->type_block.add_from_def(type_def)))
+                {
+                    auto ports = type_def.add.children.size();
+                    this->is_const.resize(ports);
+                    for (index_t i = 0; i < ports; i++) {
+                        this->is_const[i] = type_def.add.children[i].is_const;
+                    }
+                }
                       
                 const Type* type_of(port_t port) const {
                     return this->data.type->schema.of_struct.fields[port];

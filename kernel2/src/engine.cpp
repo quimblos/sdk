@@ -1,4 +1,5 @@
 #include "engine.h"
+#include "runtime.h"
 
 #define ENGINE_ERROR(CODE) \
     return { \
@@ -63,4 +64,13 @@ qb::engine::res_t qb::Engine::delete_node(std::string name) {
     delete node;
     this->nodes.erase(name);
     ENGINE_OK(nullptr);
+}
+
+void qb::Engine::print_debug() const {
+    std::cout << "┌─── engine ───" << std::endl;
+    if (this->block.data.size()) {
+        std::cout << "│ #memory" << std::endl;
+        std::cout << qb::runtime::block_to_str(&this->block, "│ ") << std::endl;
+    }
+    std::cout << "└───────────────" << std::endl;
 }

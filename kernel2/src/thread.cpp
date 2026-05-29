@@ -1,4 +1,5 @@
 #include "thread.h"
+#include "runtime.h"
 
 #define QB_THREAD_DEBUG
 
@@ -38,5 +39,25 @@ bool qb::Thread::tick() {
         return false;
     }
 
-    return this->stack.tick();
+    bool out = this->stack.tick();
+    return out;
+}
+
+void qb::Thread::print_debug() const {
+    std::cout << "┌─── thread ───" << std::endl;
+    std::cout << "│ name: " << this->name << std::endl;
+    switch (this->state) {
+        case qb::Thread::State::IDLE: std::cout << "│ state: IDLE" << std::endl; break;
+        case qb::Thread::State::RUNNING: std::cout << "│ state: RUNNING" << std::endl; break;
+        case qb::Thread::State::SLEEPING: std::cout << "│ state: SLEEPING" << std::endl; break;
+        case qb::Thread::State::OK: std::cout << "│ state: OK" << std::endl; break;
+        case qb::Thread::State::ERROR: std::cout << "│ state: ERROR" << std::endl; break;
+    }
+    std::cout << "│ sleep: " << this->sleep << std::endl;
+    std::cout << "│ stack: " << +this->stack.get_size() << std::endl;
+    if (this->block.data.size()) {
+        std::cout << "│ #memory" << std::endl;
+        std::cout << qb::runtime::block_to_str(&this->block, "│ ") << std::endl;
+    }
+    std::cout << "└───────────────" << std::endl;
 }

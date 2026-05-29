@@ -1,7 +1,11 @@
 #pragma once
 #include <iostream>
 
-#define LOG(X) std::cout << #X " = " << (sizeof(X) == 1 ? +X : X) << std::endl;
+#define LOG(X) { \
+    std::stringstream ss; \
+    ss << X; \
+    std::cout << #X " = " << ss.str() << std::endl; \
+}
 
 #define BLOCK_ENGINE 0xFF
 #define BLOCK_NODE 0xFE

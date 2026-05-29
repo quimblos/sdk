@@ -66,6 +66,8 @@ namespace qb {
             engine::res_t link_node(Node* node);
             engine::res_t get_node(std::string name) const;
             engine::res_t delete_node(std::string name);
+
+            void print_debug() const;
     };
     
 }

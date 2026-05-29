@@ -23,7 +23,9 @@ namespace qb {
             block(Context::make_block(code)),
             length(code->instructions.size()),
             cursor(0)
-        {}
+        {
+            this->init();
+        }
 
         bool init();
         bool tick();
@@ -32,6 +34,7 @@ namespace qb {
         code_addr_t run_instruction(qb::Instruction* instruction);
         
         static mem::Block make_block(const Code* code);
+        void print_debug() const;
     };
     
 }

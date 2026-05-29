@@ -58,12 +58,19 @@ namespace qb {
             Node* get_node() const { return this->node; }
             State get_state() const { return this->state; }
             uint32_t get_sleep() const { return this->sleep; }
+            
+            void set_sleep(uint32_t time) {
+                this->state = State::SLEEPING;
+                this->sleep = time;
+            }
 
             void wakeup();
             void reset();
             void start();
 
             bool tick();
+
+            void print_debug() const;
 
     };
 

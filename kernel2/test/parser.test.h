@@ -698,6 +698,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.tdx == B_TYPE_VOID)
             qb_assert(instruction.length == 0)
             qb_assert(instruction.bytes == nullptr)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:NULL", {
@@ -709,6 +710,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.tdx == B_TYPE_NULL)
             qb_assert(instruction.length == 0)
             qb_assert(instruction.bytes == nullptr)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:BOOL", {
@@ -721,6 +723,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.tdx == B_TYPE_BOOL)
             qb_assert(instruction.length == 1)
             qb_assert(instruction.bytes[0] == true)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:U8", {
@@ -733,6 +736,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.tdx == B_TYPE_U8)
             qb_assert(instruction.length == 1)
             qb_assert(instruction.bytes[0] == 123)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:I8", {
@@ -745,6 +749,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.tdx == B_TYPE_I8)
             qb_assert(instruction.length == 1)
             qb_assert(((int8_t*)instruction.bytes)[0] == -123)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:U16", {
@@ -758,6 +763,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.length == 2)
             qb_assert(instruction.bytes[0] == 0x12)
             qb_assert(instruction.bytes[1] == 0x34)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:I16", {
@@ -771,6 +777,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.length == 2)
             qb_assert(instruction.bytes[0] == 0x12)
             qb_assert(instruction.bytes[1] == 0x34)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:U32", {
@@ -786,6 +793,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.bytes[1] == 0x34)
             qb_assert(instruction.bytes[2] == 0x56)
             qb_assert(instruction.bytes[3] == 0x78)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:I32", {
@@ -801,6 +809,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.bytes[1] == 0x34)
             qb_assert(instruction.bytes[2] == 0x56)
             qb_assert(instruction.bytes[3] == 0x78)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:F32", {
@@ -816,6 +825,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.bytes[1] == 0x34)
             qb_assert(instruction.bytes[2] == 0x56)
             qb_assert(instruction.bytes[3] == 0x78)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:STR", {
@@ -834,6 +844,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.bytes[3] == 'e')
             qb_assert(instruction.bytes[4] == 's')
             qb_assert(instruction.bytes[5] == 't')
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:REF", {
@@ -848,6 +859,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.length == 2)
             qb_assert(instruction.bytes[0] == BLOCK_ENGINE)
             qb_assert(instruction.bytes[1] == PORT_CONST_TRUE)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:REF_SLICE", {
@@ -874,6 +886,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.bytes[8] == 0xBB)
             qb_assert(instruction.bytes[9] == 0xCC)
             qb_assert(instruction.bytes[10] == 0xDD)
+            delete[] instruction.bytes;
         })
 
         qb_test("ADD_CONST:CUSTOM", {
@@ -896,6 +909,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.bytes[5] == 0x78)
             qb_assert(instruction.bytes[6] == 0x9A)
             qb_assert(instruction.bytes[7] == 0xBC)
+            delete[] instruction.bytes;
         })
     })
 

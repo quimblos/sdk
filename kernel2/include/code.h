@@ -77,8 +77,8 @@ namespace qb {
         
         const std::vector<std::string> drivers;
         const std::vector<TypeDef> types;
-        const std::vector<Data> consts;
         const std::vector<type_t> args;
+        const std::vector<Data> consts;
         const std::vector<type_t> vars;
         const std::vector<Instruction*> instructions;
         const std::vector<Code*> children;
@@ -87,8 +87,8 @@ namespace qb {
         Code(
             const std::vector<std::string>& drivers,
             const std::vector<TypeDef> types,
-            const std::vector<Data> consts,
             const std::vector<type_t>& args,
+            const std::vector<Data> consts,
             const std::vector<type_t>& vars,
             const std::vector<Instruction*>& instructions,
             // const std::vector<Code*>& children
@@ -96,14 +96,17 @@ namespace qb {
         ) :
             drivers(drivers),
             types(types),
-            consts(consts),
             args(args),
+            consts(consts),
             vars(vars),
             instructions(instructions),
             // children(children),
             out_value(out_value) {}
 
         ~Code() {
+            for (size_t i = 0; i < this->consts.size(); i++) {
+                delete[] this->consts[i].bytes;
+            }
             for (size_t i = 0; i < this->instructions.size(); i++) {
                 delete this->instructions[i];
             }
@@ -111,6 +114,22 @@ namespace qb {
 
         std::string to_str() {
             std::stringstream ss;
+            ss << "#memory" << std::endl;
+            ss << "0 (out): ?" << std::endl;
+            auto args = this->args.size();
+            auto consts = this->consts.size();
+            auto vars = this->vars.size();
+            for (size_t i = 0; i < args; i++) {
+                ss << i+1 << " (arg): " << +this->args[i] << std::endl;
+            }
+            for (size_t i = 0; i < consts; i++) {
+                ss << i+1+args << " (const): " << +this->consts[i].tdx << std::endl;
+            }
+            for (size_t i = 0; i < vars; i++) {
+                ss << i+1+args+consts << " (var): " << +this->vars[i] << std::endl;
+            }
+            ss << std::endl;
+            ss << "#instructions" << std::endl;
             for (size_t i = 0; i < this->instructions.size(); i++) {
                 ss << this->instructions[i]->to_str() << std::endl;
             }
