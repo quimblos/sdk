@@ -114,6 +114,12 @@ namespace qb {
 
         std::string to_str() {
             std::stringstream ss;
+            ss << "#drivers" << std::endl;
+            auto drivers = this->drivers.size();
+            for (size_t i = 0; i < drivers; i++) {
+                ss << +i << ": " << this->drivers[i] << std::endl;
+            }
+            ss << std::endl;
             ss << "#memory" << std::endl;
             ss << "0 (out): ?" << std::endl;
             auto args = this->args.size();
@@ -142,6 +148,12 @@ namespace qb {
     */
 
     namespace instruction {
+
+        enum CompareOp {
+            EQ = 0x00,
+            GT = 0x01,
+            LT = 0x02,
+        };
         
         // Parser
 
@@ -342,7 +354,7 @@ namespace qb {
 
             const std::string to_str() const {
                 std::stringstream ss;
-                ss << "if " << this->source.to_str() << " @" << +this->addr_true << " else @" << +this->addr_false;
+                ss << "if " << this->source.to_str() << " goto " << +this->addr_true << " else goto " << +this->addr_false;
                 return ss.str();
             }
         };
@@ -357,11 +369,7 @@ namespace qb {
                 const bool deref_data: 1 = false;
                 const bool has_true: 1 = false;
                 const bool has_false: 1 = false;
-                const enum Op {
-                    EQ = 0x00,
-                    GT = 0x01,
-                    LT = 0x02,
-                } op : 2;
+                const CompareOp op : 2;
             } flags;
             const mem::Reference target;
             const mem::Reference left;
@@ -386,9 +394,9 @@ namespace qb {
                 if (this->flags.deref_left) ss << '*';
                 ss << this->left.to_str();
                 switch (this->flags.op) {
-                    case Flags::Op::EQ: ss << " == "; break;
-                    case Flags::Op::GT: ss << " > "; break;
-                    case Flags::Op::LT: ss << " < "; break;
+                    case CompareOp::EQ: ss << " == "; break;
+                    case CompareOp::GT: ss << " > "; break;
+                    case CompareOp::LT: ss << " < "; break;
                 }
                 if (this->flags.deref_right) ss << '*';
                 ss << this->right.to_str() << " ? ";

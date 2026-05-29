@@ -1037,7 +1037,7 @@ qb_suite(test_parser, "parser", {
             TEST_INSTRUCTION_FAIL(qb::parser::res_t::Code::CONST_ASSIGNMENT, {
                 qb::OpCode::SET_IF,
                 0b00011111,                 // flags
-                BLOCK_THREAD, 0x02,   // target
+                BLOCK_THREAD, 0x02,         // target
                 BLOCK_CONTEXT, 0x01,         // left
                 BLOCK_CONTEXT, 0x02,         // right
             })
@@ -1058,7 +1058,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.deref_data == true)
             qb_assert(instruction.flags.has_true == false)
             qb_assert(instruction.flags.has_false == false)
-            qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
+            qb_assert(instruction.flags.op == qb::instruction::CompareOp::EQ)
             qb_assert(instruction.target.block == BLOCK_CONTEXT)
             qb_assert(instruction.target.port == 0x01)
             qb_assert(instruction.left.block == BLOCK_CONTEXT)
@@ -1087,7 +1087,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.deref_data == true)
             qb_assert(instruction.flags.has_true == true)
             qb_assert(instruction.flags.has_false == false)
-            qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
+            qb_assert(instruction.flags.op == qb::instruction::CompareOp::EQ)
             qb_assert(instruction.target.block == BLOCK_CONTEXT)
             qb_assert(instruction.target.port == 0x01)
             qb_assert(instruction.left.block == BLOCK_CONTEXT)
@@ -1116,7 +1116,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.deref_data == true)
             qb_assert(instruction.flags.has_true == false)
             qb_assert(instruction.flags.has_false == true)
-            qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
+            qb_assert(instruction.flags.op == qb::instruction::CompareOp::EQ)
             qb_assert(instruction.target.block == BLOCK_CONTEXT)
             qb_assert(instruction.target.port == 0x01)
             qb_assert(instruction.left.block == BLOCK_CONTEXT)
@@ -1146,7 +1146,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.deref_data == true)
             qb_assert(instruction.flags.has_true == true)
             qb_assert(instruction.flags.has_false == true)
-            qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::EQ)
+            qb_assert(instruction.flags.op == qb::instruction::CompareOp::EQ)
             qb_assert(instruction.target.block == BLOCK_CONTEXT)
             qb_assert(instruction.target.port == 0x01)
             qb_assert(instruction.left.block == BLOCK_CONTEXT)
@@ -1176,7 +1176,7 @@ qb_suite(test_parser, "parser", {
             qb_assert(instruction.flags.deref_data == true)
             qb_assert(instruction.flags.has_true == true)
             qb_assert(instruction.flags.has_false == true)
-            qb_assert(instruction.flags.op == qb::instruction::SetIf::Flags::Op::LT)
+            qb_assert(instruction.flags.op == qb::instruction::CompareOp::LT)
             qb_assert(instruction.target.block == BLOCK_CONTEXT)
             qb_assert(instruction.target.port == 0x01)
             qb_assert(instruction.left.block == BLOCK_CONTEXT)

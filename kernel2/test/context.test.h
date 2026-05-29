@@ -9,7 +9,8 @@
         qb_fail() \
     } \
     std::cout << res.out.code->to_str() << std::endl; \
-    auto thread = qb::Thread(nullptr, "test", nullptr, {}); \
+    auto _code = qb::Code({},{},{},{},{},{},nullptr); \
+    auto thread = qb::Thread(nullptr, "test", &_code, {}); \
     auto context = qb::Context(&thread, nullptr, res.out.code);
 
 qb_suite(test_context, "context", {

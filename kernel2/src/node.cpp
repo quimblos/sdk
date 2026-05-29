@@ -18,6 +18,10 @@ qb::node::res_t qb::Node::link_thread(qb::Thread* thread) {
         NODE_ERROR(qb::node::res_t::Code::THREAD_ALREADY_EXISTS)
     }
     this->threads[name] = thread;
+    auto res = qb::runtime::link_drivers(this->engine, thread);
+    if (!res) {
+        NODE_ERROR(qb::node::res_t::Code::LINK_DRIVER_FAILED)
+    }
     NODE_OK(thread);
 }
 

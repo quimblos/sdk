@@ -18,7 +18,8 @@ qb_suite(test_stack, "stack", {
                 qb_fail()
             }
 
-            auto thread = qb::Thread(nullptr, "test", nullptr, {});
+            auto _code = qb::Code({},{},{},{},{},{},nullptr);
+            auto thread = qb::Thread(nullptr, "test", &_code, {});
             auto stack = qb::Stack(&thread);
             auto method0 = stack.push(res.out.code);
             qb_assert(method0->block.data.fields.size() == 3)
@@ -43,7 +44,8 @@ qb_suite(test_stack, "stack", {
                 qb_fail()
             }
 
-            auto thread = qb::Thread(nullptr, "test", nullptr, {});
+            auto _code = qb::Code({},{},{},{},{},{},nullptr);
+            auto thread = qb::Thread(nullptr, "test", &_code, {});
             auto stack = qb::Stack(&thread);
             auto method0 = stack.push(res.out.code);
             auto method1 = stack.push(res.out.code);

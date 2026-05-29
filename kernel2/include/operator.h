@@ -49,6 +49,8 @@ namespace qb {
                 CAST_MAP_TO_REF,
                 CAST_STRUCT_TO_REF,
                 CAST_EVENT_TO_REF,
+                ASSIGN_PORT_OUT_OF_BOUNDS,
+                ASSIGN_TO_CONST,
                 MATH_BOOL_TARGET,
                 MATH_DEC_TARGET
             } code : 7;
@@ -71,8 +73,9 @@ namespace qb {
 
         // assign
 
-        res_t assign(mem::Block& t_block, port_t t_port, mem::Block& s_block, port_t s_port, bool explicit_cast = false);
+        res_t assign(mem::Block& l_block, port_t l_port, mem::Block& r_block, port_t r_port, bool explicit_cast = false);
         res_t math(qb::instruction::Math::Flags::Op op, mem::Block& t_block, port_t t_port, mem::Block& s_block, port_t s_port);
+        res_t compare(qb::instruction::CompareOp op, mem::Block& t_block, port_t t_port, mem::Block& s_block, port_t s_port);
 
     }
 

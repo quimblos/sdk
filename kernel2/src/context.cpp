@@ -1,7 +1,7 @@
 #include "context.h"
 #include "runtime.h"
 
-#define QB_CONTEXT_DEBUG
+// #define QB_CONTEXT_DEBUG
 
 // 0: output
 // 1~x: args
@@ -67,35 +67,39 @@ bool qb::Context::tick() {
         std::cout << "[tick] " << this->cursor << "/" << this->length << "\t" << instr->to_str() << std::endl;
     #endif
 
-    qb::runtime::Error* error;
-    qb::code_addr_t next = qb::runtime::run_instruction(this, this->cursor, instr, error);
+    auto res = qb::runtime::run_instruction(this, this->cursor, instr);
+
+    if (res.code != qb::runtime::res_t::Code::OK) {
+        std::cout << "ERROR: " << +res.code << std::endl;
+        return false;
+    }
 
     #ifdef QB_CONTEXT_DEBUG
         this->print_debug();
         this->thread->print_debug();
     #endif
 
-    // // Program is ending
-    // if (next >= this->length) {
-    //     // Was running, end with success, no output
-    //     if (this->state == runner::State::RUNNING) {
-    //         this->state = runner::State::OK;
-    //     }
-    //     // Started sleeping, advance and wait
-    //     else if (this->state == runner::State::SLEEPING) {
-    //         this->cursor = next;
-    //         return true;
-    //     }
-    //     return false;
-    // }
+    // Program is ending
+    if (res.addr >= this->length) {
+        // Was running, end with success, no output
+        if (this->thread->get_state() == qb::Thread::RUNNING) {
+            ((qb::Thread*)this->thread)->set_ok();
+        }
+        // Started sleeping, advance and wait
+        else if (this->thread->get_state() == qb::Thread::SLEEPING) {
+            this->cursor = res.addr;
+            return true;
+        }
+        return false;
+    }
 
-    this->cursor = next;
+    this->cursor = res.addr;
     return true;
 }
 
 void qb::Context::print_debug() const {
     std::cout << "┌─── context ───" << std::endl;
-    std::cout << "│ cursor: " << this->cursor << '/' << this->length << std::endl;
+    std::cout << "│ cursor: " << this->cursor << '/' << this->length-1 << std::endl;
     if (this->block.data.size()) {
         std::cout << "│ #memory" << std::endl;
         std::cout << qb::runtime::block_to_str(&this->block, "│ ") << std::endl;

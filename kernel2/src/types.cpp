@@ -148,9 +148,10 @@ const qb::type_t qb::TypeBlock::add_from_def(const qb::TypeDef& type_def) {
             return this->add_map(item_type);
         }
         case qb::TypeKind::STRUCT: {
-            auto item_types = std::vector<type_t>(type_def.add.children.size());
+            auto item_types = std::vector<std::pair<bool, type_t>>(type_def.add.children.size());
             for (type_t i = 0; i < item_types.size(); i++) {
-                item_types[i] = this->add_from_def(type_def.add.children[i]);
+                item_types[i].first = type_def.add.children[i].is_const;
+                item_types[i].second = this->add_from_def(type_def.add.children[i]);
             }
             return this->add_struct(item_types);
         }
@@ -197,19 +198,22 @@ const qb::type_t qb::TypeBlock::add_map(const qb::type_t item_type) {
 }
 
 // struct
-const qb::type_t qb::TypeBlock::add_struct(const std::vector<type_t>& field_types) {    
+const qb::type_t qb::TypeBlock::add_struct(const std::vector<std::pair<bool, type_t>>& field_types) {
     
     port_t n_fields = (port_t) field_types.size();
+    auto is_const = new bool[n_fields];
     auto fields = new const Type*[n_fields];
 
     for (size_t i = 0; i < n_fields; i++) {
-        fields[i] = this->get(field_types[i]);
+        is_const[i] = field_types[i].first;
+        fields[i] = this->get(field_types[i].second);
     }
 
     auto schema = qb::TypeSchema({
         .of_struct = {
             .n_fields = n_fields,
-            .fields = fields
+            .fields = fields,
+            .is_const = is_const
         }
     });
 

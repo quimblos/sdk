@@ -33,10 +33,12 @@ namespace qb {
 
             Driver(
                 std::string name,
-                TypeDef type_def
+                const std::vector<TypeDef>& type_defs
             ):
                 name(name),
-                block(mem::Block(type_def)) {}
+                block(mem::Block(qb::TypeDef::block(type_defs))) {
+                    LOG(this->block.data.size())
+                }
 
             virtual driver::res_t hold(Thread* thread) {
                 if (this->held_by == nullptr) {
@@ -64,9 +66,9 @@ namespace qb {
                 }
             }
 
-            virtual void log(const Type* type, data_t target) {
-                // TODO
-            }
+            
+            virtual void render(port_t port) {}
+            virtual void log(const Type* type, data_t target) {}
 
             // Getters
 
@@ -77,14 +79,14 @@ namespace qb {
                 return ss.str();
             }
 
-            bool is_held(Thread* thread = nullptr) const {
+            bool is_held(const Thread* thread = nullptr) const {
                 if (this->held_by == nullptr)
                     return false;
                 return this->held_by != thread;
             }
             
             std::string get_name() const { return this->name; };
-            const mem::Block& get_block() const { return this->block; };
+            const mem::Block* get_block() const { return &this->block; };
     };
     
 }

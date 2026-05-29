@@ -167,7 +167,7 @@ qb_suite(test_type, "type", {
     
         qb_test("struct{bool}", {
             auto tdx = type_block.add_struct({
-                B_TYPE_BOOL
+                {false,B_TYPE_BOOL}
             });
             auto type = type_block.get(tdx);
         
@@ -179,8 +179,8 @@ qb_suite(test_type, "type", {
     
         qb_test("struct{bool,u8}", {
             auto tdx = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8}
             });
             auto type = type_block.get(tdx);
         
@@ -193,9 +193,9 @@ qb_suite(test_type, "type", {
     
         qb_test("struct{bool,u8,f32}", {
             auto tdx = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8,
-                B_TYPE_F32
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8},
+                {false,B_TYPE_F32}
             });
             auto type = type_block.get(tdx);
         
@@ -209,10 +209,10 @@ qb_suite(test_type, "type", {
     
         qb_test("struct{bool,u8,f32,str}", {
             auto tdx = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8,
-                B_TYPE_F32,
-                B_TYPE_STR
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8},
+                {false,B_TYPE_F32},
+                {false,B_TYPE_STR}
             });
             auto type = type_block.get(tdx);
         
@@ -227,11 +227,11 @@ qb_suite(test_type, "type", {
     
         qb_test("struct{bool,u8,f32,str,ref}", {
             auto tdx = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8,
-                B_TYPE_F32,
-                B_TYPE_STR,
-                B_TYPE_REF
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8},
+                {false,B_TYPE_F32},
+                {false,B_TYPE_STR},
+                {false,B_TYPE_REF}
             });
             auto type = type_block.get(tdx);
         
@@ -357,8 +357,8 @@ qb_suite(test_type, "type", {
     
         qb_test("map{struct{bool,u8}}", {
             auto tdx0 = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8},
             });
             auto tdx1 = type_block.add_map(tdx0);
             auto type = type_block.get(tdx1);
@@ -394,7 +394,7 @@ qb_suite(test_type, "type", {
         qb_test("struct{map{bool}}", {
             auto tdx0 = type_block.add_map(B_TYPE_BOOL);
             auto tdx1 = type_block.add_struct({
-                tdx0
+                {false,tdx0}
             });
             auto type = type_block.get(tdx1);
             
@@ -406,11 +406,11 @@ qb_suite(test_type, "type", {
     
         qb_test("struct{struct{bool,u8}}", {
             auto tdx0 = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8},
             });
             auto tdx1 = type_block.add_struct({
-                tdx0
+                {false,tdx0}
             });
             auto type = type_block.get(tdx1);
             
@@ -423,7 +423,7 @@ qb_suite(test_type, "type", {
         qb_test("struct{event{u8}}", {
             auto tdx0 = type_block.add_event(B_TYPE_BOOL);
             auto tdx1 = type_block.add_struct({
-                tdx0
+                {false,tdx0}
             });
             auto type = type_block.get(tdx1);
             
@@ -436,7 +436,7 @@ qb_suite(test_type, "type", {
         qb_test("struct{vec[u8]}", {
             auto tdx0 = type_block.add_vec(B_TYPE_BOOL);
             auto tdx1 = type_block.add_struct({
-                tdx0
+                {false,tdx0}
             });
             auto type = type_block.get(tdx1);
             
@@ -461,8 +461,8 @@ qb_suite(test_type, "type", {
     
         qb_test("event{struct{bool,u8}}", {
             auto tdx0 = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8},
             });
             auto tdx1 = type_block.add_event(tdx0);
             auto type = type_block.get(tdx1);
@@ -507,8 +507,8 @@ qb_suite(test_type, "type", {
     
         qb_test("vec[struct{bool,u8}]", {
             auto tdx0 = type_block.add_struct({
-                B_TYPE_BOOL,
-                B_TYPE_U8,
+                {false,B_TYPE_BOOL},
+                {false,B_TYPE_U8},
             });
             auto tdx1 = type_block.add_vec(tdx0);
             auto type = type_block.get(tdx1);

@@ -5,6 +5,7 @@
 namespace qb {
 
     class Node;
+    class Driver;
     class Thread {
 
         public:
@@ -12,6 +13,7 @@ namespace qb {
                 IDLE = 0x00,
                 RUNNING = 0x01,
                 SLEEPING = 0x10,
+                WAITING_DRIVER = 0x20,
                 OK = 0xF0,
                 ERROR = 0xFF
             };
@@ -34,6 +36,9 @@ namespace qb {
         // Execution
         Stack stack;
         
+        // Drivers
+        const Driver** drivers;
+
         // Memory
         mem::Block block;
 
@@ -49,12 +54,22 @@ namespace qb {
                 name(name),
                 stack(Stack(this)),
                 code(code),
-                block(mem::Block(type_def)) {}
+                block(mem::Block(type_def)),
+                drivers(new const Driver*[code->drivers.size()])
+            {}
         
-            virtual ~Thread() {}
+            virtual ~Thread() {
+                delete[] this->drivers;
+            }
+
+            void link_driver(block_t i, const Driver* driver) {
+                this->drivers[i] = driver;
+            }
 
             const std::string& get_name() const { return this->name; }
+            const Code* get_code() const { return this->code; }
             const mem::Block* get_block() const { return &this->block; }
+            Driver* get_driver(block_t block) const { return (Driver*) this->drivers[block]; }
             Node* get_node() const { return this->node; }
             State get_state() const { return this->state; }
             uint32_t get_sleep() const { return this->sleep; }
@@ -62,6 +77,17 @@ namespace qb {
             void set_sleep(uint32_t time) {
                 this->state = State::SLEEPING;
                 this->sleep = time;
+            }
+            void set_waiting_driver(bool waiting) {
+                if (waiting) {
+                    this->state = State::WAITING_DRIVER;
+                }
+                else {
+                    this->state = State::RUNNING;
+                }
+            }
+            void set_ok() {
+                this->state = State::OK;
             }
 
             void wakeup();

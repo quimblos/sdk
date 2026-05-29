@@ -63,6 +63,8 @@ namespace qb {
             { qb::op::res_t::Code::CAST_MAP_TO_REF,             "[op] CAST_MAP_TO_REF" },
             { qb::op::res_t::Code::CAST_STRUCT_TO_REF,          "[op] CAST_STRUCT_TO_REF" },
             { qb::op::res_t::Code::CAST_EVENT_TO_REF,           "[op] CAST_EVENT_TO_REF" },
+            { qb::op::res_t::Code::ASSIGN_PORT_OUT_OF_BOUNDS,   "[op] ASSIGN_PORT_OUT_OF_BOUNDS" },
+            { qb::op::res_t::Code::ASSIGN_TO_CONST,             "[op] ASSIGN_TO_CONST" },
             { qb::op::res_t::Code::MATH_BOOL_TARGET,            "[op] MATH_BOOL_TARGET" },
             { qb::op::res_t::Code::MATH_DEC_TARGET,             "[op] MATH_DEC_TARGET" }
         };
@@ -70,13 +72,14 @@ namespace qb {
         const std::map<uint8_t, std::string> node = {
             { qb::node::res_t::Code::OK,                        "[node] OK" },
             { qb::node::res_t::Code::THREAD_ALREADY_EXISTS,     "[node] THREAD_ALREADY_EXISTS" },
-            { qb::node::res_t::Code::THREAD_NOT_FOUND,          "[node] UNKNOWN_SOURCE_TYPE" }
+            { qb::node::res_t::Code::THREAD_NOT_FOUND,          "[node] THREAD_NOT_FOUND" },
+            { qb::node::res_t::Code::LINK_DRIVER_FAILED,        "[node] LINK_DRIVER_FAILED" }
         };
 
         const std::map<uint8_t, std::string> engine = {
             { qb::engine::res_t::Code::OK,                      "[engine] OK" },
             { qb::engine::res_t::Code::NODE_ALREADY_EXISTS,     "[engine] NODE_ALREADY_EXISTS" },
-            { qb::engine::res_t::Code::NODE_NOT_FOUND,          "[engine] UNKNOWN_SOURCE_TYPE" }
+            { qb::engine::res_t::Code::NODE_NOT_FOUND,          "[engine] NODE_NOT_FOUND" }
         };
 
     }

@@ -49,8 +49,10 @@ namespace qb {
         struct _struct {
             const port_t n_fields;
             const Type** fields;
+            const bool* is_const;
             ~_struct() {
                 delete[] this->fields;
+                delete[] this->is_const;
             }
         } of_struct;
         struct _fn {
@@ -143,8 +145,10 @@ namespace qb {
                     ss << "struct{";
                     auto n = this->schema.of_struct.n_fields;
                     for (size_t i = 0; i < n; i++) {
-                    ss << this->schema.of_struct.fields[i]->to_str();
-                    if (i < n-1) ss << ",";
+                        ss << this->schema.of_struct.fields[i]->to_str();
+                        
+                        if (this->schema.of_struct.is_const[i]) ss << " const";
+                        if (i < n-1) ss << ",";
                     }
                     ss << "}";
                     break;

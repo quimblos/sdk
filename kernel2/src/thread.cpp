@@ -50,14 +50,22 @@ void qb::Thread::print_debug() const {
         case qb::Thread::State::IDLE: std::cout << "│ state: IDLE" << std::endl; break;
         case qb::Thread::State::RUNNING: std::cout << "│ state: RUNNING" << std::endl; break;
         case qb::Thread::State::SLEEPING: std::cout << "│ state: SLEEPING" << std::endl; break;
+        case qb::Thread::State::WAITING_DRIVER: std::cout << "│ state: WAITING_DRIVER" << std::endl; break;
         case qb::Thread::State::OK: std::cout << "│ state: OK" << std::endl; break;
         case qb::Thread::State::ERROR: std::cout << "│ state: ERROR" << std::endl; break;
     }
     std::cout << "│ sleep: " << this->sleep << std::endl;
     std::cout << "│ stack: " << +this->stack.get_size() << std::endl;
+    if (this->code->drivers.size()) {
+        std::cout << "│ #drivers" << std::endl;
+        for (block_t i = 0; i < this->code->drivers.size(); i++) {
+            std::cout << "│ " << +i << ": " << this->code->drivers[i] << std::endl;
+            std::cout << qb::runtime::block_to_str(this->drivers[i]->get_block(), "│   ") << std::endl;
+        }
+    }
     if (this->block.data.size()) {
         std::cout << "│ #memory" << std::endl;
-        std::cout << qb::runtime::block_to_str(&this->block, "│ ") << std::endl;
+        std::cout << qb::runtime::block_to_str(&this->block, "│ ");
     }
     std::cout << "└───────────────" << std::endl;
 }

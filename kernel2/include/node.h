@@ -9,8 +9,9 @@ namespace qb {
         struct res_t {
             enum Code {
                 OK = 0x00,
-                THREAD_ALREADY_EXISTS = 0x01,
-                THREAD_NOT_FOUND = 0x02
+                THREAD_ALREADY_EXISTS,
+                THREAD_NOT_FOUND,
+                LINK_DRIVER_FAILED
             } code: 8;
             union {
                 Thread* thread = nullptr;
@@ -34,6 +35,7 @@ namespace qb {
                 std::string name,
                 const TypeDef& type_def
             ):
+                engine(engine),
                 name(name),
                 block(mem::Block(type_def)) {}
                 

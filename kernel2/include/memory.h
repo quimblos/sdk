@@ -86,7 +86,7 @@ namespace qb {
                 ss << '@';
                 switch (this->block) {
                     case BLOCK_ENGINE:
-                        ss << "engine:";
+                        ss << "eng:";
                         switch (this->port) {
                             case PORT_CONST_FALSE:
                                 ss << "false";
@@ -97,13 +97,16 @@ namespace qb {
                         }
                         break;
                     case BLOCK_NODE:
-                        ss << "node:" << +port;
+                        ss << "nod:" << +port;
                         break;
                     case BLOCK_THREAD:
-                        ss << "thread:" << +port;
+                        ss << "thr:" << +port;
                         break;
                     case BLOCK_CONTEXT:
                         ss << "ctx:" << +port;
+                        break;
+                    default:
+                        ss << "drv" << +this->block << ":" << +port;
                         break;
                 }
                 return ss.str();
@@ -483,28 +486,15 @@ namespace qb {
             public:
                 TypeBlock type_block;
                 Struct data;
-                std::vector<bool> is_const;
                                 
                 Block(const TypeDef& type_def):
                     data(this->type_block.get(this->type_block.add_from_def(type_def)))
-                {    
-                    auto ports = type_def.add.children.size();
-                    this->is_const.resize(ports);
-                    for (index_t i = 0; i < ports; i++) {
-                        this->is_const[i] = type_def.add.children[i].is_const;
-                    }
-                }
+                {}
                 
                 Block(const std::vector<TypeDef>& custom_types, const TypeDef& type_def):
                     type_block(custom_types),
                     data(this->type_block.get(this->type_block.add_from_def(type_def)))
-                {
-                    auto ports = type_def.add.children.size();
-                    this->is_const.resize(ports);
-                    for (index_t i = 0; i < ports; i++) {
-                        this->is_const[i] = type_def.add.children[i].is_const;
-                    }
-                }
+                {}
                       
                 const Type* type_of(port_t port) const {
                     return this->data.type->schema.of_struct.fields[port];

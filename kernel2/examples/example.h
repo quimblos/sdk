@@ -52,21 +52,19 @@ class LED8Driver : public qb::Driver {
         qb::TypeDef::_use(B_TYPE_U8)
     }) {}
     
-    // void on_tick() {
-    //     qb::Device::on_tick();
-    //     auto data = qb::mem::as_u8(this->variables.at(0).second);
-    //     uint8_t val = data->value;
+    void render(qb::port_t port) {
+        auto val = *this->block.data.__cpp_get<uint8_t>(0);
 
-    //     std::cout << COLOR_YELLOW;
-    //     for (uint8_t i = 0; i < 8; i++) {
-    //         std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╔═╗ ";
-    //     }
-    //     std::cout << std::endl;
-    //     for (uint8_t i = 0; i < 8; i++) {
-    //         std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╚═╝ ";
-    //     }
-    //     std::cout << COLOR_NC << std::endl;
-    // }
+        std::cout << COLOR_YELLOW;
+        for (uint8_t i = 0; i < 8; i++) {
+            std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╔═╗ ";
+        }
+        std::cout << std::endl;
+        for (uint8_t i = 0; i < 8; i++) {
+            std::cout << ((val >> (7-i) & 1) ? COLOR_YELLOW : COLOR_GRAY) << "╚═╝ ";
+        }
+        std::cout << COLOR_NC << std::endl;
+    }
 };
 
 // /* Invoke Context */

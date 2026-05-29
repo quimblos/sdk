@@ -288,7 +288,7 @@ const qb::parser::res_t qb::parser::instruction(const byte_t* bytes, code_addr_t
                 .deref_data = (flags & 8) > 0,
                 .has_true = (flags & 16) > 0,
                 .has_false = (flags & 32) > 0,
-                .op = (qb::instruction::SetIf::Flags::Op) (flags >> 6)
+                .op = (qb::instruction::CompareOp) (flags >> 6)
             });
 
             if (flags_struct.op > 0x02)
