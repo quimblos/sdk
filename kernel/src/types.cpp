@@ -98,25 +98,25 @@ const qb::Type qb::TypeBlock::builtin_types[] = {
     // 0xF6: f32
     qb::Type({
         .kind = qb::TypeKind::FLOAT,
-        .flags = 0
+        .flags = qb::TypeFlags({})
     }),
 
     // 0xF5: string
     qb::Type({
         .kind = qb::TypeKind::STRING,
-        .flags = 0
+        .flags = qb::TypeFlags({})
     }),
 
     // 0xF4: ref
     qb::Type({
         .kind = qb::TypeKind::REF,
-        .flags = 0
+        .flags = qb::TypeFlags({})
     }),
 
     // 0xF3: ref_slice
     qb::Type({
         .kind = qb::TypeKind::REF_SLICE,
-        .flags = 0
+        .flags = qb::TypeFlags({})
     })
 
 };
@@ -170,7 +170,7 @@ const qb::type_t qb::TypeBlock::add_from_def(const qb::TypeDef& type_def) {
 const qb::type_t qb::TypeBlock::add_vec(const qb::type_t item_type) {
     this->types.push_back(new qb::Type({
         .kind = qb::TypeKind::VECTOR,
-        .flags = 0,
+        .flags = qb::TypeFlags({}),
         .schema = qb::TypeSchema({
             .of_map = {
                 .type = this->get(item_type)
@@ -186,7 +186,7 @@ const qb::type_t qb::TypeBlock::add_vec(const qb::type_t item_type) {
 const qb::type_t qb::TypeBlock::add_map(const qb::type_t item_type) {
     this->types.push_back(new qb::Type({
         .kind = qb::TypeKind::MAP,
-        .flags = 0,
+        .flags = qb::TypeFlags({}),
         .schema = qb::TypeSchema({
             .of_map = {
                 .type = this->get(item_type)
@@ -219,7 +219,7 @@ const qb::type_t qb::TypeBlock::add_struct(const std::vector<std::pair<bool, typ
 
     this->types.push_back(new qb::Type({
         .kind = qb::TypeKind::STRUCT,
-        .flags = 0,
+        .flags = qb::TypeFlags({}),
         .schema = schema
     }));
     port_t idx = this->types.size() - 1;
@@ -230,7 +230,7 @@ const qb::type_t qb::TypeBlock::add_struct(const std::vector<std::pair<bool, typ
 const qb::type_t qb::TypeBlock::add_event(const qb::type_t inner_type) {
     this->types.push_back(new qb::Type({
         .kind = qb::TypeKind::EVENT,
-        .flags = 0,
+        .flags = qb::TypeFlags({}),
         .schema = qb::TypeSchema({
             .of_map = {
                 .type = this->get(inner_type)

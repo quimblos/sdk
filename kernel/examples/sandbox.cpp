@@ -5,7 +5,7 @@
 #include "2-accumulator.h"
 
 int main(int argc, char* argv[]) {
-    
+
     bool print = true;
     while (true) {
         if (print) {
@@ -32,4 +32,5 @@ int main(int argc, char* argv[]) {
 
         std::cin.clear();
     }
+    
 }

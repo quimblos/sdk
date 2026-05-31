@@ -67,6 +67,18 @@ namespace qb {
         const TypeFlags flags;
         const TypeSchema schema;
 
+#ifdef EMSCRIPTEN
+        // Type(const Type& type)
+        //     : kind(type.kind),
+        //       flags(type.flags),
+        //       schema(type.schema) {}
+
+        // Type(TypeKind kind, TypeFlags flags, TypeSchema schema)
+        //     : kind(kind),
+        //       flags(flags),
+        //       schema(schema) {}
+#endif
+
         ~Type() {
             switch (this->kind) {
                 case qb::TypeKind::VOID:

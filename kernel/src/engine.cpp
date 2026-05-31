@@ -1,94 +1,76 @@
 #include "engine.h"
+#include "runtime.h"
 
-// Devices
-
-qb::engine::res_t qb::Engine::link_device(qb::Device* device) {
-    auto name = device->get_name();
-    if (this->devices.contains(name))
-    {
-        return {
-            .ok = false,
-            .message = "There's already a Device with the same name"
-        };
-    }
-    this->devices.emplace(name, device);
-    return {
-        .ok = true,
-        .message = "Device added"
+#define ENGINE_ERROR(CODE) \
+    return { \
+        .code = CODE \
     };
-}
 
-qb::Device* qb::Engine::get_device(std::string name) const {
-    if (this->devices.contains(name))
-    {
-        return this->devices.at(name);
-    }
-    return nullptr;
-}
-
-qb::engine::res_t qb::Engine::delete_device(std::string name) {
-    if (!this->devices.contains(name)) {
-        return {
-            .ok = false,
-            .message = "Device doesn't exist"
-        };
-    }
-    
-    qb::Device* device = this->devices.at(name);
-    delete device;
-    this->devices.erase(name);
-
-    return {
-        .ok = true,
-        .message = "Device deleted"
+#define ENGINE_OK(OUT) \
+    return { \
+        .code = qb::engine::res_t::Code::OK, \
+        .out = OUT \
     };
-}
 
-const std::unordered_map<std::string, qb::Device*>& qb::Engine::get_devices() const {
-    return this->devices;
-}
-
-// Runners
-
-qb::engine::res_t qb::Engine::link_runner(qb::Runner* runner) {
-    auto name = runner->get_name();
-    if (this->runners.contains(name)) {
-        return {
-            .ok = false,
-            .message = "There's already a Runner with the same name"
-        };
+qb::engine::res_t qb::Engine::link_driver(qb::Driver* driver) {
+    auto name = driver->get_name();
+    if (this->drivers.contains(name)) {
+        ENGINE_ERROR(qb::engine::res_t::Code::DRIVER_ALREADY_EXISTS)
     }
-    this->runners.emplace(name, runner);
-    return {
-        .ok = true,
-        .message = "Runner added"
-    };
+    this->drivers[name] = driver;
+    ENGINE_OK({ .driver = driver });
 }
 
-qb::Runner* qb::Engine::get_runner(std::string name) const {
-    if (this->runners.contains(name))
-    {
-        return this->runners.at(name);
+qb::engine::res_t qb::Engine::get_driver(std::string name) const {
+    if (!this->drivers.contains(name)) {
+        ENGINE_ERROR(qb::engine::res_t::Code::DRIVER_NOT_FOUND)
     }
-    return nullptr;
+    qb::Driver* driver = this->drivers.at(name);
+    ENGINE_OK({ .driver = driver });
 }
 
-qb::engine::res_t qb::Engine::delete_runner(std::string name) {
-    if (!this->runners.contains(name)) {
-        return {
-            .ok = false,
-            .message = "Runner doesn't exist"
-        };
+qb::engine::res_t qb::Engine::delete_driver(std::string name) {
+    if (!this->drivers.contains(name)) {
+        ENGINE_ERROR(qb::engine::res_t::Code::DRIVER_NOT_FOUND)
     }
-    qb::Runner* runner = this->runners.at(name);
-    delete runner;
-    this->runners.erase(name);
-    return {
-        .ok = true,
-        .message = "Runner deleted"
-    };
+    qb::Driver* driver = this->drivers.at(name);
+    delete driver;
+    this->drivers.erase(name);
+    ENGINE_OK(nullptr);
 }
 
-const std::unordered_map<std::string, qb::Runner*>& qb::Engine::get_runners() const {
-    return this->runners;
+qb::engine::res_t qb::Engine::link_node(qb::Node* node) {
+    auto name = node->get_name();
+    if (this->nodes.contains(name)) {
+        ENGINE_ERROR(qb::engine::res_t::Code::NODE_ALREADY_EXISTS)
+    }
+    this->nodes[name] = node;
+    ENGINE_OK({ .node = node });
+}
+
+qb::engine::res_t qb::Engine::get_node(std::string name) const {
+    if (!this->nodes.contains(name)) {
+        ENGINE_ERROR(qb::engine::res_t::Code::NODE_NOT_FOUND)
+    }
+    qb::Node* node = this->nodes.at(name);
+    ENGINE_OK({ .node = node });
+}
+
+qb::engine::res_t qb::Engine::delete_node(std::string name) {
+    if (!this->nodes.contains(name)) {
+        ENGINE_ERROR(qb::engine::res_t::Code::NODE_NOT_FOUND)
+    }
+    qb::Node* node = this->nodes.at(name);
+    delete node;
+    this->nodes.erase(name);
+    ENGINE_OK(nullptr);
+}
+
+void qb::Engine::print_debug() const {
+    std::cout << "┌─── engine ───" << std::endl;
+    if (this->block.data.size()) {
+        std::cout << "│ #memory" << std::endl;
+        std::cout << qb::runtime::block_to_str(&this->block, "│ ") << std::endl;
+    }
+    std::cout << "└───────────────" << std::endl;
 }

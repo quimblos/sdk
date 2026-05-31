@@ -1,769 +1,565 @@
 #include "operator.h"
 
-#define ASSERT_NO_ERROR(X) if (X.error != nullptr) return X;
-
-qb::data_t qb::BOOL_TARGET_TYPE = {
-    .type = qb::DataType::BOOL,
-    .value = nullptr
+#define OP_ERROR(CODE) return { \
+    .code = qb::op::res_t::Code::CODE, \
 };
 
-qb::data_t qb::U32_TARGET_TYPE = {
-    .type = qb::DataType::UINT32,
-    .value = nullptr
+#define OP_OK(OUT) return { \
+    .code = qb::op::res_t::Code::OK, \
+    .temp = false, \
+    .out = OUT \
 };
 
-void qb::_operator::clean_heap(qb::_operator::res_t* res) {
-    if (res->data != nullptr) {
-        if (res->data->heap) {
-            qb::_operator::clean_data(res->data);
-            delete res->data;
-        }
-    }
-    if (res->error != nullptr) {
-        delete res->error;
-    }
-}
+#define OP_OK_TEMP(T, OUT...) return { \
+    .code = qb::op::res_t::Code::OK, \
+    .temp = true, \
+    .out = (data_t) new T(OUT) \
+};
 
-void qb::_operator::clean_data(qb::data_t* data) {
-    switch (data->type) {
-        case qb::DataType::_NULL: break;
-        case qb::DataType::ERROR: delete ((qb::data::Error*) data->value); break;
-        case qb::DataType::BOOL: delete ((bool*) data->value); break;
-        case qb::DataType::UINT8: delete ((uint8_t*) data->value); break;
-        case qb::DataType::INT8: delete ((int8_t*) data->value); break;
-        case qb::DataType::UINT16: delete ((uint16_t*) data->value); break;
-        case qb::DataType::INT16: delete ((int16_t*) data->value); break;
-        case qb::DataType::UINT32: delete ((uint32_t*) data->value); break;
-        case qb::DataType::INT32: delete ((int32_t*) data->value); break;
-        case qb::DataType::FLOAT32: delete ((float*) data->value); break;
-        case qb::DataType::STRING: delete ((std::string*) data->value); break;
-        case qb::DataType::VECTOR: {
-            auto vec = (qb::data::Vector<void>*) data->value;
-            switch (vec->item_type) {
-                case qb::DataType::ERROR: delete (qb::data::Vector<qb::data::Error>*) data->value; break;
-                case qb::DataType::BOOL: delete (qb::data::Vector<bool>*) data->value; break;
-                case qb::DataType::UINT8: delete (qb::data::Vector<uint8_t>*) data->value; break;
-                case qb::DataType::INT8: delete (qb::data::Vector<int8_t>*) data->value; break;
-                case qb::DataType::UINT16: delete (qb::data::Vector<uint16_t>*) data->value; break;
-                case qb::DataType::INT16: delete (qb::data::Vector<int16_t>*) data->value; break;
-                case qb::DataType::UINT32: delete (qb::data::Vector<uint32_t>*) data->value; break;
-                case qb::DataType::INT32: delete (qb::data::Vector<int32_t>*) data->value; break;
-                case qb::DataType::FLOAT32: delete (qb::data::Vector<float>*) data->value; break;
-                case qb::DataType::STRING: delete (qb::data::Vector<std::string>*) data->value; break;
-                case qb::DataType::REF: delete (qb::data::Vector<qb::data::Reference>*) data->value; break;
+// snippets
+
+#define CAST_INT_TO(TO_TYPE, VALUE) \
+    if (from_type->flags.of_int.is_unsigned) { \
+        switch (from_type->flags.of_int.res) { \
+            case 1:             OP_OK_TEMP(TO_TYPE, *(uint8_t*) VALUE) \
+            case 2:             OP_OK_TEMP(TO_TYPE, *(uint16_t*) VALUE) \
+            case 4:             OP_OK_TEMP(TO_TYPE, *(uint32_t*) VALUE) \
+        } break; \
+    } \
+    else { \
+        switch (from_type->flags.of_int.res) { \
+            case 1:             OP_OK_TEMP(TO_TYPE, *(int8_t*) VALUE) \
+            case 2:             OP_OK_TEMP(TO_TYPE, *(int16_t*) VALUE) \
+            case 4:             OP_OK_TEMP(TO_TYPE, *(int32_t*) VALUE) \
+        } break; \
+    }
+
+#define CAST_TO_INT(METHOD, VALUE) \
+    if (to_type->flags.of_int.is_unsigned) { \
+        switch (to_type->flags.of_int.res) { \
+            case 1:             METHOD(uint8_t, VALUE) \
+            case 2:             METHOD(uint16_t, VALUE) \
+            case 4:             METHOD(uint32_t, VALUE) \
+        } break; \
+    } \
+    else { \
+        switch (to_type->flags.of_int.res) { \
+            case 1:             METHOD(int8_t, VALUE) \
+            case 2:             METHOD(int16_t, VALUE) \
+            case 4:             METHOD(int32_t, VALUE) \
+        } break; \
+    }
+
+
+// [delete temp]
+
+void qb::op::delete_temp(const Type* type, data_t value) {
+    switch (type->kind) {
+        case qb::TypeKind::VOID:      return;
+        case qb::TypeKind::BOOL:      delete (bool*) value; break;
+        case qb::TypeKind::INT:       {
+            if (type->flags.of_int.is_unsigned) {
+                switch (type->flags.of_int.res) {
+                    case 1: delete (uint8_t*) value; break;
+                    case 2: delete (uint16_t*) value; break;
+                    case 4: delete (uint32_t*) value; break;
+                }
+            }
+            else {
+                switch (type->flags.of_int.res) {
+                    case 1: delete (int8_t*) value; break;
+                    case 2: delete (int16_t*) value; break;
+                    case 4: delete (int32_t*) value; break;
+                }
             }
             break;
-        };
-        case qb::DataType::VECTOR_SLICE: {
-            auto slice = (qb::data_slice_t*) data->value;
-            if (slice->heap) {
-                auto item_data = (qb::data_t*) data->value;
-                clean_data(item_data);
-            }
-            delete slice;
-            break;
-        };
-        case qb::DataType::REF: delete (qb::data::Reference*) data->value; break;
+        }
+        case qb::TypeKind::FLOAT:     delete (float*) value; break;
+        case qb::TypeKind::STRING:    delete (std::string*) value; break;
+        case qb::TypeKind::REF:       delete (qb::mem::Reference*) value; break;
+        case qb::TypeKind::REF_SLICE: delete (qb::mem::SlicedReference*) value; break;
+        case qb::TypeKind::VECTOR:    delete (qb::mem::Vector*) value; break;
+        case qb::TypeKind::MAP:       delete (qb::mem::Map*) value; break;
+        case qb::TypeKind::STRUCT:    delete (qb::mem::Struct*) value; break;
+        case qb::TypeKind::EVENT:     delete (qb::mem::Event*) value; break;
     }
 }
 
-// Vector / Slice helpers
+// [cast: bool <- ?]
 
-bool match_shape(qb::data::Vector<void>* vec0, qb::data::Vector<void>* vec1) {
-    if (vec0->dims != vec1->dims)
-        return false;
-    for (uint8_t i = 0; i < vec0->dims; i++) {
-        if (vec0->shape[i] != vec1->shape[i])
-            return false;
+qb::op::res_t qb::op::cast_to_bool(const Type* from_type, data_t value) {
+    switch (from_type->kind) {
+        case qb::TypeKind::VOID:      OP_OK_TEMP(bool, false)
+        case qb::TypeKind::BOOL:      OP_OK(value)
+        case qb::TypeKind::INT:       CAST_INT_TO(bool, value > 0)
+        case qb::TypeKind::FLOAT:     OP_OK_TEMP(bool, *(float*) value > 0)
+        case qb::TypeKind::STRING:    OP_OK_TEMP(bool, ((std::string*) value)->size() > 0)
+        case qb::TypeKind::REF:       OP_OK_TEMP(bool, true)
+        case qb::TypeKind::REF_SLICE: OP_OK_TEMP(bool, true)
+        case qb::TypeKind::VECTOR:    OP_OK_TEMP(bool, ((std::vector<void_t>*) value)->size() > 0)
+        case qb::TypeKind::MAP:       OP_OK_TEMP(bool, ((std::map<std::string, void_t>*) value)->size() > 0)
+        case qb::TypeKind::STRUCT:    OP_OK_TEMP(bool, true)
+        case qb::TypeKind::EVENT:     OP_OK_TEMP(bool, ((mem::Event*) value)->code > 0)
     }
-    return true;
+    OP_ERROR(UNKNOWN_SOURCE_TYPE)
 }
-bool match_shape(qb::data_slice_t* vs, qb::data::Vector<void>* vec) {
-    if (vs->slice->dims != vec->dims)
-        return false;
-    for (uint8_t i = 0; i < vs->slice->dims; i++) {
-        qb::index_t vs_shape = vs->slice->start[i] - vs->slice->end[i];
-        if (vs_shape != vec->shape[i])
-            return false;
+
+// [cast: int <- ?]
+
+qb::op::res_t qb::op::cast_to_int(const Type* to_type, const Type* from_type, data_t value, bool is_explicit) {
+    switch (from_type->kind) {
+        case qb::TypeKind::VOID:    OP_ERROR(CAST_VOID_TO_INT)
+        case qb::TypeKind::BOOL: {
+            CAST_TO_INT(OP_OK_TEMP, *(bool*) value ? 1 : 0)
+        }   
+        case qb::TypeKind::INT: {
+            if (to_type->flags.value == from_type->flags.value) {
+                OP_OK(value)
+            }
+            // Implicit casting doesn't allow data loss
+            if (!is_explicit) {
+                // Casting (u <- i) fails due to possible data loss
+                if (to_type->flags.of_int.is_unsigned && !from_type->flags.of_int.is_unsigned) {
+                    OP_ERROR(CAST_INT_TO_UINT)
+                }
+                // Casting (16|8 <- 32) or (8 <- 16) fails due to possible data loss
+                if (to_type->flags.of_int.res < from_type->flags.of_int.res) {
+                    OP_ERROR(CAST_INT_SIZE)
+                }
+                // Casting (i8 <- u8) or (i8|16 <- u16) or (i8|16|32 <- u32) fails due to possible data loss
+                if (!to_type->flags.of_int.is_unsigned && from_type->flags.of_int.is_unsigned
+                    && to_type->flags.of_int.res <= from_type->flags.of_int.res
+                ) {
+                    OP_ERROR(CAST_INT_UINT_SIZE)
+                }
+            }
+            CAST_TO_INT(CAST_INT_TO, value)
+        }   
+        case qb::TypeKind::FLOAT: {
+            // Implicit casting doesn't allow data loss
+            if (!is_explicit) {
+                OP_ERROR(CAST_IMPLICIT_FLOAT_TO_INT)
+            }
+            // Explicit: round to nearest int
+            CAST_TO_INT(OP_OK_TEMP, *(float*) value)
+        }   
+        case qb::TypeKind::STRING: {
+            // Implicit casting doesn't allow string-to-int conversion
+            if (!is_explicit) {
+                OP_ERROR(CAST_IMPLICIT_STRING_TO_INT)
+            }
+            // Explicit: parse as int
+            auto str = (std::string*) value;
+            int32_t out{};
+    #if __cpp_lib_to_chars >= 202306L
+            if (std::from_chars(str->data(), str->data() + str->size(), out))
+    #else
+            if (std::from_chars(str->data(), str->data() + str->size(), out).ec == std::errc{})
+    #endif
+                CAST_TO_INT(OP_OK_TEMP, out)
+            else
+                OP_ERROR(CAST_NAN_STRING_TO_INT)
+        }
+        case qb::TypeKind::REF: {
+            if (!is_explicit) {
+                OP_ERROR(CAST_IMPLICIT_REF_TO_INT)
+            }
+            CAST_TO_INT(OP_OK_TEMP, ((qb::mem::Reference*) value)->port)
+        }
+        case qb::TypeKind::REF_SLICE: {
+            if (!is_explicit) {
+                OP_ERROR(CAST_IMPLICIT_REF_TO_INT)
+            }
+            CAST_TO_INT(OP_OK_TEMP, ((qb::mem::SlicedReference*) value)->port)
+        }
+        case qb::TypeKind::VECTOR: {
+            if (!is_explicit) {
+                OP_ERROR(CAST_IMPLICIT_VEC_TO_INT)
+            }
+            CAST_TO_INT(OP_OK_TEMP, ((qb::mem::Vector*) value)->size())
+        }
+        case qb::TypeKind::MAP: {
+            if (!is_explicit) {
+                OP_ERROR(CAST_IMPLICIT_MAP_TO_INT)
+            }
+            CAST_TO_INT(OP_OK_TEMP, ((qb::mem::Map*) value)->size())
+        }
+        case qb::TypeKind::STRUCT:  OP_ERROR(CAST_STRUCT_TO_INT)
+        case qb::TypeKind::EVENT: {
+            if (!is_explicit) {
+                OP_ERROR(CAST_IMPLICIT_EVENT_TO_INT)
+            }
+            CAST_TO_INT(OP_OK_TEMP, ((qb::mem::Event*) value)->code)
+        }
     }
-    return true;
+    OP_ERROR(UNKNOWN_SOURCE_TYPE)
 }
-bool match_shape(qb::data_slice_t* vs0, qb::data_slice_t* vs1) {
-    if (vs0->slice->dims != vs1->slice->dims)
-        return false;
-    for (uint8_t i = 0; i < vs0->slice->dims; i++) {
-        qb::index_t vs0_shape = vs0->slice->start[i] - vs0->slice->end[i];
-        qb::index_t vs1_shape = vs1->slice->start[i] - vs1->slice->end[i];
-        if (vs0_shape != vs1_shape)
-            return false;
+
+// [cast: float <- ?]
+
+qb::op::res_t qb::op::cast_to_float(const Type* from_type, data_t value) {
+    switch (from_type->kind) {
+        case qb::TypeKind::VOID:      OP_ERROR(CAST_VOID_TO_FLOAT)
+        case qb::TypeKind::BOOL:      OP_OK_TEMP(float, *(bool*) value ? 1 : 0)
+        case qb::TypeKind::INT:       CAST_INT_TO(float, value)
+        case qb::TypeKind::FLOAT:     OP_OK(value)
+        case qb::TypeKind::STRING:    OP_ERROR(CAST_STRING_TO_FLOAT)
+        case qb::TypeKind::REF:       OP_ERROR(CAST_REF_TO_FLOAT)
+        case qb::TypeKind::REF_SLICE: OP_ERROR(CAST_REF_TO_FLOAT)
+        case qb::TypeKind::VECTOR:    OP_ERROR(CAST_VECTOR_TO_FLOAT)
+        case qb::TypeKind::MAP:       OP_ERROR(CAST_MAP_TO_FLOAT)
+        case qb::TypeKind::STRUCT:    OP_ERROR(CAST_STRUCT_TO_FLOAT)
+        case qb::TypeKind::EVENT:     OP_ERROR(CAST_EVENT_TO_FLOAT)
     }
-    return true;
+    OP_ERROR(UNKNOWN_SOURCE_TYPE)
 }
 
-bool match_item_type(qb::data::Vector<void>* vec0, qb::data::Vector<void>* vec1) {
-    return vec0->item_type == vec1->item_type;
-}
-bool match_item_type(qb::data_slice_t* vs, qb::data::Vector<void>* vec) {
-    return vs->type == vec->item_type;
-}
-bool match_item_type(qb::data_slice_t* vs0, qb::data_slice_t* vs1) {
-    return vs0->type == vs1->type;
-}
-bool match_item_type(qb::data_slice_t* vs, qb::type_t type) {
-    return vs->type == type;
-}
+// [cast: string <- ?]
 
-// Operators
-
-qb::_operator::res_t qb::_operator::cast(qb::data_t* target, qb::data_t* source) {
-
-    switch (target->type) {
-        case qb::DataType::_NULL: {
-            switch (source->type) {
-                case qb::DataType::_NULL:
-                    return { .data = source };
-                default:
-                    return ERROR("Cast to NULL only allowed from NULL.");
-            }
-        }
-        case qb::DataType::ERROR: {
-            switch (source->type) {
-                case qb::DataType::ERROR:
-                    return { .data = source };
-                case qb::DataType::STRING:
-                    return {
-                        .data = new data_t({
-                            .type = qb::DataType::ERROR,
-                            .value = qb::data::error(0, *(std::string*) source->value),
-                            .heap = true
-                        })
-                    };
-                default:
-                    return ERROR("Cast to ERROR only allowed from ERROR or STRING.");
-            }
-        }
-        case qb::DataType::BOOL: {
-            if (source->type == qb::DataType::BOOL) return { .data = source };
-            bool* value = new bool;
-            switch (source->type) {
-                case qb::DataType::UINT8:
-                    *value = (*(uint8_t*) source->value) != 0; break;
-                case qb::DataType::INT8:
-                    *value = (*(int8_t*) source->value) != 0; break;
-                case qb::DataType::UINT16:
-                    *value = (*(uint16_t*) source->value) != 0; break;
-                case qb::DataType::INT16:
-                    *value = (*(int16_t*) source->value) != 0; break;
-                case qb::DataType::UINT32:
-                    *value = (*(uint32_t*) source->value) != 0; break;
-                case qb::DataType::INT32:
-                    *value = (*(int32_t*) source->value) != 0; break;
-                case qb::DataType::FLOAT32:
-                    *value = (*(float*) source->value) != 0; break;
-                default:
-                    delete value;
-                    return ERROR("Cast to NULL only allowed from NULL.");
-            }
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::BOOL,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::UINT8: {
-            if (source->type == qb::DataType::UINT8) return { .data = source };
-            uint8_t* value = new uint8_t;
-
-            switch (source->type) {
-                case qb::DataType::BOOL:
-                    *value = (*(bool*) source->value) ? 1 : 0; break;
-                default:
-                    delete value;
-                    return ERROR("Cast to UINT8 only allowed from BOOL or UINT8.");
-            }
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::UINT8,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::INT8: {
-            if (source->type == qb::DataType::INT8) return { .data = source };
-            int8_t* value = new int8_t;
-
-            switch (source->type) {
-                case qb::DataType::BOOL:
-                    *value = (*(bool*) source->value) ? 1 : 0; break;
-                case qb::DataType::UINT8:
-                    *value = (*(uint8_t*) source->value); break;
-                default:
-                    delete value;
-                    return ERROR("Cast to INT8 only allowed from BOOL, UINT8 or INT8.");
-            }
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::INT8,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::UINT16: {
-            if (source->type == qb::DataType::UINT16) return { .data = source };
-            uint16_t* value = new uint16_t;
-
-            switch (source->type) {
-                case qb::DataType::BOOL:
-                    *value = (*(bool*) source->value) ? 1 : 0; break;
-                case qb::DataType::UINT8:
-                    *value = (*(uint8_t*) source->value); break;
-                case qb::DataType::INT8:
-                    *value = (*(int8_t*) source->value); break;
-                default:
-                    delete value;
-                    return ERROR("Cast to UINT16 only allowed from BOOL, UINT8, INT8 or UINT16.");
-            }
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::UINT16,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::INT16: {
-            if (source->type == qb::DataType::INT16) return { .data = source };
-            int16_t* value = new int16_t;
-
-            switch (source->type) {
-                case qb::DataType::BOOL:
-                    *value = (*(bool*) source->value) ? 1 : 0; break;
-                case qb::DataType::UINT8:
-                    *value = (*(uint8_t*) source->value); break;
-                case qb::DataType::INT8:
-                    *value = (*(int8_t*) source->value); break;
-                case qb::DataType::UINT16:
-                    *value = (*(uint16_t*) source->value); break;
-                default:
-                    delete value;
-                    return ERROR("Cast to INT16 only allowed from BOOL, UINT8, INT8, UINT16 or INT16.");
-            }
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::INT16,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::UINT32: {
-            if (source->type == qb::DataType::UINT32) return { .data = source };
-            uint32_t* value = new uint32_t;
-
-            switch (source->type) {
-                case qb::DataType::BOOL:
-                    *value = (*(bool*) source->value) ? 1 : 0; break;
-                case qb::DataType::UINT8:
-                    *value = (*(uint8_t*) source->value); break;
-                case qb::DataType::INT8:
-                    *value = (*(int8_t*) source->value); break;
-                case qb::DataType::UINT16:
-                    *value = (*(uint16_t*) source->value); break;
-                case qb::DataType::INT16:
-                    *value = (*(int16_t*) source->value); break;
-                default:
-                    delete value;
-                    return ERROR("Cast to UINT32 only allowed from BOOL, UINT8, INT8, UINT16, INT16 or UINT32.");
-            }
-
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::UINT32,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::INT32: {
-            if (source->type == qb::DataType::INT32) return { .data = source };
-            int32_t* value = new int32_t;
-
-            switch (source->type) {
-                case qb::DataType::BOOL:
-                    *value = (*(bool*) source->value) ? 1 : 0; break;
-                case qb::DataType::UINT8:
-                    *value = (*(uint8_t*) source->value); break;
-                case qb::DataType::INT8:
-                    *value = (*(int8_t*) source->value); break;
-                case qb::DataType::UINT16:
-                    *value = (*(uint16_t*) source->value); break;
-                case qb::DataType::INT16:
-                    *value = (*(int16_t*) source->value); break;
-                case qb::DataType::UINT32:
-                    *value = (*(uint32_t*) source->value); break;
-                default:
-                    delete value;
-                    return ERROR("Cast to INT32 only allowed from BOOL, UINT8, INT8, UINT16, INT16, UINT32 or INT32.");
-            }
-
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::INT32,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::FLOAT32: {
-            if (source->type == qb::DataType::FLOAT32) return { .data = source };
-            float* value = new float;
-
-            switch (source->type) {
-                case qb::DataType::BOOL:
-                    *value = (*(bool*) source->value) ? 1 : 0; break;
-                case qb::DataType::UINT8:
-                    *value = (*(uint8_t*) source->value); break;
-                case qb::DataType::INT8:
-                    *value = (*(int8_t*) source->value); break;
-                case qb::DataType::UINT16:
-                    *value = (*(uint16_t*) source->value); break;
-                case qb::DataType::INT16:
-                    *value = (*(int16_t*) source->value); break;
-                case qb::DataType::UINT32:
-                    *value = (*(uint32_t*) source->value); break;
-                case qb::DataType::INT32:
-                    *value = (*(int32_t*) source->value); break;
-                case qb::DataType::FLOAT32:
-                    *value = (*(float*) source->value); break;
-                default:
-                    delete value;
-                    return ERROR("Cast to FLOAT32 only allowed from BOOL, UINT8, INT8, UINT16, INT16, UINT32, INT32 or FLOAT32.");
-            }
-
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::FLOAT32,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::STRING: {
-            if (source->type == qb::DataType::STRING) return { .data = source };
-            std::string* value = new std::string();
-
-            switch (source->type) {
-                case qb::DataType::ERROR:
-                    *value = std::string(((data::Error*)source->value)->message);
-                case qb::DataType::BOOL:
-                    *value = std::to_string((*(bool*) source->value) ? 1 : 0); break;
-                case qb::DataType::UINT8:
-                    *value = std::to_string((*(uint8_t*) source->value)); break;
-                case qb::DataType::INT8:
-                    *value = std::to_string((*(int8_t*) source->value)); break;
-                case qb::DataType::UINT16:
-                    *value = std::to_string((*(uint16_t*) source->value)); break;
-                case qb::DataType::INT16:
-                    *value = std::to_string((*(int16_t*) source->value)); break;
-                case qb::DataType::UINT32:
-                    *value = std::to_string((*(uint32_t*) source->value)); break;
-                case qb::DataType::INT32:
-                    *value = std::to_string((*(int32_t*) source->value)); break;
-                case qb::DataType::FLOAT32:
-                    *value = std::to_string((*(float*) source->value)); break;
-                default:
-                    delete value;
-                    return ERROR("Cast to STRING only allowed from ERROR, BOOL, UINT8, INT8, UINT16, INT16, UINT32, INT32, FLOAT32 or STRING.");
-            }
-
-            return {
-                .data = new data_t({
-                    .type = qb::DataType::STRING,
-                    .value = value,
-                    .heap = true
-                })
-            };
-        }
-        case qb::DataType::VECTOR: {
-            switch (source->type) {
-                case qb::DataType::VECTOR: {
-                    auto target_vec = (qb::data::Vector<void>*) target->value;
-                    auto source_vec = (qb::data::Vector<void>*) source->value;
-                    if (!match_shape(target_vec, source_vec))
-                        return ERROR("Cast to VECTOR only allowed from VECTOR with same shape.");
-                    if (!match_item_type(target_vec, source_vec)) {
-                        return ERROR("Cast to VECTOR only allowed from VECTOR with same item type.");
+qb::op::res_t qb::op::cast_to_string(const Type* from_type, data_t value, bool is_explicit) {
+    if (is_explicit) {
+        switch (from_type->kind) {
+            case qb::TypeKind::VOID:      OP_OK_TEMP(std::string, from_type->flags.of_void.is_void ? "void" : "null")
+            case qb::TypeKind::BOOL:      OP_OK_TEMP(std::string, *(bool*) value ? "true" : "false")
+            case qb::TypeKind::INT:       {
+                if (from_type->flags.of_int.is_unsigned) {
+                    switch (from_type->flags.of_int.res) {
+                        case 1: OP_OK_TEMP(std::string, std::to_string(*(uint8_t*) value));
+                        case 2: OP_OK_TEMP(std::string, std::to_string(*(uint16_t*) value));
+                        case 4: OP_OK_TEMP(std::string, std::to_string(*(uint32_t*) value));
                     }
-                    return { .data = source };
                 }
-                default:
-                    return ERROR("Cast to VECTOR only allowed from VECTOR.");
+                else {
+                    switch (from_type->flags.of_int.res) {
+                        case 1: OP_OK_TEMP(std::string, std::to_string(*(int8_t*) value));
+                        case 2: OP_OK_TEMP(std::string, std::to_string(*(int16_t*) value));
+                        case 4: OP_OK_TEMP(std::string, std::to_string(*(int32_t*) value));
+                    }
+                }
             }
-        }
-        case qb::DataType::VECTOR_SLICE: {
-            auto target_vs = (qb::data_slice_t*) target->value;
-            switch (source->type) {
-                case qb::DataType::VECTOR: {
-                    auto source_vec = (qb::data::Vector<void>*) source->value;
-                    if (!match_shape(target_vs, source_vec))
-                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR with same shape.");
-                    if (!match_item_type(target_vs, source_vec))
-                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR with same item type.");
-                    return {
-                        .data = new data_t({
-                            .type = qb::DataType::VECTOR_SLICE,
-                            .value = new qb::data_slice_t({
-                                .type = qb::DataType::VECTOR,
-                                .value = source->value,
-                                .heap = source->heap,
-                                .slice = source_vec->full_slice()
-                            }),
-                            .heap = true
-                        })
-                    };
-                }
-                case qb::DataType::VECTOR_SLICE: {
-                    auto source_vs = (qb::data_slice_t*) source->value;
-                    if (!match_shape(target_vs, source_vs))
-                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR_SLICE with same shape.");
-                    if (!match_item_type(target_vs, source_vs))
-                        return ERROR("Cast to VECTOR_SLICE only allowed from VECTOR_SLICE with same item type.");
-                    return {
-                        .data = source
-                    };
-                }
-                case qb::DataType::ERROR:
-                case qb::DataType::BOOL:
-                case qb::DataType::UINT8:
-                case qb::DataType::INT8:
-                case qb::DataType::UINT16:
-                case qb::DataType::INT16:
-                case qb::DataType::UINT32:
-                case qb::DataType::INT32:
-                case qb::DataType::FLOAT32:
-                case qb::DataType::STRING:
-                case qb::DataType::REF:
-                    if (!match_item_type(target_vs, source->type))
-                        return ERROR("Cast to VECTOR_SLICE only allowed from primitive of same type as the slice items.");
-                    return {
-                        .data = new data_t({
-                            .type = qb::DataType::VECTOR_SLICE,
-                            .value = new qb::data_slice_t({
-                                .type = source->type,
-                                .value = source->value,
-                                .heap = source->heap,
-                                .slice = target_vs->slice->copy()
-                            }),
-                            .heap = true
-                        })
-                    };
-                default:
-                    return ERROR("Cast to VECTOR_SLICE failed.");
+            case qb::TypeKind::FLOAT:     OP_OK_TEMP(std::string, std::to_string(*(float*) value));
+            case qb::TypeKind::STRING:    OP_OK(value)
+            case qb::TypeKind::REF:       {
+                auto ref = (qb::mem::Reference*) value;
+                std::stringstream ss;
+                ss << '@' << +ref->block << ':' << +ref->port;
+                OP_OK_TEMP(std::string, ss.str());
             }
-        }
-        case qb::DataType::REF: {
-            switch (source->type) {
-                case qb::DataType::REF: {
-                    return { .data = source };
+            case qb::TypeKind::REF_SLICE: {
+                auto ref = (qb::mem::SlicedReference*) value;
+                std::stringstream ss;
+                ss << '@' << +ref->block << ':' << +ref->port;
+                for (const auto& it: ref->shape) {
+                    ss << '[' << it.start << '~' << it.end << ']';
                 }
-                default:
-                    return ERROR("Cast to REF only allowed from REF.");
+                OP_OK_TEMP(std::string, ss.str());
             }
+            case qb::TypeKind::VECTOR: {
+                auto vec = (qb::mem::Vector*) value;
+                std::stringstream ss;
+                ss << '[';
+                auto n = vec->shape.size();
+                for (index_t i = 0; i < n; i++) {
+                    auto res = qb::op::cast_to_string(vec->item_type, vec->get(i), true);
+                    if (res.code != qb::op::res_t::Code::OK) {
+                        ss << "??";
+                    }
+                    else {
+                        ss << *(std::string*)(res.out);
+                        if (res.temp) delete (std::string*) res.out;
+                    }
+                    if (i < n-1) ss << ',';
+                }
+                ss << ']';
+                OP_OK_TEMP(std::string, ss.str());
+            }
+            case qb::TypeKind::MAP:       OP_ERROR(CAST_MAP_TO_STRING)
+            case qb::TypeKind::STRUCT:    OP_ERROR(CAST_STRUCT_TO_STRING)
+            case qb::TypeKind::EVENT:     OP_ERROR(CAST_EVENT_TO_STRING)
         }
-        default:
-            return { .data = new data_t(UNRESOLVED_DATA) };
     }
+    else {
+        switch (from_type->kind) {
+            case qb::TypeKind::VOID:      OP_ERROR(CAST_VOID_TO_STRING)
+            case qb::TypeKind::BOOL:      OP_ERROR(CAST_BOOL_TO_STRING)
+            case qb::TypeKind::INT:       OP_ERROR(CAST_INT_TO_STRING)
+            case qb::TypeKind::FLOAT:     OP_ERROR(CAST_FLOAT_TO_STRING)
+            case qb::TypeKind::STRING:    OP_OK(value)
+            case qb::TypeKind::REF:       OP_ERROR(CAST_REF_TO_STRING)
+            case qb::TypeKind::REF_SLICE: OP_ERROR(CAST_REF_TO_STRING)
+            case qb::TypeKind::VECTOR:    OP_ERROR(CAST_VECTOR_TO_STRING)
+            case qb::TypeKind::MAP:       OP_ERROR(CAST_MAP_TO_STRING)
+            case qb::TypeKind::STRUCT:    OP_ERROR(CAST_STRUCT_TO_STRING)
+            case qb::TypeKind::EVENT:     OP_ERROR(CAST_EVENT_TO_STRING)
+        }
+    }
+    OP_ERROR(UNKNOWN_SOURCE_TYPE)
 }
 
-qb::_operator::res_t qb::_operator::assign(qb::data_t* target, qb::data_t* source) {
+// [cast: ref <- ?]
 
-    auto cast_res = cast(target, source);
-    ASSERT_NO_ERROR(cast_res);
-
-    switch (target->type) {
-        case qb::DataType::_NULL: break;
-        case qb::DataType::ERROR: *((qb::data::Error*) target->value) = *((qb::data::Error*) cast_res.data->value); break;
-        case qb::DataType::BOOL: *((bool*) target->value) = *((bool*) cast_res.data->value); break;
-        case qb::DataType::UINT8: *((uint8_t*) target->value) = *((uint8_t*) cast_res.data->value); break;
-        case qb::DataType::INT8: *((int8_t*) target->value) = *((int8_t*) cast_res.data->value); break;
-        case qb::DataType::UINT16: *((uint16_t*) target->value) = *((uint16_t*) cast_res.data->value); break;
-        case qb::DataType::INT16: *((int16_t*) target->value) = *((int16_t*) cast_res.data->value); break;
-        case qb::DataType::UINT32: *((uint32_t*) target->value) = *((uint32_t*) cast_res.data->value); break;
-        case qb::DataType::INT32: *((int32_t*) target->value) = *((int32_t*) cast_res.data->value); break;
-        case qb::DataType::FLOAT32: *((float*) target->value) = *((float*) cast_res.data->value); break;
-        case qb::DataType::STRING: *((std::string*) target->value) = *((std::string*) cast_res.data->value); break;
-        case qb::DataType::VECTOR: /* TODO */ break;
-        case qb::DataType::REF: /* TODO */ break;
+qb::op::res_t qb::op::cast_to_ref(const Type* from_type, data_t value) {
+    switch (from_type->kind) {
+        case qb::TypeKind::VOID:      OP_ERROR(CAST_VOID_TO_REF)
+        case qb::TypeKind::BOOL:      OP_ERROR(CAST_BOOL_TO_REF)
+        case qb::TypeKind::INT:       OP_ERROR(CAST_INT_TO_REF)
+        case qb::TypeKind::FLOAT:     OP_ERROR(CAST_FLOAT_TO_REF)
+        case qb::TypeKind::STRING:    OP_ERROR(CAST_STRING_TO_REF)
+        case qb::TypeKind::REF:       OP_OK(value)
+        case qb::TypeKind::REF_SLICE: {
+            auto ref_slice = (qb::mem::SlicedReference*) value;
+            OP_OK_TEMP(qb::mem::Reference, ref_slice->block, ref_slice->port)
+        }
+        case qb::TypeKind::VECTOR:    OP_ERROR(CAST_VECTOR_TO_REF)
+        case qb::TypeKind::MAP:       OP_ERROR(CAST_MAP_TO_REF)
+        case qb::TypeKind::STRUCT:    OP_ERROR(CAST_STRUCT_TO_REF)
+        case qb::TypeKind::EVENT:     OP_ERROR(CAST_EVENT_TO_REF)
     }
-
-    qb::_operator::clean_heap(&cast_res);
-    return {
-        .data = target
-    };
+    OP_ERROR(UNKNOWN_SOURCE_TYPE)
 }
 
-qb::_operator::res_t qb::_operator::compare(qb::data_t* target, qb::data_t* source) {
-
-    auto cast_res = cast(target, source);
-    ASSERT_NO_ERROR(cast_res);
-
-    int8_t diff = 0;
-
-    switch (target->type) {
-        case qb::DataType::_NULL: break;
-        case qb::DataType::ERROR: return ERROR("Comparing ERRORs is not allowed.");
-        case qb::DataType::BOOL: {
-            bool l = *((bool*) target->value);
-            bool r = *((bool*) cast_res.data->value);
-            if (l != r) diff = r ? 1 : -1;
-            break;
+qb::op::res_t qb::op::cast_to_ref_slice(const Type* from_type, data_t value) {
+    switch (from_type->kind) {
+        case qb::TypeKind::VOID:      OP_ERROR(CAST_VOID_TO_REF)
+        case qb::TypeKind::BOOL:      OP_ERROR(CAST_BOOL_TO_REF)
+        case qb::TypeKind::INT:       OP_ERROR(CAST_INT_TO_REF)
+        case qb::TypeKind::FLOAT:     OP_ERROR(CAST_FLOAT_TO_REF)
+        case qb::TypeKind::STRING:    OP_ERROR(CAST_STRING_TO_REF)
+        case qb::TypeKind::REF:       {
+            auto ref = (qb::mem::Reference*) value;
+            OP_OK_TEMP(qb::mem::SlicedReference, ref->block, ref->port, {})
         }
-        case qb::DataType::UINT8: {
-            uint8_t l = *((uint8_t*) target->value);
-            uint8_t r = *((uint8_t*) cast_res.data->value);
-            if (r > l) diff = 1;
-            else if (l > r) diff = -1;
-            break;
-        }
-        case qb::DataType::INT8: {
-            int8_t l = *((int8_t*) target->value);
-            int8_t r = *((int8_t*) cast_res.data->value);
-            if (r > l) diff = 1;
-            else if (l > r) diff = -1;
-            break;
-        }
-        case qb::DataType::UINT16: {
-            uint16_t l = *((uint16_t*) target->value);
-            uint16_t r = *((uint16_t*) cast_res.data->value);
-            if (r > l) diff = 1;
-            else if (l > r) diff = -1;
-            break;
-        }
-        case qb::DataType::INT16: {
-            int16_t l = *((int16_t*) target->value);
-            int16_t r = *((int16_t*) cast_res.data->value);
-            if (r > l) diff = 1;
-            else if (l > r) diff = -1;
-            break;
-        }
-        case qb::DataType::UINT32: {
-            uint32_t l = *((uint32_t*) target->value);
-            uint32_t r = *((uint32_t*) cast_res.data->value);
-            if (r > l) diff = 1;
-            else if (l > r) diff = -1;
-            break;
-        }
-        case qb::DataType::INT32: {
-            int32_t l = *((int32_t*) target->value);
-            int32_t r = *((int32_t*) cast_res.data->value);
-            if (r > l) diff = 1;
-            else if (l > r) diff = -1;
-            break;
-        }
-        case qb::DataType::FLOAT32: {
-            float l = *((float*) target->value);
-            float r = *((float*) cast_res.data->value);
-            if (r > l) diff = 1;
-            else if (l > r) diff = -1;
-            break;
-        }
-        case qb::DataType::STRING: {
-            std::string l = *((std::string*) target->value);
-            std::string r = *((std::string*) cast_res.data->value);
-            if (l != r) diff = -1;
-            break;
-        }
-        case qb::DataType::VECTOR: return ERROR("Comparing VECTORs is not allowed.");
-        case qb::DataType::REF: {
-            auto l = (qb::data::Reference*) target->value;
-            auto r = (qb::data::Reference*) cast_res.data->value;
-            diff = (l->device == r->device)
-                && (l->port == r->port)
-                && (l->flags == r->flags)
-                && (
-                    (l->slice == nullptr && r->slice == nullptr)
-                    || (
-                        (l->slice != nullptr && r->slice != nullptr)
-                        && (l->slice->dims == r->slice->dims)
-                        && (*(l->slice->start) == *(r->slice->start))
-                        && (*(l->slice->end) == *(r->slice->end))
-                    )
-                );
-            break;
-        }
+        case qb::TypeKind::REF_SLICE: OP_OK(value)
+        case qb::TypeKind::VECTOR:    OP_ERROR(CAST_VECTOR_TO_REF)
+        case qb::TypeKind::MAP:       OP_ERROR(CAST_MAP_TO_REF)
+        case qb::TypeKind::STRUCT:    OP_ERROR(CAST_STRUCT_TO_REF)
+        case qb::TypeKind::EVENT:     OP_ERROR(CAST_EVENT_TO_REF)
     }
-
-    qb::_operator::clean_heap(&cast_res);
-    return {
-        .data = new qb::data_t({
-            .type = qb::DataType::UINT8,
-            .value = (void*) new uint8_t(diff),
-            .heap = true
-        })
-    };
+    OP_ERROR(UNKNOWN_SOURCE_TYPE)
 }
 
-qb::_operator::res_t qb::_operator::arithmetic_bool(qb::InstructionType type, qb::data_t* target, qb::data_t* source) {
+// [cast]
 
-    bool v_target = false;
-    if (type != qb::InstructionType::NOT) {
-        auto cast_target_res = cast(&qb::BOOL_TARGET_TYPE, target);
-        ASSERT_NO_ERROR(cast_target_res);
-        v_target = *(bool*) cast_target_res.data->value;
-        qb::_operator::clean_heap(&cast_target_res);
+qb::op::res_t qb::op::cast(const Type* to_type, const Type* from_type, data_t value, bool is_explicit) {
+    if (to_type == from_type) {
+        OP_OK(value)
     }
-
-    auto cast_source_res = cast(&qb::BOOL_TARGET_TYPE, source);
-    ASSERT_NO_ERROR(cast_source_res);
-    bool v_source = *(bool*) cast_source_res.data->value;
-    qb::_operator::clean_heap(&cast_source_res);
-
-    bool out = false;
-    switch (type) {
-        case qb::InstructionType::NOT:
-            out = !v_source;
-            break;
-        case qb::InstructionType::AND:
-            out = v_target && v_source;
-            break;
-        case qb::InstructionType::OR:
-            out = v_target || v_source;
-            break;
+    switch (to_type->kind) {
+        case qb::TypeKind::VOID:      OP_OK(nullptr)
+        case qb::TypeKind::BOOL:      return cast_to_bool(from_type, value);
+        case qb::TypeKind::INT:       return cast_to_int(to_type, from_type, value, is_explicit);
+        case qb::TypeKind::FLOAT:     return cast_to_float(from_type, value);
+        case qb::TypeKind::STRING:    return cast_to_string(from_type, value, is_explicit);
+        case qb::TypeKind::REF:       return cast_to_ref(from_type, value);
+        case qb::TypeKind::REF_SLICE: return cast_to_ref_slice(from_type, value);
+        case qb::TypeKind::VECTOR:    OP_ERROR(NOT_IMPLEMENTED)
+        case qb::TypeKind::MAP:       OP_ERROR(NOT_IMPLEMENTED)
+        case qb::TypeKind::STRUCT:    OP_ERROR(NOT_IMPLEMENTED)
+        case qb::TypeKind::EVENT:     OP_ERROR(NOT_IMPLEMENTED)
     }
+    OP_ERROR(UNKNOWN_TARGET_TYPE)
+}
+
+// [assign]
+
+qb::op::res_t qb::op::assign(mem::Block& t_block, port_t t_port, mem::Block& s_block, port_t s_port, bool explicit_cast) {
+    if (t_port >= t_block.data.size())
+        OP_ERROR(ASSIGN_PORT_OUT_OF_BOUNDS)
+
+    // Assignment to const not allowed
+    if (t_block.data.type->schema.of_struct.is_const[t_port])
+        OP_ERROR(ASSIGN_TO_CONST)
+
+    auto t_type = t_block.type_of(t_port);
     
-    qb::_operator::assign(target, new data_t({
-        .type = qb::DataType::BOOL,
-        .value = new bool(out),
-        .heap = true
-    }));
+    // Assignment to void does nothing
+    if (t_type->kind == qb::TypeKind::VOID)
+        OP_OK(nullptr)
 
-    return {
-        .data = target
-    };
+    // Get source type and data
+    auto s_type = s_block.type_of(s_port);
+    auto s_data = s_block.data.get(s_port);
+
+    // Attempt cast
+    auto res = qb::op::cast(t_type, s_type, s_data, explicit_cast);
+    if (res.code > 0) return res;
+
+    // Copy value
+    t_block.data.set(t_port, res.out);
+
+    // Delete temporary value (created by cast)
+    if (res.temp) qb::op::delete_temp(t_type, res.out);
 }
 
-qb::_operator::res_t qb::_operator::arithmetic(qb::InstructionType type, qb::data_t* target, qb::data_t* source) {
+#define OP_MATH(OP) { \
+    switch (t_type->kind) { \
+        case qb::TypeKind::INT: \
+            if (t_type->flags.of_int.is_unsigned) { \
+                switch (t_type->flags.of_int.res) { \
+                    case 1: { \
+                        uint8_t out = (*(uint8_t*) t_data) OP (*(uint8_t*) res.out); \
+                        t_block.data.set(t_port, (data_t) &out); \
+                        break; \
+                    } \
+                    case 2: { \
+                        uint16_t out = (*(uint16_t*) t_data) OP (*(uint16_t*) res.out); \
+                        t_block.data.set(t_port, (data_t) &out); \
+                        break; \
+                    } \
+                    case 4: { \
+                        uint32_t out = (*(uint32_t*) t_data) OP (*(uint32_t*) res.out); \
+                        t_block.data.set(t_port, (data_t) &out); \
+                        break; \
+                    } \
+                } \
+            } \
+            else { \
+                switch (t_type->flags.of_int.res) { \
+                    case 1: { \
+                        int8_t out = (*(int8_t*) t_data) OP (*(int8_t*) res.out); \
+                        t_block.data.set(t_port, (data_t) &out); \
+                        break; \
+                    } \
+                    case 2: { \
+                        int16_t out = (*(int16_t*) t_data) OP (*(int16_t*) res.out); \
+                        t_block.data.set(t_port, (data_t) &out); \
+                        break; \
+                    } \
+                    case 4: { \
+                        int32_t out = (*(int32_t*) t_data) OP (*(int32_t*) res.out); \
+                        t_block.data.set(t_port, (data_t) &out); \
+                        break; \
+                    } \
+                } \
+            } \
+            break; \
+        case qb::TypeKind::FLOAT: { \
+            float out = (*(float*) t_data) OP (*(float*) res.out); \
+            t_block.data.set(t_port, (data_t) &out); \
+            break; \
+        } \
+    } \
+}
 
-    auto cast_res = cast(target, source);
-    ASSERT_NO_ERROR(cast_res);
+#define OP_COMPARE(OP) { \
+    switch (l_type->kind) { \
+        case qb::TypeKind::INT: \
+            if (l_type->flags.of_int.is_unsigned) { \
+                switch (l_type->flags.of_int.res) { \
+                    case 1: { \
+                        compare_res = (*(uint8_t*) l_data) OP (*(uint8_t*) res.out); \
+                        break; \
+                    } \
+                    case 2: { \
+                        compare_res = (*(uint16_t*) l_data) OP (*(uint16_t*) res.out); \
+                        break; \
+                    } \
+                    case 4: { \
+                        compare_res = (*(uint32_t*) l_data) OP (*(uint32_t*) res.out); \
+                        break; \
+                    } \
+                } \
+            } \
+            else { \
+                switch (l_type->flags.of_int.res) { \
+                    case 1: { \
+                        compare_res = (*(int8_t*) l_data) OP (*(int8_t*) res.out); \
+                        break; \
+                    } \
+                    case 2: { \
+                        compare_res = (*(int16_t*) l_data) OP (*(int16_t*) res.out); \
+                        break; \
+                    } \
+                    case 4: { \
+                        compare_res = (*(int32_t*) l_data) OP (*(int32_t*) res.out); \
+                        break; \
+                    } \
+                } \
+            } \
+            break; \
+        case qb::TypeKind::FLOAT: { \
+            compare_res = (*(float*) l_data) OP (*(float*) res.out); \
+            break; \
+        } \
+    } \
+}
+
+qb::op::res_t qb::op::math(qb::instruction::Math::Flags::Op op, mem::Block& t_block, port_t t_port, mem::Block& s_block, port_t s_port) {
+    auto t_type = t_block.type_of(t_port);
     
-    switch (type) {
-        case qb::InstructionType::ADD: {
-            switch (target->type) {
-                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
-                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
-                case qb::DataType::BOOL: *((bool*) target->value) += *((bool*) cast_res.data->value); break;
-                case qb::DataType::UINT8: *((uint8_t*) target->value) += *((uint8_t*) cast_res.data->value); break;
-                case qb::DataType::INT8: *((int8_t*) target->value) += *((int8_t*) cast_res.data->value); break;
-                case qb::DataType::UINT16: *((uint16_t*) target->value) += *((uint16_t*) cast_res.data->value); break;
-                case qb::DataType::INT16: *((int16_t*) target->value) += *((int16_t*) cast_res.data->value); break;
-                case qb::DataType::UINT32: *((uint32_t*) target->value) += *((uint32_t*) cast_res.data->value); break;
-                case qb::DataType::INT32: *((int32_t*) target->value) += *((int32_t*) cast_res.data->value); break;
-                case qb::DataType::FLOAT32: *((float*) target->value) += *((float*) cast_res.data->value); break;
-                case qb::DataType::STRING: *((std::string*) target->value) += *((std::string*) cast_res.data->value); break;
-                case qb::DataType::VECTOR: /* TODO */ break;
-                case qb::DataType::REF: /* TODO */ break;
-            }
-            break;
-        }            
-        case qb::InstructionType::SUB: {
-            switch (target->type) {
-                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
-                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
-                case qb::DataType::BOOL: *((bool*) target->value) -= *((bool*) cast_res.data->value); break;
-                case qb::DataType::UINT8: *((uint8_t*) target->value) -= *((uint8_t*) cast_res.data->value); break;
-                case qb::DataType::INT8: *((int8_t*) target->value) -= *((int8_t*) cast_res.data->value); break;
-                case qb::DataType::UINT16: *((uint16_t*) target->value) -= *((uint16_t*) cast_res.data->value); break;
-                case qb::DataType::INT16: *((int16_t*) target->value) -= *((int16_t*) cast_res.data->value); break;
-                case qb::DataType::UINT32: *((uint32_t*) target->value) -= *((uint32_t*) cast_res.data->value); break;
-                case qb::DataType::INT32: *((int32_t*) target->value) -= *((int32_t*) cast_res.data->value); break;
-                case qb::DataType::FLOAT32: *((float*) target->value) -= *((float*) cast_res.data->value); break;
-                case qb::DataType::STRING: return ERROR("Subtraction with STRING not allowed.");
-                case qb::DataType::VECTOR: /* TODO */ break;
-                case qb::DataType::REF: /* TODO */ break;
-            }
-            break;
-        }            
-        case qb::InstructionType::MULT: {
-            switch (target->type) {
-                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
-                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
-                case qb::DataType::BOOL: *((bool*) target->value) *= *((bool*) cast_res.data->value); break;
-                case qb::DataType::UINT8: *((uint8_t*) target->value) *= *((uint8_t*) cast_res.data->value); break;
-                case qb::DataType::INT8: *((int8_t*) target->value) *= *((int8_t*) cast_res.data->value); break;
-                case qb::DataType::UINT16: *((uint16_t*) target->value) *= *((uint16_t*) cast_res.data->value); break;
-                case qb::DataType::INT16: *((int16_t*) target->value) *= *((int16_t*) cast_res.data->value); break;
-                case qb::DataType::UINT32: *((uint32_t*) target->value) *= *((uint32_t*) cast_res.data->value); break;
-                case qb::DataType::INT32: *((int32_t*) target->value) *= *((int32_t*) cast_res.data->value); break;
-                case qb::DataType::FLOAT32: *((float*) target->value) *= *((float*) cast_res.data->value); break;
-                case qb::DataType::STRING: return ERROR("Multiplication with STRING not allowed.");
-                case qb::DataType::VECTOR: /* TODO */ break;
-                case qb::DataType::REF: /* TODO */ break;
-            }
-            break;
-        }            
-        case qb::InstructionType::DIV: {
-            switch (target->type) {
-                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
-                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
-                case qb::DataType::BOOL: *((bool*) target->value) /= *((bool*) cast_res.data->value); break;
-                case qb::DataType::UINT8: *((uint8_t*) target->value) /= *((uint8_t*) cast_res.data->value); break;
-                case qb::DataType::INT8: *((int8_t*) target->value) /= *((int8_t*) cast_res.data->value); break;
-                case qb::DataType::UINT16: *((uint16_t*) target->value) /= *((uint16_t*) cast_res.data->value); break;
-                case qb::DataType::INT16: *((int16_t*) target->value) /= *((int16_t*) cast_res.data->value); break;
-                case qb::DataType::UINT32: *((uint32_t*) target->value) /= *((uint32_t*) cast_res.data->value); break;
-                case qb::DataType::INT32: *((int32_t*) target->value) /= *((int32_t*) cast_res.data->value); break;
-                case qb::DataType::FLOAT32: *((float*) target->value) /= *((float*) cast_res.data->value); break;
-                case qb::DataType::STRING: return ERROR("Division with STRING not allowed.");
-                case qb::DataType::VECTOR: /* TODO */ break;
-                case qb::DataType::REF: /* TODO */ break;
-            }
-            break;
-        }            
-        case qb::InstructionType::MOD: {
-            switch (target->type) {
-                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
-                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
-                case qb::DataType::BOOL: *((bool*) target->value) %= *((bool*) cast_res.data->value); break;
-                case qb::DataType::UINT8: *((uint8_t*) target->value) %= *((uint8_t*) cast_res.data->value); break;
-                case qb::DataType::INT8: *((int8_t*) target->value) %= *((int8_t*) cast_res.data->value); break;
-                case qb::DataType::UINT16: *((uint16_t*) target->value) %= *((uint16_t*) cast_res.data->value); break;
-                case qb::DataType::INT16: *((int16_t*) target->value) %= *((int16_t*) cast_res.data->value); break;
-                case qb::DataType::UINT32: *((uint32_t*) target->value) %= *((uint32_t*) cast_res.data->value); break;
-                case qb::DataType::INT32: *((int32_t*) target->value) %= *((int32_t*) cast_res.data->value); break;
-                case qb::DataType::FLOAT32: *((float*) target->value) = std::fmod(*((float*) target->value), *((float*) cast_res.data->value)); break;
-                case qb::DataType::STRING: return ERROR("Modulo with STRING not allowed.");
-                case qb::DataType::VECTOR: /* TODO */ break;
-                case qb::DataType::REF: /* TODO */ break;
-            }
-            break;
-        }            
-        case qb::InstructionType::POW: {
-            switch (target->type) {
-                case qb::DataType::_NULL: return ERROR("Arithmetics with NULL not allowed.");
-                case qb::DataType::ERROR: return ERROR("Arithmetics with ERROR not allowed.");
-                case qb::DataType::BOOL: *((bool*) target->value) = std::pow(*((bool*) target->value), *((bool*) cast_res.data->value)); break;
-                case qb::DataType::UINT8: *((uint8_t*) target->value) = std::pow(*((uint8_t*) target->value), *((uint8_t*) cast_res.data->value)); break;
-                case qb::DataType::INT8: *((int8_t*) target->value) = std::pow(*((int8_t*) target->value), *((int8_t*) cast_res.data->value)); break;
-                case qb::DataType::UINT16: *((uint16_t*) target->value) = std::pow(*((uint16_t*) target->value), *((uint16_t*) cast_res.data->value)); break;
-                case qb::DataType::INT16: *((int16_t*) target->value) = std::pow(*((int16_t*) target->value), *((int16_t*) cast_res.data->value)); break;
-                case qb::DataType::UINT32: *((uint32_t*) target->value) = std::pow(*((uint32_t*) target->value), *((uint32_t*) cast_res.data->value)); break;
-                case qb::DataType::INT32: *((int32_t*) target->value) = std::pow(*((int32_t*) target->value), *((int32_t*) cast_res.data->value)); break;
-                case qb::DataType::FLOAT32: *((float*) target->value) = std::pow(*((float*) target->value), *((float*) cast_res.data->value)); break;
-                case qb::DataType::STRING: return ERROR("Exponential with STRING not allowed.");
-                case qb::DataType::VECTOR: /* TODO */ break;
-                case qb::DataType::REF: /* TODO */ break;
-            }
-            break;
-        }            
+    // Guard operation by type
+    auto is_bool_math = op < 0x10;
+    if (is_bool_math) {
+        if (t_type->kind != qb::TypeKind::BOOL) 
+            OP_ERROR(MATH_BOOL_TARGET)
+    }
+    else {
+        if (t_type->kind != qb::TypeKind::INT && t_type->kind != qb::TypeKind::FLOAT)
+            OP_ERROR(MATH_DEC_TARGET)
     }
 
-    qb::_operator::clean_heap(&cast_res);
-    return {
-        .data = target
-    };
+    // Get source type and data
+    auto s_type = s_block.type_of(s_port);
+    auto s_data = s_block.data.get(s_port);
+
+    // Attempt cast
+    auto res = qb::op::cast(t_type, s_type, s_data);
+    if (res.code > 0) return res;
+
+    // Get target data
+    auto t_data = t_block.data.get(t_port);
+
+    // Run operation
+    if (is_bool_math) {
+        bool out;
+        switch (op) {
+            case qb::instruction::Math::Flags::Op::NOT: out = !(*(bool*) res.out); break;
+            case qb::instruction::Math::Flags::Op::AND: out = (*(bool*) t_data) && (*(bool*) res.out); break;
+            case qb::instruction::Math::Flags::Op::OR:  out = (*(bool*) t_data) || (*(bool*) res.out); break;
+        }
+        t_block.data.set(t_port, (data_t) &out);
+    }
+    else {
+        switch (op) {
+            case qb::instruction::Math::Flags::Op::ADD:  OP_MATH(+); break;
+            case qb::instruction::Math::Flags::Op::SUB:  OP_MATH(-); break;
+            case qb::instruction::Math::Flags::Op::MULT: OP_MATH(*); break;
+            case qb::instruction::Math::Flags::Op::DIV:  OP_MATH(/); break;
+            // case qb::instruction::Math::Flags::MOD:  OP_MATH(%); break;
+            // case qb::instruction::Math::Flags::POW:  OP_MATH(); break;
+            // case qb::instruction::Math::Flags::LN:
+        }
+    }
+
+    // Delete temporary value (created by cast)
+    if (res.temp) qb::op::delete_temp(t_type, res.out);
+
+    OP_OK(t_data)
+}
+
+qb::op::res_t qb::op::compare(qb::instruction::CompareOp op, mem::Block& l_block, port_t l_port, mem::Block& r_block, port_t r_port) {
+    auto l_type = l_block.type_of(l_port);
+    
+    // Get source type and data
+    auto r_type = r_block.type_of(r_port);
+    auto r_data = r_block.data.get(r_port);
+
+    // Attempt cast
+    auto res = qb::op::cast(l_type, r_type, r_data);
+    if (res.code > 0) return res;
+
+    // Get target data
+    auto l_data = l_block.data.get(l_port);
+
+    bool compare_res = false;
+    switch (op) {
+        case qb::instruction::CompareOp::EQ: OP_COMPARE(==); break;
+        case qb::instruction::CompareOp::GT: OP_COMPARE(>); break;
+        case qb::instruction::CompareOp::LT: OP_COMPARE(<); break;
+    }
+
+    // Delete temporary value (created by cast)
+    if (res.temp) qb::op::delete_temp(l_type, res.out);
+
+    OP_OK_TEMP(bool, compare_res)
 }

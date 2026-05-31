@@ -1,63 +1,82 @@
 #pragma once
-#include <string>
-#include <cmath>
-#include "instruction.h"
-
-#define UNRESOLVED_DATA { .type = DataType::VOID, .value = nullptr, .heap = true }
-#define UNRESOLVED_DEVICE_DATA { .device = nullptr, .data = UNRESOLVED_DATA }
-
-#define ERROR(MSG) { .data = nullptr, .error = new std::string(MSG) }
+#include <charconv>
+#include "code.h"
 
 namespace qb {
 
-    // Resolved data, used to read/write from memory
-    // allocated inside Data objects.
-    //
-    // - `value`:
-    //   - (null) nullptr
-    //   - (numeric, string) a pointer to the memory allocated by the Data object
-    //   - (error, vector or ref) a pointer to the Data object
-    //   - (sliced vector) a pointer to a iterator_t
-    // - `heap`:
-    //   - (true) this data should be deleted after the operation
-    //   - (false) this data lifecycle is not manageable by this operation
-    struct data_t {
-        type_t type;
-        void* value;
-        bool heap = false;
-    };
-
-    struct data_slice_t {
-        type_t type;
-        void* value = nullptr;
-        bool heap = false;
-        data::Slice* slice = nullptr;
-
-        ~data_slice_t() {
-            delete this->slice;
-        }
-    };
-
-    extern data_t BOOL_TARGET_TYPE;
-    extern data_t U32_TARGET_TYPE;
-   
-    namespace _operator {
+    namespace op {
 
         struct res_t {
-            data_t* data = nullptr;
-            std::string* error = nullptr;
+            enum Code {
+                OK = 0x00,
+                UNKNOWN_TARGET_TYPE,
+                UNKNOWN_SOURCE_TYPE,
+                NOT_IMPLEMENTED,
+                CAST_VOID_TO_INT,
+                CAST_INT_SIZE,
+                CAST_INT_TO_UINT,
+                CAST_INT_UINT_SIZE,
+                CAST_IMPLICIT_FLOAT_TO_INT,
+                CAST_IMPLICIT_STRING_TO_INT,
+                CAST_NAN_STRING_TO_INT,
+                CAST_IMPLICIT_REF_TO_INT,
+                CAST_IMPLICIT_VEC_TO_INT,
+                CAST_IMPLICIT_MAP_TO_INT,
+                CAST_STRUCT_TO_INT,
+                CAST_IMPLICIT_EVENT_TO_INT,
+                CAST_VOID_TO_FLOAT,
+                CAST_STRING_TO_FLOAT,
+                CAST_REF_TO_FLOAT,
+                CAST_VECTOR_TO_FLOAT,
+                CAST_MAP_TO_FLOAT,
+                CAST_STRUCT_TO_FLOAT,
+                CAST_EVENT_TO_FLOAT,
+                CAST_VOID_TO_STRING,
+                CAST_BOOL_TO_STRING,
+                CAST_INT_TO_STRING,
+                CAST_FLOAT_TO_STRING,
+                CAST_REF_TO_STRING,
+                CAST_VECTOR_TO_STRING,
+                CAST_MAP_TO_STRING,
+                CAST_STRUCT_TO_STRING,
+                CAST_EVENT_TO_STRING,
+                CAST_VOID_TO_REF,
+                CAST_BOOL_TO_REF,
+                CAST_INT_TO_REF,
+                CAST_FLOAT_TO_REF,
+                CAST_STRING_TO_REF,
+                CAST_VECTOR_TO_REF,
+                CAST_MAP_TO_REF,
+                CAST_STRUCT_TO_REF,
+                CAST_EVENT_TO_REF,
+                ASSIGN_PORT_OUT_OF_BOUNDS,
+                ASSIGN_TO_CONST,
+                MATH_BOOL_TARGET,
+                MATH_DEC_TARGET
+            } code : 7;
+            bool temp : 1;
+            data_t out;
         };
 
-        void clean_data(data_t* res);
-        // data_t* copy_data(data_t* res);
-        void clean_heap(_operator::res_t* res);
+        // delete temp
+        void delete_temp(const Type* type, data_t value);
 
-        res_t cast(data_t* target, data_t* source);
-        res_t assign(data_t* target, data_t* source);
-        res_t compare(data_t* target, data_t* source);
-        res_t arithmetic_bool(InstructionType type, data_t* target, data_t* source);
-        res_t arithmetic(InstructionType type, data_t* target, data_t* source);
-        
+        // cast
+
+        res_t cast_to_bool(const Type* from_type, data_t value);
+        res_t cast_to_int(const Type* to_type, const Type* from_type, data_t value, bool is_explicit = false);
+        res_t cast_to_float(const Type* from_type, data_t value);
+        res_t cast_to_string(const Type* from_type, data_t value, bool is_explicit = false);
+        res_t cast_to_ref(const Type* from_type, data_t value);
+        res_t cast_to_ref_slice(const Type* from_type, data_t value);
+        res_t cast(const Type* to_type, const Type* from_type, data_t value, bool is_explicit = false);
+
+        // assign
+
+        res_t assign(mem::Block& l_block, port_t l_port, mem::Block& r_block, port_t r_port, bool explicit_cast = false);
+        res_t math(qb::instruction::Math::Flags::Op op, mem::Block& t_block, port_t t_port, mem::Block& s_block, port_t s_port);
+        res_t compare(qb::instruction::CompareOp op, mem::Block& t_block, port_t t_port, mem::Block& s_block, port_t s_port);
+
     }
 
 }

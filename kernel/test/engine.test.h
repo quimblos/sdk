@@ -1,92 +1,134 @@
 #pragma once
 #include "engine.h"
 
-class EngineTestDevice: public qb::Device {
-    public:
-        EngineTestDevice(): qb::Device("led", {
-            { "dimmer", qb::data::u8() }
-        }) {}
-    protected:
-        void tick() {}
-};    
-
 qb_suite(test_engine, "engine", {
 
-    qb_describe("devices", {
-        
-        qb_test("link_device", {
-            auto engine = qb::Engine();
-            auto device = new EngineTestDevice();
-            auto res = engine.link_device(device);
-            qb_assert(res.ok == true);
-        })
-
-        qb_test("get_device", {
-            auto engine = qb::Engine();
-            auto device = new EngineTestDevice();
-            engine.link_device(device);
-
-            qb::Device* out = engine.get_device("led");
-            qb_assert(out == device);
-        })
-
-        qb_test("delete_device", {
-            auto engine = qb::Engine();
-            auto device = new EngineTestDevice();
-            engine.link_device(device);
-            
-            qb::Device* out = engine.get_device("led");
-            qb_assert(out == device);
-
-            engine.delete_device("led");
-            
-            out = engine.get_device("led");
-            qb_assert(out == nullptr);
+    qb_describe("getters", {
+    
+        qb_test("name", {
+            auto engine = qb::Engine({});
+            qb_assert(&engine != nullptr);
         })
 
     })
 
-    qb_describe("runners", {
-        
-        qb_test("link_runner", {
-            auto engine = qb::Engine();
-            auto program = qb::Program("test", {
-                new qb::instruction::Log(qb::data::str("test"))
-            }, {});
-            auto runner = new qb::Runner(&engine, "test", &program);
-            auto res = engine.link_runner(runner);
-            qb_assert(res.ok == true);
+    qb_describe("drivers", {
+
+        qb_test("link", {
+            auto engine = qb::Engine({});
+            auto driver = new qb::Driver("test", {});
+            engine.link_driver(driver);
+            auto drivers = engine.get_drivers();
+            qb_assert(drivers.size() == 1);
         })
 
-        qb_test("get_runner", {
-            auto engine = qb::Engine();
-            auto program = qb::Program("test", {
-                new qb::instruction::Log(qb::data::str("test"))
-            }, {});
-            auto runner = new qb::Runner(&engine, "test", &program);
-            engine.link_runner(runner);
-
-            qb::Runner* out = engine.get_runner("test");
-            qb_assert(out == runner);
+        qb_test("link twice (should fail)", {
+            auto engine = qb::Engine({});
+            auto driver = new qb::Driver("test", {});
+            engine.link_driver(driver);
+            auto res = engine.link_driver(driver);
+            qb_assert(res.code == qb::engine::res_t::Code::DRIVER_ALREADY_EXISTS);
+        })
+    
+        qb_test("get", {
+            auto engine = qb::Engine({});
+            auto driver = new qb::Driver("test", {});
+            engine.link_driver(driver);
+            auto get_res = engine.get_driver("test");
+            qb_assert(get_res.code == 0);
+            qb_assert(get_res.out.driver == driver);
         })
 
-        qb_test("delete_runner", {
-            auto engine = qb::Engine();
-            auto program = qb::Program("test", {
-                new qb::instruction::Log(qb::data::str("test"))
-            }, {});
-            auto runner = new qb::Runner(&engine, "test", &program);
-            engine.link_runner(runner);
-            
-            qb::Runner* out = engine.get_runner("test");
-            qb_assert(out == runner);
-
-            engine.delete_runner("test");
-            
-            out = engine.get_runner("test");
-            qb_assert(out == nullptr);
+        qb_test("get non-existing (should fail)", {
+            auto engine = qb::Engine({});
+            auto driver = new qb::Driver("test", {});
+            engine.link_driver(driver);
+            auto get_res = engine.get_driver("nothing");
+            qb_assert(get_res.code == qb::engine::res_t::Code::DRIVER_NOT_FOUND);
         })
 
+        qb_test("delete", {
+            auto engine = qb::Engine({});
+            auto driver = new qb::Driver("test", {});
+            engine.link_driver(driver);
+            auto drivers = engine.get_drivers();
+            qb_assert(drivers.size() == 1);
+            auto get_res = engine.delete_driver("test");
+            qb_assert(get_res.code == 0);
+            drivers = engine.get_drivers();
+            qb_assert(drivers.size() == 0);
+        })
+
+        qb_test("delete non-existing (should fail)", {
+            auto engine = qb::Engine({});
+            auto driver = new qb::Driver("test", {});
+            engine.link_driver(driver);
+            auto drivers = engine.get_drivers();
+            qb_assert(drivers.size() == 1);
+            auto get_res = engine.delete_driver("nothing");
+            qb_assert(get_res.code == qb::engine::res_t::Code::DRIVER_NOT_FOUND);
+            drivers = engine.get_drivers();
+            qb_assert(drivers.size() == 1);
+        })
     })
 
+    qb_describe("nodes", {
+
+        qb_test("link", {
+            auto engine = qb::Engine({});
+            auto node = new qb::Node(&engine, "test", {});
+            engine.link_node(node);
+            auto nodes = engine.get_nodes();
+            qb_assert(nodes.size() == 1);
+        })
+
+        qb_test("link twice (should fail)", {
+            auto engine = qb::Engine({});
+            auto node = new qb::Node(&engine, "test", {});
+            engine.link_node(node);
+            auto res = engine.link_node(node);
+            qb_assert(res.code == qb::engine::res_t::Code::NODE_ALREADY_EXISTS);
+        })
+    
+        qb_test("get", {
+            auto engine = qb::Engine({});
+            auto node = new qb::Node(&engine, "test", {});
+            engine.link_node(node);
+            auto get_res = engine.get_node("test");
+            qb_assert(get_res.code == 0);
+            qb_assert(get_res.out.node == node);
+        })
+
+        qb_test("get non-existing (should fail)", {
+            auto engine = qb::Engine({});
+            auto node = new qb::Node(&engine, "test", {});
+            engine.link_node(node);
+            auto get_res = engine.get_node("nothing");
+            qb_assert(get_res.code == qb::engine::res_t::Code::NODE_NOT_FOUND);
+        })
+
+        qb_test("delete", {
+            auto engine = qb::Engine({});
+            auto node = new qb::Node(&engine, "test", {});
+            engine.link_node(node);
+            auto nodes = engine.get_nodes();
+            qb_assert(nodes.size() == 1);
+            auto get_res = engine.delete_node("test");
+            qb_assert(get_res.code == 0);
+            nodes = engine.get_nodes();
+            qb_assert(nodes.size() == 0);
+        })
+
+        qb_test("delete non-existing (should fail)", {
+            auto engine = qb::Engine({});
+            auto node = new qb::Node(&engine, "test", {});
+            engine.link_node(node);
+            auto nodes = engine.get_nodes();
+            qb_assert(nodes.size() == 1);
+            auto get_res = engine.delete_node("nothing");
+            qb_assert(get_res.code == qb::engine::res_t::Code::NODE_NOT_FOUND);
+            nodes = engine.get_nodes();
+            qb_assert(nodes.size() == 1);
+        })
+    })
 })

@@ -68,7 +68,7 @@ namespace qb {
 
             
             virtual void render(port_t port) {}
-            virtual void log(const Type* type, data_t target) {}
+            virtual void log(const Type* type, data_t value) {}
 
             // Getters
 

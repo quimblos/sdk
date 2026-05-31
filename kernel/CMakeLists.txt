@@ -9,14 +9,17 @@ project (quimblos-sdk)
 # Static Lib (lquimblos.a)
 
 set(SOURCES
-    src/data.cpp
-    src/instruction.cpp
-    src/program.cpp
-    src/operator.cpp
-    src/device.cpp
-    src/runner.cpp
-    src/engine.cpp
+    src/types.cpp
     src/hex.cpp
+    src/memory.cpp
+    src/parser.cpp
+    src/operator.cpp
+    src/context.cpp
+    src/stack.cpp
+    src/thread.cpp
+    src/node.cpp
+    src/engine.cpp
+    src/runtime.cpp
 )
 
 # WASM

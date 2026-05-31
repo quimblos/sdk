@@ -115,14 +115,32 @@ qb::runtime::res_t qb::runtime::run_instruction(qb::Context* context, qb::code_a
         }
 
         /* Hold */
-        case qb::OpCode::HOLD:
-            std::cout << "TODO: HOLD" << std::endl;
+        case qb::OpCode::HOLD: {
+            auto driver_res = context->thread->get_node()->get_engine()->get_driver(((qb::instruction::Hold*)instr)->driver);
+            if (driver_res.code != qb::engine::res_t::Code::OK) {
+                RUNTIME_ERROR(UNRESOLVED_DRIVER);
+            }
+            auto driver = driver_res.out.driver;
+            driver->hold((qb::Thread*) context->thread);
+            #ifdef QB_RUNTIME_DEBUG
+                std::cout << "HOLD " << driver->get_name() << std::endl;
+            #endif
             break;
+        }
 
         /* Release */
-        case qb::OpCode::RELEASE:
-            std::cout << "TODO: RELEASE" << std::endl;
+        case qb::OpCode::RELEASE: {
+            auto driver_res = context->thread->get_node()->get_engine()->get_driver(((qb::instruction::Release*)instr)->driver);
+            if (driver_res.code != qb::engine::res_t::Code::OK) {
+                RUNTIME_ERROR(UNRESOLVED_DRIVER);
+            }
+            auto driver = driver_res.out.driver;
+            driver->release((qb::Thread*) context->thread);
+            #ifdef QB_RUNTIME_DEBUG
+                std::cout << "RELEASE " << driver->get_name() << std::endl;
+            #endif
             break;
+        }
 
         /* Goto */
         case qb::OpCode::GOTO: {
@@ -186,8 +204,7 @@ qb::runtime::res_t qb::runtime::run_instruction(qb::Context* context, qb::code_a
                 RUN_BLOCK_OP(qb::op::assign(*target_block, target_port, *data_false_block, data_false_port))
             }
             delete (bool*) compare_res.out;
-
-            
+         
             #ifdef QB_RUNTIME_DEBUG
                 REF_GET_TYPE(target)
                 REF_GET_TYPE(left)
@@ -202,39 +219,45 @@ qb::runtime::res_t qb::runtime::run_instruction(qb::Context* context, qb::code_a
                 if (res_debug_left.code != 0) {
                     LOG((uint8_t) res_debug_left.code)
                 }
-                auto res_debug_right = qb::op::cast_to_string(right_type, right, true);
-                if (res_debug_right.code != 0) {
-                    LOG((uint8_t) res_debug_right.code)
-                }
-                auto res_debug_data_true = qb::op::cast_to_string(data_true_type, data_true, true);
-                if (res_debug_data_true.code != 0) {
-                    LOG((uint8_t) res_debug_data_true.code)
-                }
-                auto res_debug_data_false = qb::op::cast_to_string(data_false_type, data_false, true);
-                if (res_debug_data_false.code != 0) {
-                    LOG((uint8_t) res_debug_data_false.code)
-                }
                 else {
-                    auto target_ref = ((qb::instruction::SetIf*)instr)->target;
-                    auto left_str = *(std::string*) res_debug_left.out;
-                    auto right_str = *(std::string*) res_debug_right.out;
-                    auto data_true_str = *(std::string*) res_debug_data_true.out;
-                    auto data_false_str = *(std::string*) res_debug_data_false.out;
-                    std::cout << "SET (" << target_type->to_str() << ")" << target_ref.to_str();
-                    std::cout << " = [(" << left_type->to_str() << ')' << left_str;
-                    switch (((qb::instruction::SetIf*)instr)->flags.op) {
-                        case qb::instruction::CompareOp::EQ: std::cout << " == "; break;
-                        case qb::instruction::CompareOp::GT: std::cout << " > "; break;
-                        case qb::instruction::CompareOp::LT: std::cout << " < "; break;
+                    auto res_debug_right = qb::op::cast_to_string(right_type, right, true);
+                    if (res_debug_right.code != 0) {
+                        LOG((uint8_t) res_debug_right.code)
                     }
-                    std::cout << "(" << right_type->to_str() << ')' << right_str << "]";
-                    std::cout << " ? (" << data_true_type->to_str() << ')' << data_true_str;
-                    std::cout << " : (" << data_true_type->to_str() << ')' << data_false_str;
-                    std::cout << std::endl;
-                    if (res_debug_left.temp) delete (std::string*) res_debug_left.out;
-                    if (res_debug_right.temp) delete (std::string*) res_debug_right.out;
-                    if (res_debug_data_true.temp) delete (std::string*) res_debug_data_true.out;
-                    if (res_debug_data_false.temp) delete (std::string*) res_debug_data_false.out;
+                    else {
+                        auto res_debug_data_true = qb::op::cast_to_string(data_true_type, data_true, true);
+                        if (res_debug_data_true.code != 0) {
+                            LOG((uint8_t) res_debug_data_true.code)
+                        }
+                        else {
+                            auto res_debug_data_false = qb::op::cast_to_string(data_false_type, data_false, true);
+                            if (res_debug_data_false.code != 0) {
+                                LOG((uint8_t) res_debug_data_false.code)
+                            }
+                            else {
+                                auto target_ref = ((qb::instruction::SetIf*)instr)->target;
+                                auto left_str = *(std::string*) res_debug_left.out;
+                                auto right_str = *(std::string*) res_debug_right.out;
+                                auto data_true_str = *(std::string*) res_debug_data_true.out;
+                                auto data_false_str = *(std::string*) res_debug_data_false.out;
+                                std::cout << "SET (" << target_type->to_str() << ")" << target_ref.to_str();
+                                std::cout << " = [(" << left_type->to_str() << ')' << left_str;
+                                switch (((qb::instruction::SetIf*)instr)->flags.op) {
+                                    case qb::instruction::CompareOp::EQ: std::cout << " == "; break;
+                                    case qb::instruction::CompareOp::GT: std::cout << " > "; break;
+                                    case qb::instruction::CompareOp::LT: std::cout << " < "; break;
+                                }
+                                std::cout << "(" << right_type->to_str() << ')' << right_str << "]";
+                                std::cout << " ? (" << data_true_type->to_str() << ')' << data_true_str;
+                                std::cout << " : (" << data_true_type->to_str() << ')' << data_false_str;
+                                std::cout << std::endl;
+                                if (res_debug_left.temp) delete (std::string*) res_debug_left.out;
+                                if (res_debug_right.temp) delete (std::string*) res_debug_right.out;
+                                if (res_debug_data_true.temp) delete (std::string*) res_debug_data_true.out;
+                                if (res_debug_data_false.temp) delete (std::string*) res_debug_data_false.out;
+                            }
+                        }
+                    }
                 }
             #endif
             break;

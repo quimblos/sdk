@@ -49,6 +49,10 @@ namespace test {
     break; \
   }
 
+#define qb_fail() \
+  ok = false; \
+  break;
+
 #define report_test_results() \
   std::cout << std::endl; \
   std::cout << CYAN << "TOTAL" << NC << " : " << test::total << std::endl; \

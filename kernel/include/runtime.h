@@ -16,6 +16,7 @@ namespace qb {
                 OK = 0x00,
                 UNRESOLVED_REF_BLOCK,
                 UNRESOLVED_REF_PORT,
+                UNRESOLVED_DRIVER,
                 FAILED_ASSIGN,
                 FAILED_MATH,
                 FAILED_COMPARE,
