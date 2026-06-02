@@ -102,8 +102,8 @@ namespace qb {
 
             const type_t add_vec(const type_t item_type);
             const type_t add_map(const type_t item_type);
-            const type_t add_struct(const std::vector<std::pair<bool, type_t>>& field_types);
             const type_t add_event(const type_t item_type);
+            const type_t add_struct(const std::vector<std::pair<bool, type_t>>& field_types);
             
     };
 

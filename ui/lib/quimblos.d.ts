@@ -1,78 +1,123 @@
 import { quimblos } from "@quimblos/compiler/src/lang/semantics"
-import { Engine } from "./kernel"
+import { Engine } from "./engine"
 
 declare global {
     namespace wasm {
-        class VectorCode {
-            static from(items: number[]): VectorCode;
-            public push_back(val: number): void;    
+        class VectorTypeDef {
+            static from(items: TypeDef[]): VectorTypeDef;
+            public push_back(val: TypeDef): void;    
         }
-        class VectorDeviceData {
-            static from(items: DeviceData[]): VectorDeviceData;
-            public push_back(val: DeviceData): void;
-        }
-
-        type res_Engine = {
-            ok: boolean
-            message: string
+        class VectorPortDef {
+            static from(items: PortDef[]): VectorPortDef;
+            public push_back(val: PortDef): void;    
         }
 
-        type DeviceData = {
-            name: string
-            bytes: VectorCode
+        enum TypeKind {
+            VOID = 0x00,    
+            BOOL = 0x01,    
+            INT = 0x02,     
+            FLOAT = 0x03,
+            STRING = 0x04,
+            REF = 0x05,
+            REF_SLICE = 0x06,
+            VECTOR = 0x10,  // no built-in types, schema of_map
+            MAP = 0x11,     // no built-in types, schema of_map
+            STRUCT = 0x12,  // no built-in types, schema of_struct
+            EVENT = 0x13,   // no built-in types, schema of_map
+            FN = 0x20,      // no built-in types, schema of_map
         }
 
-        enum RunnerState {
+        type TypeDef = {
+            add: {
+                kind: TypeKind
+                children: VectorTypeDef
+            },
+            use: number
+            is_const: boolean
+        }
+
+        enum ThreadState {
             IDLE = 0x00,
             RUNNING = 0x01,
             SLEEPING = 0x10,
+            WAITING_DRIVER = 0x20,
             OK = 0xF0,
             ERROR = 0xFF
         }
 
-        class Engine {
-            public constructor();
-            public link_device(device: Device): res_Engine;
-            public get_device(name: string): Device;
-            public delete_device(name: string): void;
-            public make_runner(name: string, hex: string): res_Engine;
-            public get_runner(name: string): Runner;
-            public delete_runner(name: string): void;
+        type PortDef = {
+            name: string
+            type_def: TypeDef
         }
 
-        class Runner {
-            public start(): void
-            public reset(): void
-            public wakeup(): void
-            public tick(): boolean
-            public get_state(): { value: RunnerState };
-            public get_cursor(): number;
+        class Driver {
+            public constructor(
+                name: string,
+                ports: VectorPortDef
+            );
+            public bind(__js_istance__: any): void;
+            public render(data: {
+                [port: number]: {
+                    index: number,
+                    type: string,
+                    value: any
+                }
+            }): void;
+        }
+
+        class Thread {
+            public constructor(
+                node: Node,
+                name: string,
+                hex: string,
+                ports: VectorPortDef
+            );
+            public get_state(): { value: ThreadState };
             public get_sleep(): number;
-            public get_name(): string;
+            public wakeup(): void;
+            public reset(): void;
+            public start(): void;
+            public tick(): boolean;
         }
 
-        class Device {
-            static make(name: string, variables: VectorDeviceData): Device;
-            public bind(device: any): void;
-            public has_variable(port: number): boolean;
+        class Node {
+            public constructor(
+                node: Engine,
+                name: string,
+                ports: VectorPortDef
+            );
+            public link_thread(thread: Thread): boolean
+            public delete_thread(name: string): boolean
         }
 
+        class Engine {
+            public constructor(
+                ports: VectorPortDef
+            );
+            public link_driver(driver: Driver): boolean
+            public delete_driver(name: string): boolean
+            public link_node(node: Node): boolean
+            public delete_node(name: string): boolean
+        }
+        
     }
 
     const qb: Engine;
 }
 
-type Kernel = {
-    VectorCode: typeof wasm.VectorCode,
-    VectorDeviceData: typeof wasm.VectorDeviceData,
+export type Kernel = {
+    VectorTypeDef: typeof wasm.VectorTypeDef,
+    VectorPortDef: typeof wasm.VectorPortDef,
+    Driver: typeof wasm.Driver,
+    Thread: typeof wasm.Thread,
+    Node: typeof wasm.Node,
     Engine: typeof wasm.Engine,
-    Device: typeof wasm.Device,
 }
 
-declare function WASM (opts: {
+declare function make_wasm_kernel (opts: {
     print: (...args: any[]) => void,
     printErr: (...args: any[]) => void,
 }): Promise<Kernel>
 
-export { Kernel }
-export default WASM
+
+export default make_wasm_kernel

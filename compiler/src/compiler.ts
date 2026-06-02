@@ -1,12 +1,9 @@
 import { AST } from "@quimblos/langmaker";
 import { quimblos } from "./lang/semantics";
 import { Kernel } from "./kernel";
+import { TypeDef } from "./lang/types";
 
 export type TypeName = quimblos.TypeIdentifier['name']
-export type Type =
-    { name: Exclude<TypeName, 'vec'> }
-    | { name: 'ref' }
-    | { name: 'vec', item: TypeName, length: number } 
 
 export type Value = boolean|number|string|boolean[]|number[]|string[]
 export type Ref = {
@@ -26,7 +23,8 @@ export type Node = {
 export type CodeAddr = [string, number] // name, offset
 
 export type Instruction = 
-    { $addr?: string, op: 'USE_DEVICE', name: string }
+    { $addr?: string, op: 'USE_DRIVER', name: string }
+    | { $addr?: string, op: 'USE_TOPIC', name: string }
     | { $addr?: string, op: 'USE_VAR', name: string, type: Type }
 
     | { $addr?: string, op: 'SET', target: Node, source: Node }
@@ -77,6 +75,9 @@ export class QuimblosCompiler {
 
     private macros: Instruction[] = [];
     private code: Instruction[] = [];
+    private types: {
+        [name: string]: TypeDef
+    } = {}
 
     private constructor(
         public ast: AST
@@ -92,8 +93,11 @@ export class QuimblosCompiler {
     public compile() {
         this.code = [];
         for (const node of this.root.macros) {
-            if (node instanceof quimblos.UseDeviceMacro) {
-                this.macros.push(this._use_device(node.device))
+            if (node instanceof quimblos.UseDriverMacro) {
+                this.macros.push(this._use_driver(node.device))
+            }
+            else if (node instanceof quimblos.UseTopicMacro) {
+                this.macros.push(this._use_topic(node.topic))
             }
         }
         for (const block of this.root.blocks) {
@@ -102,7 +106,8 @@ export class QuimblosCompiler {
         return {
             macros: this.macros,
             nodes: this.nodes,
-            code: this.code
+            code: this.code,
+            types: this.types
         }
     }
 
@@ -110,7 +115,10 @@ export class QuimblosCompiler {
         const code: Instruction[] = [];
 
         for (const statement of node.statements) {
-            if (statement instanceof quimblos.VariableStatement) {
+            if (statement instanceof quimblos.TypeDeclaration) {
+                this.make_type(statement.identifier.name, statement.type)
+            }
+            if (statement instanceof quimblos.VariableDeclaration) {
                 const type = this.type_from_identifier(statement.identifier.type);
                 this.make_var(statement.identifier.name, type)
             }
@@ -431,8 +439,11 @@ export class QuimblosCompiler {
 
     // Instructions
 
-    private _use_device(name: string): Instruction {
-        return { op: 'USE_DEVICE', name }
+    private _use_driver(name: string): Instruction {
+        return { op: 'USE_DRIVER', name }
+    }
+    private _use_topic(name: string): Instruction {
+        return { op: 'USE_TOPIC', name }
     }
     private _use_var(name: string, type: Type): Instruction {
         return { op: 'USE_VAR', name, type }
@@ -482,6 +493,38 @@ export class QuimblosCompiler {
 
     // Internal Helpers
 
+    private make_type(name: string|undefined, type: quimblos.Identifier | quimblos.Type): string {
+        name ??= '_t_'+Object.keys(this.types).length;
+        
+        const make_def = (type: quimblos.Identifier | quimblos.Type): TypeDef => {
+            if (type instanceof quimblos.Identifier) {
+                return {
+                    use: type.name,
+                };
+            }
+            else if (type instanceof quimblos.MapType) {
+                return {
+                    add: {
+                        kind: type.kind,
+                        children: [make_def(type.type)]
+                    }
+                }
+            }
+            else if (type instanceof quimblos.StructType) {
+                return {
+                    add: {
+                        kind: 'struct',
+                        children: type.fields.map(field =>
+                            ({ key: field.key, ...make_def(field.type) })
+                        )
+                    }
+                }
+            }
+        }
+        this.types[name] = make_def(type);
+
+        return name;
+    }
     private make_var(name: string|undefined, type: Type): Ref {
         name ??= '_v_'+Object.keys(this.nodes).length;
         this.nodes[name] = { name, type };

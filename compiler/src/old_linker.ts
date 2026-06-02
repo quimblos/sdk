@@ -44,7 +44,7 @@ export class QuimblosLinker {
     }
 
     private static link_node(node: CompilerNodes[string]): Bytecode {
-        if (node.statement instanceof quimblos.VariableStatement) {
+        if (node.statement instanceof quimblos.VariableDeclaration) {
             let value: Bytecode;
             
             if (node.statement.value instanceof quimblos.Literal) {

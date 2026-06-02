@@ -122,13 +122,13 @@ private make_devices(ast) {
 
   for (const device of this.devices) {
     if (!devices.includes(device)) {
-      device.destroyWebc('qb-editor');
+      device.destroy_webc('qb-editor');
       this.devices.splice(this.devices.indexOf(device), 1);
     }
   }
   for (const device of devices) {
     if (!this.devices.includes(device)) {
-      device.makeWebc('qb-editor', this.$device_list);
+      device.make_webc('qb-editor', this.$device_list);
       this.devices.push(device);
     }
   }

@@ -1,12 +1,9 @@
 export const quimblos_syntax = `
 /*
-    Quimblos
-    A high-level language for low-level hardware
+    Quimblos EBNF syntax
 */
 
 grammar ::= (blank? (comment | macro))* (blank? (comment | statement))*
-
-
 
 /*
     Comments
@@ -18,18 +15,21 @@ comment ::= '//' [#x20-#xD7FF]* eol
     Macros
 */
 
-macro ::= macro_use
-macro_use ::= '#use' ws identifier_device eol
+macro ::= macro_use_driver | macro_use_topic
+macro_use_driver ::= '#driver' ws identifier eol
+macro_use_topic ::= '#topic' ws identifier eol
 
-statement ::= statement_var | statement_function | statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reset | statement_reboot
+statement ::= declaration_type | declaration_var | declaration_function | statement_assign | statement_hold | statement_release | statement_if | statement_else_if | statement_else | statement_while | statement_log | statement_sleep | statement_return | statement_reboot
 
 /*
     Declarations
 */
 
-statement_var ::= kw_var ws typed_identifier ws? (op_assign ws? expression)? eol
+declaration_type ::= kw_type ws identifier ws? op_assign ws? type eol
 
-statement_function ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? typed_identifier? ')' ws? ':' eol
+declaration_var ::= (kw_const|kw_var) ws (typed_identifier|identifier) ws? (op_assign ws? expression)? eol
+
+declaration_function ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? typed_identifier? ')' ws? ':' eol
 
 /*
     Statements
@@ -37,8 +37,8 @@ statement_function ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? ty
 
 statement_assign ::= reference ws? ( op_math? op_assign ws? expression eol )
 
-statement_hold ::= kw_hold ws identifier_device eol
-statement_release ::= kw_release ws identifier_device eol
+statement_hold ::= kw_hold ws identifier eol
+statement_release ::= kw_release ws identifier eol
 
 statement_if ::= kw_if ws expression ws? (':' eol)
 statement_else_if ::= kw_else ws statement_if
@@ -48,45 +48,44 @@ statement_while ::= kw_while ws expression ws? (':' eol)
 statement_log ::= kw_log ws expression eol
 statement_sleep ::= kw_sleep ws expression eol
 statement_return ::= kw_return (ws expression)? eol
-statement_reset ::= kw_reset eol
 statement_reboot ::= kw_reboot eol
 
 /*
     Expressions
 */
 
-/*expression ::= expression_bool | expression_math*/
 expression ::= (term ws? op ws?)* term
 
-/* expression_bool ::= (bool_term ws? op_bool ws?)* bool_term */
 op ::= op_bool|op_math
 term ::= ( '(' ws? expression ws? ')' ) | value
-
-/* expression_math ::= (math_term ws? op_math ws?)* math_term */
-/* math_term ::= ( '(' ws? expression ws? ')') | value */
 
 /*
     References
 */
 
-reference ::= ref_idx | ref_no_idx
-ref_no_idx ::= ref_device | ref_script
-ref_idx ::= ref_device_idx | ref_script_idx
+reference ::= ref_driver | ref_script
 
-ref_script ::= identifier
-ref_script_idx ::= identifier ('[' expression ']')
-ref_device ::= identifier_device '.' identifier
-ref_device_idx ::= identifier_device '.' identifier ('[' expression ']')
+ref_script ::= identifier ('[' expression ']')+
+ref_driver ::= identifier '.' identifier ('[' expression ']')+
 
 /*
     Identifiers
 */
 
-typed_identifier ::= identifier ws? ':' ws? identifier_type ('[' unsigned_integer ']')?
+typed_identifier ::= identifier ws? ':' ws? type ('[' unsigned_integer ']')?
 
-identifier_device ::= letter (letter | digit)*
-identifier_type ::= char+
-identifier ::= letter (letter | digit)*
+identifier ::= letter char*
+
+/*
+    Types
+*/
+
+type ::= identifier | type_vec | type_event | type_struct | type_map
+type_vec ::= ('[' blank? type blank? ']')
+type_event ::= ('@' type)
+type_struct ::= '{' blank? type_struct_field (ws? ',' blank? type_struct_field)* blank? '}'
+type_struct_field ::= identifier ws? ':' ws? type
+type_map ::= ('{' blank? type blank? '}')
 
 /*
     Values
@@ -123,6 +122,8 @@ iden ::= ws?
     Keywords
 */
 
+kw_type ::= 'type'
+kw_const ::= 'const'
 kw_var ::= 'var'
 
 kw_hold ::= 'hold'
@@ -141,7 +142,6 @@ kw_continue ::= 'continue'
 kw_log ::= 'log'
 kw_sleep ::= 'sleep'
 kw_return ::= 'return'
-kw_reset ::= 'reset'
 kw_reboot ::= 'reboot'
 
 op_assign ::= '='

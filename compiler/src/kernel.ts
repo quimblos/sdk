@@ -1,4 +1,4 @@
-export type Device = {
+export type Driver = {
     name: string
     variables: {
         name: string
@@ -6,5 +6,5 @@ export type Device = {
 }
 
 export type Kernel = {
-    get_device(name: string): Device
+    get_driver(name: string): Driver
 }

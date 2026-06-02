@@ -57,10 +57,20 @@ emscripten::val as_emval(const qb::Type* type, qb::data_t value) {
     // }
 }
 
-struct WASMDriverPortDef {
+struct PortDef {
     std::string name;
     qb::TypeDef type_def;
 };
+
+const std::vector<qb::TypeDef> make_type_defs(
+    std::vector<PortDef> port_defs
+) {
+    std::vector<qb::TypeDef> type_defs;
+    for (const auto& port : port_defs) {
+        type_defs.push_back(port.type_def);
+    }
+    return type_defs;
+}
 
 class WASMDriver : public qb::Driver {
     private:
@@ -69,18 +79,8 @@ class WASMDriver : public qb::Driver {
     public:
         WASMDriver(
             std::string name,
-            std::vector<WASMDriverPortDef> port_defs
+            std::vector<PortDef> port_defs
         ): qb::Driver(name, make_type_defs(port_defs)) {};
-
-        static const std::vector<qb::TypeDef> make_type_defs(
-            std::vector<WASMDriverPortDef> port_defs
-        ) {
-            std::vector<qb::TypeDef> type_defs;
-            for (const auto& port : port_defs) {
-                type_defs.push_back(port.type_def);
-            }
-            return type_defs;
-        }
 
         void bind(emscripten::val __js_instance__) {
             this->__js_instance__ = __js_instance__;
@@ -107,9 +107,34 @@ class WASMDriver : public qb::Driver {
         }      
 };
 
+class WASMNode;
 class WASMThread : public qb::Thread {
     
     public:
+        WASMThread(
+            WASMNode& node,
+            const std::string& name,
+            const std::string& hex,
+            std::vector<PortDef> port_defs
+        ): qb::Thread(
+            (qb::Node*) &node,
+            name,
+            WASMThread::parse_hexcode(hex),
+            qb::TypeDef::block(make_type_defs(port_defs))
+        ) {}
+
+        static const qb::Code* parse_hexcode(
+            const std::string& hex
+        ) {
+            auto res = qb::parser::code(hex);
+            if (res.code != 0) {
+                std::cout << "ERROR: " << +res.code << std::endl;
+                return nullptr;
+            };
+            return res.out.code;
+        }
+
+
         qb::Thread::State get_state() { return this->state; }
         uint32_t get_sleep() { return this->sleep; }
         
@@ -132,13 +157,15 @@ class WASMEngine;
 class WASMNode : public qb::Node {
     
     public:
-        WASMEngine& get_engine() {
-            return *(WASMEngine*)qb::Node::get_engine();
-        }
-        
-        const std::string& get_name() {
-            return qb::Node::get_name();
-        }
+        WASMNode(
+            WASMEngine& engine,
+            const std::string& name,
+            std::vector<PortDef> port_defs
+        ): qb::Node(
+            (qb::Engine*) &engine,
+            name,
+            qb::TypeDef::block(make_type_defs(port_defs))
+        ) {}
         
         bool link_thread(WASMThread& thread) {
             auto res = qb::Node::link_thread(&thread);
@@ -155,13 +182,15 @@ class WASMNode : public qb::Node {
 class WASMEngine : public qb::Engine {
 
     public:
+        WASMEngine(
+            std::vector<PortDef> port_defs
+        ): qb::Engine(
+            qb::TypeDef::block(make_type_defs(port_defs))
+        ) {}
+
         bool link_driver(WASMDriver& driver) {
             auto res = qb::Engine::link_driver(&driver);
             return res.code == 0;
-        }
-        WASMDriver& get_driver(std::string name) {
-            auto res = qb::Engine::get_driver(name);
-            return *(WASMDriver*)res.out.driver;
         }
         bool delete_driver(std::string name) {
             auto res = qb::Engine::delete_driver(name);
@@ -171,10 +200,6 @@ class WASMEngine : public qb::Engine {
         bool link_node(WASMNode& node) {
             auto res = qb::Engine::link_node(&node);
             return res.code == 0;
-        }
-        WASMNode& get_node(std::string name) {
-            auto res = qb::Engine::get_node(name);
-            return *(WASMNode*)res.out.node;
         }
         bool delete_node(std::string name) {
             auto res = qb::Engine::delete_node(name);
@@ -187,7 +212,7 @@ using namespace emscripten;
 EMSCRIPTEN_BINDINGS(my_module) {
     // STL
     register_vector<qb::TypeDef>("VectorTypeDef");
-    register_vector<WASMDriverPortDef>("VectorWASMDriverPortDef");
+    register_vector<PortDef>("VectorPortDef");
 
     // Structs
     enum_<qb::TypeKind>("TypeKind")
@@ -207,10 +232,6 @@ EMSCRIPTEN_BINDINGS(my_module) {
         .field("add", &qb::TypeDef::add)
         .field("use", &qb::TypeDef::use)
         .field("is_const", &qb::TypeDef::is_const);
-    value_object<qb::Type>("Type")
-        .field("kind", &qb::Type::kind)
-        .field("flags", &qb::Type::flags)
-        .field("schema", &qb::Type::schema);
         
     enum_<qb::Thread::State>("ThreadState")
         .value("IDLE", qb::Thread::State::IDLE)
@@ -220,20 +241,19 @@ EMSCRIPTEN_BINDINGS(my_module) {
         .value("OK", qb::Thread::State::OK)
         .value("ERROR", qb::Thread::State::ERROR);
 
-    value_object<WASMDriverPortDef>("WASMDriverPortDef")
-        .field("name", &WASMDriverPortDef::name)
-        .field("type_def", &WASMDriverPortDef::type_def);
+    value_object<PortDef>("PortDef")
+        .field("name", &PortDef::name)
+        .field("type_def", &PortDef::type_def);
 
     // Driver
     class_<WASMDriver>("Driver")
-        .constructor()
+        .constructor<std::string, std::vector<PortDef>>()
         .function("bind", &WASMDriver::bind)
-        .function("log", &WASMDriver::log)
         .function("render", &WASMDriver::render);
 
     // Thread
     class_<WASMThread>("Thread")
-        .constructor()
+        .constructor<WASMNode&, std::string, std::string, std::vector<PortDef>>()
         .function("get_state", &WASMThread::get_state)
         .function("get_sleep", &WASMThread::get_sleep)
         .function("wakeup", &WASMThread::wakeup)
@@ -243,19 +263,15 @@ EMSCRIPTEN_BINDINGS(my_module) {
 
     // Node
     class_<WASMNode>("Node")
-        .constructor()
-        .function("get_engine", &WASMNode::get_engine)
-        .function("get_name", &WASMNode::get_name)
+        .constructor<WASMEngine&, std::string, std::vector<PortDef>>()
         .function("link_thread", &WASMNode::link_thread)
         .function("delete_thread", &WASMNode::delete_thread);
 
     // Engine
     class_<WASMEngine>("Engine")
-        .constructor()
+        .constructor<std::vector<PortDef>>()
         .function("link_driver", &WASMEngine::link_driver)
-        .function("get_driver", &WASMEngine::get_driver)
         .function("delete_driver", &WASMEngine::delete_driver)
         .function("link_node", &WASMEngine::link_node)
-        .function("get_node", &WASMEngine::get_node)
         .function("delete_node", &WASMEngine::delete_node);
 }

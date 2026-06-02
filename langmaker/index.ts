@@ -13,6 +13,7 @@ export type { Semantics } from "./src/semantics/semantics";
 export { SemanticsBuilder } from "./src/semantics/semantics";
 
 export { Linter } from "./src/static/linter";
+export { Transformer } from "./src/static/transformer";
 
 export type { HTMLStyle } from "./src/format/html";
 export { to_html } from "./src/format/html";

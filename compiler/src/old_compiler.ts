@@ -14,7 +14,7 @@ export type Bytecode = (
 )[]
 
 export type CompilerNodes = Record<string, {
-    statement: quimblos.VariableStatement|quimblos.PointerStatement
+    statement: quimblos.VariableDeclaration|quimblos.PointerStatement
     port?: number
 }>;
 
@@ -143,7 +143,7 @@ export class QuimblosCompiler {
         }
 
         for (const statement of node.statements) {
-            if (statement instanceof quimblos.VariableStatement) {
+            if (statement instanceof quimblos.VariableDeclaration) {
                 compiled.nodes[statement.identifier.name+block] = { statement };
                 compiled.bytecode.push(
                     ...this.compile_variable_statement(statement, block)
@@ -177,7 +177,7 @@ export class QuimblosCompiler {
 
     // Statements
 
-    private static compile_variable_statement(node: quimblos.VariableStatement, block: number) {
+    private static compile_variable_statement(node: quimblos.VariableDeclaration, block: number) {
         let bytecode: Bytecode = []
         if (node.value) {
             const ref = new quimblos.Reference();

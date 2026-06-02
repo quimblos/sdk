@@ -1,0 +1,12 @@
+<template>
+    <div class="col ga" id="list"></div>
+</template>
+
+<script>
+public setup() {
+    const drivers = qb.get_drivers();
+    for (const driver of drivers) {
+        driver.make_webc('page-drivers', this.$list);
+    }
+}
+</script>

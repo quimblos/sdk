@@ -1,12 +1,23 @@
 import * as lib from "./lib";
 
-describe('UseDeviceMacro', () => {
-    it('#use macro', () => {
+describe('UseDriverMacro', () => {
+    it.only('#driver NAME', () => {
         const compiled = lib.compile(`
-            #use LEDBAR
+            #driver LED
         `);
-        expect(compiled.code).toEqual([
-            { op: 'USE_DEVICE', name: 'LEDBAR' }
+        expect(compiled.macros).toEqual([
+            { op: 'USE_DRIVER', name: 'LED' }
+        ])
+    })
+})
+
+describe('UseDriverMacro', () => {
+    it('#topic NAME', () => {
+        const compiled = lib.compile(`
+            #topic log
+        `);
+        expect(compiled.macros).toEqual([
+            { op: 'USE_TOPIC', name: 'log' }
         ])
     })
 })

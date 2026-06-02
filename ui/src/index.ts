@@ -1,11 +1,10 @@
 import { make_compiler } from '@quimblos/compiler';
 import { quimblos_style } from '@quimblos/compiler/src/lang/style';
-import { n_lines } from '../lib/helper';
 
-import { Engine } from '../lib/kernel';
-import { LedBarDevice } from './devices/ledbar.device'
-import { LedStripDevice } from './devices/ledstrip.device'
-import { Sling2DDevice } from './devices/sling2d.device';
+import { QuimblosEngine, n_lines } from '../lib';
+import { LED8Driver } from './drivers/led8.driver'
+import { LedStripDriver } from './drivers/ledstrip.driver'
+import { Sling2DDriver } from './drivers/sling2d.driver';
 
 import Goo from '@quimblos/goo';
 import { GooRouter } from '@quimblos/goo/src/router'
@@ -25,7 +24,7 @@ import './components/qb-editor.goo'
 import './components/qb-servo.goo'
 import './components/qb-water-tank.goo'
 import './pages/page-welcome.goo'
-import './pages/page-devices.goo'
+import './pages/page-drivers.goo'
 import './pages/page-sandbox.goo'
 import './my-app.goo'
 
@@ -33,13 +32,17 @@ async function setup() {
 
   // Quimblos Engine
 
-  const engine = await Engine.init();
-  engine.link_device(new LedBarDevice());
-  engine.link_device(new Sling2DDevice());
-  engine.link_device(new LedStripDevice());
+  const engine = await QuimblosEngine.init();
+
+  (window as any).wasm = engine.kernel;
+  (window as any).qb = engine;
+  
+  // engine.link_driver(new LED8Driver());
+  // engine.link_driver(new Sling2DDriver());
+  // engine.link_driver(new LedStripDriver());
   
   (window as any).qbstyle = quimblos_style;
-  (window as any).qbcompile = make_compiler(qb);
+  (window as any).qbcompile = make_compiler(engine);
   (window as any).n_lines = n_lines;
 
   // Goo Routes
@@ -50,10 +53,10 @@ async function setup() {
     .child('welcome', $ => $
       .slot('my-app|page', 'page-welcome')
     )
-    .child('devices', $ => $
-      .alias('Devices')
-      .menu($ => [$('Devices')])
-      .slot('my-app|page', 'page-devices')
+    .child('drivers', $ => $
+      .alias('Drivers')
+      .menu($ => [$('Drivers')])
+      .slot('my-app|page', 'page-drivers')
     )
     .child('sandbox', $ => $
       .alias('Sandbox')

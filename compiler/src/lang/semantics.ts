@@ -1,7 +1,7 @@
 import { ASTNode, SemanticsBuilder } from "@quimblos/langmaker"
+import { TypeDef } from "./types"
 
 export namespace quimblos {
-    export type Type = NonNullable<quimblos.TypeIdentifier['name']>
     export type LiteralType = quimblos.Literal['literal_type']
     export type Value = Expression | Literal | Reference
 
@@ -19,19 +19,31 @@ export namespace quimblos {
     }
 
     // Macros
-    export type Macro = UseDeviceMacro;
-    export class UseDeviceMacro extends ASTNode {
+
+    export type Macro = UseDriverMacro | UseTopicMacro;
+    export class UseDriverMacro extends ASTNode {
         device!: string
     }
+    export class UseTopicMacro extends ASTNode {
+        topic!: string
+    }
 
-    export class VariableStatement extends ASTNode {
+    // Declarations
+    
+    export class TypeDeclaration extends ASTNode {
+        identifier!: Identifier
+        type!: Identifier | Type
+    }
+
+    export class VariableDeclaration extends ASTNode {
         identifier!: Identifier
         value?: Expression
         children = () => [this.identifier, this.value]
     }
 
     // Statements
-    export type Statement = HoldStatement | ReleaseStatement | LogStatement | SleepStatement | ReturnStatement | ResetStatement | RebootStatement
+
+    export type Statement = HoldStatement | ReleaseStatement | LogStatement | SleepStatement | ReturnStatement | RebootStatement
     export class AssignStatement extends ASTNode {
         target!: Reference
         source!: Expression
@@ -73,7 +85,6 @@ export namespace quimblos {
         value!: Expression
         children = () => [this.value]
     }
-    export class ResetStatement extends ASTNode {}
     export class RebootStatement extends ASTNode {}
 
     // Expressions
@@ -106,8 +117,23 @@ export namespace quimblos {
     }
     export class Identifier extends ASTNode {
         name!: string
-        type!: TypeIdentifier
+        type?: TypeIdentifier
         children = () => [this.type]
+    }
+
+    // Types
+
+    export type Type = MapType | StructType
+    export class MapType extends ASTNode {
+        kind!: 'vec' | 'map' | 'event'
+        type!: Identifier|Type
+    }
+    export class StructType extends ASTNode {
+        fields!: StructFieldType[]
+    }
+    export class StructFieldType extends ASTNode {
+        key!: string
+        type!: Identifier|Type
     }
 
     // Values
@@ -134,20 +160,37 @@ export const quimblos_semantics = new SemanticsBuilder()
 
     // Macros
     
-    .node('macro_use',
-        quimblos.UseDeviceMacro, $ => ({
-            device: $.first_text('identifier_device')
+    .node('macro_use_driver',
+        quimblos.UseDriverMacro, $ => ({
+            device: $.first_text('identifier')
+        })
+    )
+    .node('macro_use_topic',
+        quimblos.UseTopicMacro, $ => ({
+            topic: $.first_text('identifier')
+        })
+    )
+
+    // Declarations
+    
+    .node('declaration_type',
+        quimblos.TypeDeclaration, $ => ({
+            identifier: $.first('identifier'),
+            type: $.first('type')
+        })
+    )
+    
+    .node('declaration_var',
+        quimblos.VariableDeclaration, $ => ({
+            identifier: $.any([
+                $.first('typed_identifier'),
+                $.first('identifier')
+            ]),
+            value: $.first('expression').optional
         })
     )
 
     // Statements
-    
-    .node('statement_var',
-        quimblos.VariableStatement, $ => ({
-            identifier: $.first('typed_identifier'),
-            value: $.first('expression').optional
-        })
-    )
 
     .node('statement_assign',
         quimblos.AssignStatement, $ => ({
@@ -203,11 +246,8 @@ export const quimblos_semantics = new SemanticsBuilder()
             value: $.first('expression').optional,
         })
     )
-    .node('statement_reset',
-        quimblos.ResetStatement, $ => ({})
-    )
     .node('statement_reboot',
-        quimblos.ResetStatement, $ => ({})
+        quimblos.RebootStatement, $ => ({})
     )
 
     // Expressions
@@ -277,6 +317,39 @@ export const quimblos_semantics = new SemanticsBuilder()
         quimblos.Identifier, $ => ({
             name: $.text(),
             type: $.empty()
+        })
+    )
+
+    // Types
+
+    .node('type_vec',
+        quimblos.MapType, $ => ({
+            kind: $.value('vec'),
+            type: $.first('type')
+        })
+    )
+    .node('type_map',
+        quimblos.MapType, $ => ({
+            kind: $.value('map'),
+            type: $.first('type')
+        })
+    )
+    .node('type_event',
+        quimblos.MapType, $ => ({
+            kind: $.value('event'),
+            type: $.first('type')
+        })
+    )
+    .node('type_struct',
+        quimblos.StructType, $ => ({
+            kind: $.value('struct'),
+            fields: $.all('type_struct_field')
+        })
+    )
+    .node('type_struct_field',
+        quimblos.StructFieldType, $ => ({
+            key: $.first_text('identifier'),
+            type: $.first('type')
         })
     )
 

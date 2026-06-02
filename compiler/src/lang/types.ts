@@ -1,5 +1,37 @@
 import { quimblos } from "./semantics"
 
+export enum TypeKind {
+    VOID = 0x00,    
+    BOOL = 0x01,    
+    INT = 0x02,     
+    FLOAT = 0x03,
+    STRING = 0x04,
+    REF = 0x05,
+    REF_SLICE = 0x06,
+    VECTOR = 0x10,  // no built-in types, schema of_map
+    MAP = 0x11,     // no built-in types, schema of_map
+    STRUCT = 0x12,  // no built-in types, schema of_struct
+    EVENT = 0x13,   // no built-in types, schema of_map
+    FN = 0x20,      // no built-in types, schema of_map
+}
+
+export const builtin_types = {
+    'void': {
+        kind: TypeKind.VOID
+    }
+}
+
+export type TypeDef = {
+    key?: string
+    add: {
+        kind: 'vec' | 'map' | 'event' | 'struct',
+        children: TypeDef[]
+    }
+} | {
+    key?: string
+    use: string
+}
+
 export const quimblos_types: {
     [type: string]: {
         qb: string,
