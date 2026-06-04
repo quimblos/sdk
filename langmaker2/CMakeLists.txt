@@ -13,6 +13,7 @@ set(SYNTAX_SOURCES
 )
 
 set(SEMANTICS_SOURCES
+    src/semantics_syntax.cpp
     src/semantics.cpp
 )
 

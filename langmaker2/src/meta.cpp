@@ -218,6 +218,22 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
     return ss.str();
 }
 
+std::string generate_fwd_declarations(const std::string& name, const std::vector<ebnf::Term>& terms) {
+    std::ostringstream cpp;
+    cpp << "const CSTNode* parse_" << name << "(const std::string& input, uint32_t n, uint32_t i, uint8_t term);\n";
+
+    for (uint8_t t = 0; t < terms.size(); t++) {
+        auto term = terms[t];
+        if (term.type == ebnf::Term::Type::GROUP) {
+            std::ostringstream ss;
+            ss << name << "_" << +t;
+            cpp << generate_fwd_declarations(ss.str(), term.children);
+        }
+    }
+
+    return cpp.str();
+}
+
 meta::res_t meta::generate_cst_parser(std::string langname, std::string ebnf, const meta::Config& config) {
     auto res = ebnf::parse(ebnf);
     if (res.code != ebnf::res_t::Code::OK) {
@@ -255,14 +271,14 @@ meta::res_t meta::generate_cst_parser(std::string langname, std::string ebnf, co
     cpp << '\n';
     
     for (const auto& rule : *res.rules) {
-        cpp << "const CSTNode* parse_" << rule.first << "(const std::string& input, uint32_t n, uint32_t i, uint8_t term);\n";
-
-        for (uint8_t t = 0; t < rule.second.terms.size(); t++) {
-            auto term = rule.second.terms[t];
-            if (term.type == ebnf::Term::Type::GROUP) {
-                cpp << "const CSTNode* parse_" << rule.first << "_" << +t << "(const std::string& input, uint32_t n, uint32_t i, uint8_t term);\n";
-            }
-        }
+        cpp << generate_fwd_declarations(rule.first, rule.second.terms);
+    //     cpp << "const CSTNode* parse_" << rule.first << "(const std::string& input, uint32_t n, uint32_t i, uint8_t term);\n";
+    //     for (uint8_t t = 0; t < rule.second.terms.size(); t++) {
+    //         auto term = rule.second.terms[t];
+    //         if (term.type == ebnf::Term::Type::GROUP) {
+    //             cpp << "const CSTNode* parse_" << rule.first << "_" << +t << "(const std::string& input, uint32_t n, uint32_t i, uint8_t term);\n";
+    //         }
+    //     }
     }   
     cpp << '\n';
 

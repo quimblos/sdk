@@ -6,7 +6,8 @@ const CSTNode* parse_letter(const std::string& input, uint32_t n, uint32_t i, ui
 const CSTNode* parse_word(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
 const CSTNode* parse_ws(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
 const CSTNode* parse_value(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
-const CSTNode* parse_value_2(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
+const CSTNode* parse_value_0(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
+const CSTNode* parse_value_0_2(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
 const CSTNode* parse_prop(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
 const CSTNode* parse_rule(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
 const CSTNode* parse_declaration(const std::string& input, uint32_t n, uint32_t i, uint8_t term);
@@ -64,17 +65,31 @@ _RULE(ws,RULE,
 )
 
 _RULE(value,RULE,
+  if (ti == 0) _TERM_RULE(value_0,0,
+__ON_ERROR_OR,
+__AFTER_OR,
+__ELSE_OR  )
+  if (ti == 2) _TERM_LITERAL(2, "#", 1,
+    __AFTER_REQUIRED,
+    __ELSE_REQUIRED_STOP("'#'", "value")
+  )
+  else break;
+,
+if (i == start) __ERROR_REQUIRED("value")
+)
+
+_RULE(value_0,GROUP,
   if (ti == 0) _TERM_LITERAL(0, "#", 1,
     __AFTER_OPTIONAL,
     __ELSE_OPTIONAL()
   )
   if (ti == 1) _TERM_RULE(word,1,
-    __ON_ERROR_NONFAIL(RULE,__ON_ERROR_MOD_REQUIRED, "value", "word"),
+    __ON_ERROR_NONFAIL(GROUP,__ON_ERROR_MOD_REQUIRED, "value_0", "word"),
     __AFTER_REQUIRED,
-    __ELSE_REQUIRED_STOP("word", "value")
+    __ELSE_REQUIRED_STOP("word", "value_0")
   )
-  if (ti == 2) _TERM_RULE(value_2,2,
-    __ON_ERROR_NONFAIL(RULE,__ON_ERROR_MOD_OPTIONAL, "value", "Group"),
+  if (ti == 2) _TERM_RULE(value_0_2,2,
+    __ON_ERROR_NONFAIL(GROUP,__ON_ERROR_MOD_OPTIONAL, "value_0", "Group"),
     __AFTER_OPTIONAL,
     __ELSE_OPTIONAL()
   )
@@ -83,14 +98,14 @@ _RULE(value,RULE,
  if (ti <= 1) __ERROR_REQUIRED("word")
 )
 
-_RULE(value_2,GROUP,
+_RULE(value_0_2,GROUP,
   if (ti == 0) _TERM_LITERAL(0, "[", 1,
     __AFTER_REQUIRED,
-    __ELSE_REQUIRED_STOP("'['", "value_2")
+    __ELSE_REQUIRED_STOP("'['", "value_0_2")
   )
   if (ti == 1) _TERM_LITERAL(1, "]", 1,
     __AFTER_REQUIRED,
-    __ELSE_REQUIRED_STOP("']'", "value_2")
+    __ELSE_REQUIRED_STOP("']'", "value_0_2")
   )
   else break;
 ,

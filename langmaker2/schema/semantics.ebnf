@@ -4,7 +4,7 @@ declaration ::= rule (ws* prop)+
 rule ::= word ws* '-' '>' ws* word ws* ':' ws* eol
 prop ::= word ws* '=' ws* value eol
 
-value ::= '#'? word ('[' ']')?
+value ::= ('#'? word ('[' ']')?) | '#'
 
 word ::= letter+
 letter ::= [a-zA-Z]
