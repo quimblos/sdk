@@ -83,11 +83,17 @@ int main(int argc, char* argv[]) {
     std::ofstream cli_cpp_file("target/src/cli.cpp");
 
     cli_cpp_file << "#include <iostream>\n";
+    cli_cpp_file << "#include <fstream>\n";
+    cli_cpp_file << "#include <sstream>\n";
     cli_cpp_file << "#include \"" << name << ".h\"\n";
     cli_cpp_file << "\n";
     cli_cpp_file << "int main(int argc, char* argv[]) {\n";
-    cli_cpp_file << "  auto root = " << name << "::parse(argv[1]); \n";
-    cli_cpp_file << "  std::cout << root.to_str(argv[1]) << std::endl;\n";
+    cli_cpp_file << "  std::ifstream file(argv[1]);\n";
+    cli_cpp_file << "  std::ostringstream ss;\n";
+    cli_cpp_file << "  ss << file.rdbuf();\n";
+    cli_cpp_file << "  std::string input = ss.str();\n";
+    cli_cpp_file << "  auto root = " << name << "::parse(input); \n";
+    cli_cpp_file << "  std::cout << root.to_str(input) << std::endl;\n";
     cli_cpp_file << "  return 0;\n";
     cli_cpp_file << "}\n";
 
@@ -121,13 +127,13 @@ int main(int argc, char* argv[]) {
     cmake_file << "\n";
     cmake_file << "# CLI\n";
     cmake_file << "\n";
-    cmake_file << "add_executable(" << name << "-compiler src/cli.cpp)\n";
+    cmake_file << "add_executable(" << name << "-parser src/cli.cpp)\n";
     cmake_file << "\n";
-    cmake_file << "target_include_directories(" << name << "-compiler\n";
+    cmake_file << "target_include_directories(" << name << "-parser\n";
     cmake_file << "    PRIVATE ${PROJECT_SOURCE_DIR}/include\n";
     cmake_file << ")\n";
     cmake_file << "\n";
-    cmake_file << "target_link_libraries(" << name << "-compiler\n";
+    cmake_file << "target_link_libraries(" << name << "-parser\n";
     cmake_file << "    PUBLIC " << name << "\n";
     cmake_file << ")\n";
 

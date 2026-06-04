@@ -198,7 +198,7 @@ qb_suite(test_parser, "parser", {
             PARSE_RULE(
                 "abc",
                 if (ti == 0) _TERM_RULE(rule0_continue, 0,
-                    __ON_ERROR_CONTINUE,
+                    ,
                     __AFTER_REQUIRED,
                     __ELSE_REQUIRED_CONTINUE
                 )
@@ -213,7 +213,7 @@ qb_suite(test_parser, "parser", {
             PARSE_RULE(
                 "a",
                 if (ti == 0) _TERM_RULE(rule0_continue, 0,
-                    __ON_ERROR_CONTINUE,
+                    ,
                     __AFTER_REQUIRED,
                     __ELSE_REQUIRED_CONTINUE
                 )

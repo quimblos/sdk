@@ -17,36 +17,35 @@ std::string generate_term_name(const ebnf::Term& term, uint8_t t) {
         case ebnf::Term::Type::IDENTIFIER: ss << term.content; break;
         case ebnf::Term::Type::GROUP: ss << "Group"; break;
     }
-    ss << "(" << +t << ")";
     return ss.str();
 }
 
 std::string generate_on_error(const meta::Config& config, const std::string& kind, const std::string& rule, const ebnf::Term& term, uint8_t t) {
     switch (config.on_error) {
         case meta::Config::OnError::FAIL: return "    __ON_ERROR_FAIL,\n";
-        case meta::Config::OnError::STOP: {
+        case meta::Config::OnError::STOP:
+        case meta::Config::OnError::CONTINUE: {
+            auto term_name = generate_term_name(term, t);
             std::ostringstream ss;
-            ss << "    __ON_ERROR_STOP(" << kind << ",";
+            ss << "    __ON_ERROR_NONFAIL(" << kind << ",";
             switch (term.modifier) {
-                case ebnf::Term::Modifier::NONE: break;
-                case ebnf::Term::Modifier::OPTIONAL: ss << "__ON_ERROR_STOP_OPTIONAL"; break;
-                case ebnf::Term::Modifier::ZERO_OR_N: ss << "__ON_ERROR_STOP_OPTIONAL"; break;
-                case ebnf::Term::Modifier::ONE_OR_N: ss << "__ON_ERROR_STOP_MANY(" << +t << ")"; break;
+                case ebnf::Term::Modifier::NONE: ss << "__ON_ERROR_MOD_REQUIRED"; break;
+                case ebnf::Term::Modifier::OPTIONAL: ss << "__ON_ERROR_MOD_OPTIONAL"; break;
+                case ebnf::Term::Modifier::ZERO_OR_N: ss << "__ON_ERROR_MOD_OPTIONAL"; break;
+                case ebnf::Term::Modifier::ONE_OR_N: ss << "__ON_ERROR_MOD_MANY(" << +t << ", \"" << term_name << "\", " << (rule == "grammar" ? "true" : "false") << ")"; break;
             }
-            ss << ", \"" << rule << "\", \"" << generate_term_name(term, t) << "\"),\n";
+            ss << ", \"" << rule << "\", \"" << term_name << "\"),\n";
             return ss.str();
         }
-        case meta::Config::OnError::CONTINUE:
-            return "    __ON_ERROR_CONTINUE,\n";
     }
 }
 
 std::string generate_after(const ebnf::Term::Modifier modifier) {
     switch (modifier) {
-        case ebnf::Term::Modifier::NONE: return "    __AFTER_REQUIRED\n";
-        case ebnf::Term::Modifier::OPTIONAL: return "    __AFTER_OPTIONAL\n";
-        case ebnf::Term::Modifier::ZERO_OR_N: return "    __AFTER_ZERO_OR_N\n";
-        case ebnf::Term::Modifier::ONE_OR_N: return "    __AFTER_ONE_OR_N\n";
+        case ebnf::Term::Modifier::NONE: return "    __AFTER_REQUIRED,\n";
+        case ebnf::Term::Modifier::OPTIONAL: return "    __AFTER_OPTIONAL,\n";
+        case ebnf::Term::Modifier::ZERO_OR_N: return "    __AFTER_ZERO_OR_N,\n";
+        case ebnf::Term::Modifier::ONE_OR_N: return "    __AFTER_ONE_OR_N,\n";
     }
 }
 
@@ -97,7 +96,7 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
                     ss << "ti += 2; continue;";
                 }
                 else {
-                    ss << generate_after(term.modifier) << ",";
+                    ss << generate_after(term.modifier);
                     ss << generate_else(config, term, t, name);
                 }
                 ss << "  )\n";
@@ -118,7 +117,7 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
                     ss << "ti += 2; continue;";
                 }
                 else {
-                    ss << generate_after(term.modifier) << ",";
+                    ss << generate_after(term.modifier);
                     ss << generate_else(config, term, t, name);
                 }
                 ss << "  )\n";
@@ -132,7 +131,7 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
                 }
                 else {
                     ss << generate_on_error(config, kind, name, term, t);
-                    ss << generate_after(term.modifier) << ",";
+                    ss << generate_after(term.modifier);
                     ss << generate_else(config, term, t, name);
                 }
                 ss << "  )\n";
@@ -146,7 +145,7 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
                 }
                 else {
                     ss << generate_on_error(config, kind, name, term, t);
-                    ss << generate_after(term.modifier) << ",";
+                    ss << generate_after(term.modifier);
                     ss << generate_else(config, term, t, name);
                 }
                 ss << "  )\n";
@@ -155,8 +154,8 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
     }
     if (double_loop) {
         ss << "  else {\n";
-        ss << "    ti = 0;\n";
         ss << "    i++;\n";
+        ss << "    if (i < n) ti = 0;\n";
         ss << "    break;\n";
         ss << "  }\n";
         ss << "}\n";
@@ -175,7 +174,7 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
         }
     }
     if (has_or_term) {
-        ss << "if (i == start) __ERROR_REQUIRED(\"name\")\n";
+        ss << "if (i == start) __ERROR_REQUIRED(\"" << name << "\")\n";
     }
     else {
         uint8_t tc = 0;
@@ -204,7 +203,7 @@ std::string generate_rule(const std::string& name, const std::vector<ebnf::Term>
         }
     }
 
-    ss << ")\n";
+    ss << ")\n\n";
 
     
     for (uint8_t t = 0; t < terms.size(); t++) {

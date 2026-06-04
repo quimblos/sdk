@@ -1,3 +1,5 @@
+#pragma once
+
 #include <sstream>
 #include <string>
 #include <vector>
@@ -15,6 +17,8 @@ struct Error {
         PARSING_FAILED
     } code;
     uint32_t pos;
+    uint16_t pi;
+    uint8_t ti;
     std::string message;
 };
 
@@ -46,25 +50,36 @@ struct CSTNode {
         if (this->errors.size()) ss << COLOR_RED << "!" << COLOR_NC;
         else  ss << " ";
 
+
+        std::string input_format = std::string(this->end-this->start, ' ');
+        for (uint16_t i = this->start; i < this->end; i++) {
+            if (input[i] == '\n') input_format[i-this->start] = '\\';
+            else input_format[i-this->start] = input[i];
+        }
+
         for (uint16_t i = 0; i < depth; i++) {
             ss << " ";
         }
         switch (this->kind) {
             case Kind::GRAMMAR: ss << COLOR_CYAN << "GRAMMAR" << COLOR_NC; break;
             case Kind::LITERAL: ss << COLOR_GRAY << "LITERAL"; break;
-            case Kind::GROUP: ss << COLOR_PURPLE << "GROUP" << COLOR_NC; break;
+            case Kind::GROUP: ss << COLOR_YELLOW << "GROUP" << COLOR_NC; break;
             case Kind::RULE: ss << COLOR_PURPLE << "RULE(" << this->rule << ")"  << COLOR_NC; break;
         }
-        ss << " [" << this->start << ":" << this->end << "](" << +this->term << ") '" << this->text(input) << "'\n";
+        ss << " " << +this->term << " [" << this->start << ":" << this->end << "] " << COLOR_GRAY << "'" << input_format << "'" << COLOR_NC << "\n";
         
         for (const auto& error : this->errors) {
             for (uint16_t i = 0; i < depth+1; i++) {
                 ss << COLOR_RED << " ";
             }
-            ss << error.message << "\n" << COLOR_NC;
+            ss << "[" << error.pi << "] t" << +error.ti << " : " << error.message << "\n" << COLOR_NC;
         }
 
         for (const auto& child : this->children) {
+            if (child.kind == CSTNode::Kind::LITERAL) continue;
+            if (child.rule == "letter") continue;
+            if (child.rule == "ws") continue;
+            if (child.rule == "eol") continue;
             ss << child.to_str(input, depth+1);
         }
         return ss.str();

@@ -1,0 +1,12 @@
+grammar ::= declaration+
+declaration ::= rule (ws* prop)+
+
+rule ::= word ws* '-' '>' ws* word ws* ':' ws* eol
+prop ::= word ws* '=' ws* value eol
+
+value ::= '#'? word ('[' ']')?
+
+word ::= letter+
+letter ::= [a-zA-Z]
+eol ::= ws* [#x0A#x0D#x00]
+ws ::= [#xA0#x20#x09]

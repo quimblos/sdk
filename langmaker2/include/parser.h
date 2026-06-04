@@ -1,3 +1,5 @@
+#pragma once
+
 #include <string>
 #include <vector>
 #include "ebnf.h"
@@ -81,7 +83,7 @@
 
 #define __ON_ERROR_FAIL \
     if (node == nullptr || node->errors.size()) return nullptr;
-#define __ON_ERROR_STOP(CPPKIND, MODIFIER, RULE, TERM) \
+#define __ON_ERROR_NONFAIL(CPPKIND, MODIFIER, RULE, TERM) \
     if (node->errors.size()) { \
         MODIFIER \
         children.push_back(*node); \
@@ -89,26 +91,33 @@
         __ERROR_INNER(TERM) \
         __RETURN(CPPKIND, RULE) \
     }
-#define __ON_ERROR_CONTINUE 
 
-#define __ON_ERROR_STOP_OPTIONAL \
+#define __ON_ERROR_MOD_REQUIRED \
+    i = node->end;
+    
+#define __ON_ERROR_MOD_OPTIONAL \
     delete node; \
     ti++; \
     continue;
 
-#define __ON_ERROR_STOP_MANY(TERM) \
-    if (children.size() > 0 && children.back().term == TERM) { \
+#define __ON_ERROR_MOD_MANY(T, TERM, IS_GRAMMAR) \
+    if (children.size() > 0 && children.back().term == T) { \
+        if (IS_GRAMMAR) {\
+            children.push_back(*node); \
+            i = node->end; \
+            __ERROR_INNER(TERM) \
+        } \
         delete node; \
         ti++; \
         continue; \
-    } \
+    }
 
 #define __ON_ERROR_OR \
     if (node == nullptr || node->errors.size()) { \
         delete node; \
         ti += 2; \
         continue; \
-    } \
+    }
 
 // After
 
@@ -156,6 +165,8 @@
     errors.push_back({ \
         .code = Error::Code::REQUIRED_TERM, \
         .pos = i, \
+        .pi = (uint16_t)(children.size()-1), \
+        .ti = (uint8_t) ti, \
         .message = TERM " is required" \
     });
 
@@ -163,6 +174,8 @@
     errors.push_back({ \
         .code = Error::Code::REQUIRED_TERM, \
         .pos = i, \
+        .pi = (uint16_t)(children.size()-1), \
+        .ti = (uint8_t) ti, \
         .message = TERM " contains errors" \
     });
 
