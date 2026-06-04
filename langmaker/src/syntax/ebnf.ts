@@ -31,12 +31,13 @@ export function make_syntax_parser(ebnf: string) {
         case 'regex':
         {
           const re = (term[1] as string).replace(/#/g,'\\');
+          let op = term[2] ?? '';
           rule_str += `    ${i > 0 ? 'else ' : ''}if (s == ${i}) { /* [${term[1]}]${term[2] ?? ''} */\n`;
-          rule_str += `      const match = input[i].match(/[${re}]/);\n`
+          rule_str += `      const match = input.slice(i).match(/^[${re}]${op}/);\n`
           rule_str += `      if (match) {\n`
-          rule_str += `        const node = { kind: '_literal', t: ${i}, start: i, end: i, text: input[i] };\n`;
+          rule_str += `        const node = { kind: '_literal', t: ${i}, start: i, end: i+match[0].length-1, text: match[0] };\n`;
           rule_str += `        t.push(node); \n`;
-          rule_str += `        i += 1;\n`
+          rule_str += `        i += match.length;\n`
           break;
         }  
         // case 'or': break;
@@ -72,20 +73,25 @@ export function make_syntax_parser(ebnf: string) {
           break;
         }
       }
-      if (terms[i+1]?.[0] === 'or') {
-        rule_str += `        break;` // Next term is a "|", but was already found, so break it
+      if (term[0] === 'regex') {
+        rule_str += `        s++; continue;\n` // proceed to next step
       }
-      else if (!term[2]) {
-        rule_str += `        s++; continue;\n` // required found, proceed to next step
-      }
-      else if (term[2] === '*') {
-        rule_str += `        continue;\n`     // 0 or + found, proceed on same step
-      }
-      else if (term[2] === '+') {
-        rule_str += `        continue;\n`     // 1 or + found, proceed on same step
-      }
-      else if (term[2] === '?') {
-        rule_str += `        s++; continue;\n` // optional found, proceed to next step
+      else {
+        if (terms[i+1]?.[0] === 'or') {
+          rule_str += `        break;` // Next term is a "|", but was already found, so break it
+        }
+        else if (!term[2]) {
+          rule_str += `        s++; continue;\n` // required found, proceed to next step
+        }
+        else if (term[2] === '*') {
+          rule_str += `        continue;\n`     // 0 or + found, proceed on same step
+        }
+        else if (term[2] === '+') {
+          rule_str += `        continue;\n`     // 1 or + found, proceed on same step
+        }
+        else if (term[2] === '?') {
+          rule_str += `        s++; continue;\n` // optional found, proceed to next step
+        }
       }
       rule_str += `      }\n`;
 

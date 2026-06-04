@@ -64,6 +64,7 @@ export class AST {
     }
 
     private build_node(cst: CSTNode, semantics: Semantics, builder?: Semantics[string]): ASTNode {
+        console.log(cst)
         builder ??= semantics[cst.kind];
         if (!builder) {
             if (cst.children?.length === 1) {
@@ -83,6 +84,7 @@ export class AST {
                         break;
                     }
                     catch (e) {
+                        console.log(e);
                         if (i == arg._options.length-1) {
                             if (arg.required) {
                                 throw new Error(`Property '${prop}' of node '${cst.kind}' doesn't match any of the options`)

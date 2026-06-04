@@ -1,0 +1,54 @@
+# Quimblos Kernel
+## v0 Roadmap
+
+- **Memory**
+    - **Types**: Type definitions and a solver which stores them.
+        - `include/type.h`
+        - `include/typesolver.h`
+        - `src/types.cpp`
+    - **Manipulation Methods**: Methods to manipulate memory based on type definitions.
+        - `include/memory.h`
+        - `include/memory.cpp`
+    - **Data Structures**: Base data structures for the types and the application itself.
+        - `include/memory.h`
+- **Code**
+    - **Instructions**: Data structures to hold each instruction.
+        - `include/code.h`
+    - **Parser**: Methods to transform a byte sequence into a vector of Instructions.
+        - `include/parser.h`
+        - `src/parser.cpp`
+- **Context**
+    - **Operator**: Methods to perform operations with memory (assign, math, etc).
+        - `include/operator.h`
+        - `src/operator.cpp`
+    - **Context**: A running quimblos context.
+        - `include/context.h`
+        - `src/context.cpp`
+    - **Stack**: Execution stack to allow context calls.
+        - `include/stack.h`
+        - `src/stack.cpp`
+    - **Thread**: Code executor with it's own memory blocks.
+        - `include/thread.h`
+        - `src/thread.cpp`
+- **Kernel**
+    - **Driver**: Memory block tied to an external aspect of the application, which can be manipulated through code.
+    - **Node**: A manageable set of _drivers_ and _threads_.
+    - **Engine**: The entrypoint of quimblos application, which contains 1 or more nodes - either local or remote.
+
+### Tests
+
+|OK|File            |Details|
+|--|--------------|-------|
+|✔ |type          ||
+|✔ |memory        ||
+|X |memory_raw    ||
+|✔ |parser        ||
+|✔ |parser_code   ||
+|✏ |operator_cast |Missing non-bultin types|
+|✏ |operator      |Must expand test cases|
+|✏ |context        ||
+|✔ |stack         ||
+|✔ |thread        ||
+|✔ |driver        ||
+|✔ |node          ||
+|✔ |engine        ||

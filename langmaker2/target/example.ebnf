@@ -1,0 +1,5 @@
+grammar ::= entry+
+entry ::= char+ ws* '=' ws* (char | ws)+ eol
+eol ::= ws* [#x0A#x0D#x00]
+ws ::= [#xA0#x20#x09]
+char ::= [A-z0-9]

@@ -26,10 +26,9 @@ statement ::= declaration_type | declaration_var | declaration_function | statem
 */
 
 declaration_type ::= kw_type ws identifier ws? op_assign ws? type eol
-
-declaration_var ::= (kw_const|kw_var) ws (typed_identifier|identifier) ws? (op_assign ws? expression)? eol
-
-declaration_function ::= 'fn' ws identifier '(' (ws? typed_identifier ',')? ws? typed_identifier? ')' ws? ':' eol
+declaration_var ::= (kw_const|kw_var) ws declaration_identifier ws? (op_assign ws? expression)? eol
+declaration_function ::= 'fn' ws identifier '(' (ws? declaration_identifier ',')? ws? declaration_identifier? ')' ws? ':' eol
+declaration_identifier ::= identifier (ws? ':' ws? type)?
 
 /*
     Statements
@@ -63,16 +62,13 @@ term ::= ( '(' ws? expression ws? ')' ) | value
     References
 */
 
-reference ::= ref_driver | ref_script
-
-ref_script ::= identifier ('[' expression ']')+
-ref_driver ::= identifier '.' identifier ('[' expression ']')+
+reference ::= identifier reference_prop* ('[' expression ']')*
+reference_prop ::= blank? '.' identifier
 
 /*
     Identifiers
 */
 
-typed_identifier ::= identifier ws? ':' ws? type ('[' unsigned_integer ']')?
 
 identifier ::= letter char*
 
@@ -98,7 +94,11 @@ type_map ::= ('{' blank? type blank? '}')
     - 'some text'
 */
 
-value ::= primitive | string | reference
+value ::= primitive | string | vector | reference
+
+vector ::= '[' blank? (value ws? ',' ws?)* value? blank? ']'
+/* object ::= '{' blank? (key_and_value (ws? ',' blank? key_and_value)+)? blank? '}'
+key_and_value ::= key ws? ':' ws? value */
 
 primitive ::= boolean | hexcode | bitmask | float | unsigned_integer | integer
 
@@ -109,6 +109,7 @@ float ::= '-'? ws? ((digit+ '.' digit+)|(digit+ '.')|('.' digit+))
 integer ::= '-'? ws? digit+
 unsigned_integer ::= digit+
 
+key ::= string | char+
 string ::= '\\'' (char | ws)* '\\''
 char ::= letter | digit | special_char
 

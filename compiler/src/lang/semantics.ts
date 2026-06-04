@@ -40,6 +40,7 @@ export namespace quimblos {
         value?: Expression
         children = () => [this.identifier, this.value]
     }
+    
 
     // Statements
 
@@ -102,22 +103,17 @@ export namespace quimblos {
 
     // References
     export class Reference extends ASTNode {
-        device?: string
-        node!: string
+        root!: Identifier
+        props!: Identifier[]
         index?: Expression
-        ref!: Identifier
-        children = () => [this.index, this.ref]
+        children = () => [this.root, ...this.props, this.index]
     }
     
     // Identifiers
 
-    export class TypeIdentifier extends ASTNode {
-        name!: 'err' | 'null' | 'void' | 'bool' | 'u8' | 'i8' | 'u16' | 'i16' | 'u32' | 'i32' | 'f32' | 'str'
-        arr_length?: number
-    }
     export class Identifier extends ASTNode {
         name!: string
-        type?: TypeIdentifier
+        type?: Identifier | Type
         children = () => [this.type]
     }
 
@@ -182,11 +178,15 @@ export const quimblos_semantics = new SemanticsBuilder()
     
     .node('declaration_var',
         quimblos.VariableDeclaration, $ => ({
-            identifier: $.any([
-                $.first('typed_identifier'),
-                $.first('identifier')
-            ]),
+            identifier: $.first('declaration_identifier'),
             value: $.first('expression').optional
+        })
+    )
+
+    .node('declaration_identifier',
+        quimblos.Identifier, $ => ({
+            name: $.first_text('identifier'),
+            type: $.first('type').optional
         })
     )
 
@@ -269,50 +269,16 @@ export const quimblos_semantics = new SemanticsBuilder()
 
     // References
 
-    .node('ref_script',
+    .node('reference',
         quimblos.Reference, $ => ({
-            device: $.empty(),
-            node: $.first_text('identifier'),
-            index: $.empty(),
-            ref: $.empty()
-        })
-    )
-    .node('ref_script_idx',
-        quimblos.Reference, $ => ({
-            device: $.empty(),
-            node: $.first_text('identifier'),
-            index: $.first('expression'),
-            ref: $.empty()
-        })
-    )
-    .node('ref_device',
-        quimblos.Reference, $ => ({
-            device: $.first_text('identifier_device'),
-            node: $.first_text('identifier'),
-            index: $.empty(),
-            ref: $.empty()
-        })
-    )
-    .node('ref_device_idx',
-        quimblos.Reference, $ => ({
-            device: $.first_text('identifier_device'),
-            node: $.first_text('identifier'),
-            index: $.first('expression'),
-            ref: $.empty()
+            root: $.first('identifier'),
+            props: $.all('reference_prop'),
+            index: $.first('expression')
         })
     )
 
     // Identifiers
 
-    .node('typed_identifier',
-        quimblos.Identifier, $ => ({
-            name: $.first_text('identifier'),
-            type: $.node(quimblos.TypeIdentifier, $ => ({
-                name: $.first_text('identifier_type'),
-                arr_length: $.first_text('unsigned_integer', v => parseInt(v)).optional
-            }))
-        })
-    )
     .node('identifier',
         quimblos.Identifier, $ => ({
             name: $.text(),
