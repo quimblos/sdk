@@ -1,20 +1,22 @@
 #include <iostream>
 #include "test.h"
-#include "../ebnf.test.h"
-#include "../parser.test.h"
-#include "../semantics.test.h"
-#include "../meta.test.h"
-#include "../semantics_syntax.test.h"
-#include "../parser_semantics.test.h"
+#include "../syntax/parser.test.h"
+#include "../syntax/impl.test.h"
+#include "../syntax/writer.test.h"
+
+#include "../semantics/parser.test.h"
+#include "../semantics/impl.test.h"
+#include "../semantics/writer.test.h"
 
 int main(int argc, char* argv[]) {
     
-    test_ebnf();
-    test_parser();
-    test_semantics();
-    test_parser_semantics();
-    test_semantics_syntax();
-    test_meta();
+    test_syntax_parser();
+    test_syntax_impl();
+    test_syntax_writer();
+    
+    test_semantics_parser();
+    test_semantics_impl();
+    test_semantics_writer();
     
     report_test_results();
     return 0;

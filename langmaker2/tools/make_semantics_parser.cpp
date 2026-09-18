@@ -2,7 +2,7 @@
 #include <fstream>
 #include <sstream>
 
-#include "meta.h"
+#include "syntax/writer.h"
 
 int main() {
 
@@ -22,21 +22,23 @@ int main() {
     }
 
     std::cout << " - Generating semantics syntax parser from EBNF" << std::endl;
-    auto parser = meta::generate_cst_parser("semantics", ebnf, {
-        .on_error = meta::Config::OnError::STOP
+    auto parser = syntax::write_parser("semantics", ebnf, {
+        .on_error = syntax::writer::Config::OnError::STOP,
+        .header_path = "semantics/parser.h"
     });
+    delete parser.schema;
 
-    if (parser.code != meta::res_t::Code::OK) {
+    if (parser.code != syntax::writer::res_t::Code::OK) {
         std::cout << "ERROR: Failed parsing EBNF." << std::endl;
         std::cout << " - Parser error code:" << +parser.code << std::endl;
-        std::cout << " - EBNF error code:" << +parser.ebnf_code << std::endl;
+        std::cout << " - Syntax error code:" << +parser.syntax_error_code << std::endl;
         return -1;
     }
 
     // semantics.cpp
 
-    std::cout << " - Writing semantics syntax parser at '" << "src/semantics.cpp" << "'" << std::endl;
-    std::ofstream syntax_cpp_file("src/semantics.cpp");
+    std::cout << " - Writing semantics syntax parser at '" << "src/semantics/impl.cpp" << "'" << std::endl;
+    std::ofstream syntax_cpp_file("src/semantics/impl.cpp");
     syntax_cpp_file << parser.cpp;
     syntax_cpp_file.close();
 

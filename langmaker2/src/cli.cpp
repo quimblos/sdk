@@ -3,26 +3,35 @@
 #include <sstream>
 #include <filesystem>
 
-#include "meta.h"
+#include "bundler.h"
+#include "syntax/writer.h"
+#include "semantics/writer.h"
+
+#ifdef WIN32
+#define OS_SEP '\\'
+#else
+#define OS_SEP '/'
+#endif
 
 void print_syntax() {
-    std::cout << "Syntax: langmaker LANGUAGE_NAME EBNF_FILE" << std::endl;
+    std::cout << "Syntax: langmaker LANGUAGE_NAME SYNTAX_DEF_PATH SEMANTICS_DEF_PATH" << std::endl;
 }
 
 int main(int argc, char* argv[]) {
 
-    if (argc < 3) {
+    if (argc < 4) {
         std::cout << "ERROR: Missing required arguments." << std::endl;
         print_syntax();
         return -1;
     }
 
-    std::string name = argv[1];
-    std::cout << "Building language '" << name << "'" << std::endl;
+    std::string langname = argv[1];
+    std::cout << "Building language '" << langname << "'" << std::endl;
     
+    // EBNF
+
     std::string ebnf_path = argv[2];
     std::cout << " - Reading EBNF file from '" << ebnf_path << "'" << std::endl;
-
 
     std::ifstream ebnf_file(argv[2]);
     std::ostringstream ebnf_file_str;
@@ -35,73 +44,91 @@ int main(int argc, char* argv[]) {
         std::cout << "ERROR: Empty or Not Found EBNF file." << std::endl;
         return 1;
     }
+    
+    // GSF
 
-    std::cout << " - Generating syntax parser from EBNF" << std::endl;
-    auto parser = meta::generate_cst_parser(name, ebnf);
+    std::string gsf_path = argv[3];
+    std::cout << " - Reading GSF file from '" << gsf_path << "'" << std::endl;
 
-    if (parser.code != meta::res_t::Code::OK) {
-        std::cout << "ERROR: Failed parsing EBNF." << std::endl;
-        std::cout << " - Parser error code:" << +parser.code << std::endl;
-        std::cout << " - EBNF error code:" << +parser.ebnf_code << std::endl;
-        return -1;
+    std::ifstream gsf_file(argv[3]);
+    std::ostringstream gsf_file_str;
+    gsf_file_str << gsf_file.rdbuf();
+    std::string gsf = gsf_file_str.str();
+    gsf_file.close();
+    std::cout << " - GSF file has " << gsf.size() << " bytes" << std::endl;
+    
+    if (gsf.size() == 0) {
+        std::cout << "ERROR: Empty or Not Found GSF file." << std::endl;
+        return 1;
     }
 
-    std::filesystem::create_directories("target/src");
-    std::filesystem::create_directories("target/include");
+    // Syntax
 
-    // syntax.cpp
+    std::cout << " - Generating syntax parser from EBNF" << std::endl;
+    auto syntax = syntax::write_parser(langname, ebnf);
 
-    std::cout << " - Writing syntax parser at '" << "target/src/syntax.cpp" << "'" << std::endl;
-    std::ofstream syntax_cpp_file("target/src/syntax.cpp");
-    syntax_cpp_file << parser.cpp;
-    syntax_cpp_file.close();
-
-    // [name].h
-
-    std::ostringstream lang_header_name;
-    lang_header_name << "target/include/" << name << ".h";
-    std::ofstream lang_header_file(lang_header_name.str());
-    std::cout << " - Writing language header at '" << lang_header_name.str() << "'" << std::endl;
+    if (syntax.code != syntax::writer::res_t::Code::OK) {
+        std::cout << "ERROR: Failed parsing EBNF." << std::endl;
+        std::cout << " - Parser error code:" << +syntax.code << std::endl;
+        std::cout << " - EBNF error code:" << +syntax.syntax_error_code << std::endl;
+        return -1;
+    }
     
-    std::cout << "   - Appending cst header" << std::endl;
-    lang_header_file << "/* CST */\n";
-    std::ifstream cst_header_file("include/cst.h");
-    lang_header_file << cst_header_file.rdbuf();
-    cst_header_file.close();
+    // Semantics
 
-    lang_header_file << '\n';
-    lang_header_file << '\n';
-    
-    std::cout << "   - Appending syntax header" << std::endl;
-    lang_header_file << "/* Syntax */\n";
-    lang_header_file << parser.header;
-    lang_header_file.close();
+    std::cout << " - Generating semantics parser from GSF" << std::endl;
+    auto semantics = semantics::write_parser(langname, *syntax.schema, gsf);
 
-    // cli.cpp
+    if (semantics.code != semantics::writer::res_t::Code::OK) {
+        std::cout << "ERROR: Failed parsing GSF." << std::endl;
+        std::cout << " - Parser error code:" << +semantics.code << std::endl;
+        std::cout << " - GSF error code:" << +semantics.semantics_error_code << std::endl;
+        return -1;
+    }
     
-    std::cout << " - Writing compiler CLI at '" << "target/src/cli.cpp" << "'" << std::endl;
-    std::ofstream cli_cpp_file("target/src/cli.cpp");
+    delete syntax.schema;
+    delete semantics.schema;
+
+    // Project structure
+
+    std::filesystem::create_directories(langname);
+    
+    std::ostringstream include_folder;
+    include_folder << langname << OS_SEP << "include" << OS_SEP;
+    std::filesystem::create_directories(include_folder.str());
+
+    std::ostringstream src_folder;
+    src_folder << langname << OS_SEP << "src" << OS_SEP;
+    std::filesystem::create_directories(src_folder.str());
+    
+    // Project Bundle (Header and CPP)
+
+    bundle(langname, syntax, semantics, include_folder.str(), src_folder.str());
+
+    // Project CLI
+    
+    std::ostringstream cli_path;
+    cli_path << langname << OS_SEP << "src" << OS_SEP << "cli.cpp";
+    std::cout << " - Writing language CLI at '" << cli_path.str() << "'" << std::endl;
+    std::ofstream cli_cpp_file(cli_path.str());
 
     cli_cpp_file << "#include <iostream>\n";
-    cli_cpp_file << "#include <fstream>\n";
-    cli_cpp_file << "#include <sstream>\n";
-    cli_cpp_file << "#include \"" << name << ".h\"\n";
+    cli_cpp_file << "#include \"" << langname << ".h\"\n";
     cli_cpp_file << "\n";
     cli_cpp_file << "int main(int argc, char* argv[]) {\n";
-    cli_cpp_file << "  std::ifstream file(argv[1]);\n";
-    cli_cpp_file << "  std::ostringstream ss;\n";
-    cli_cpp_file << "  ss << file.rdbuf();\n";
-    cli_cpp_file << "  std::string input = ss.str();\n";
-    cli_cpp_file << "  auto root = " << name << "::parse(input); \n";
-    cli_cpp_file << "  std::cout << root.to_str(input) << std::endl;\n";
+    cli_cpp_file << "  auto ast = " << langname << "::build(argv[1]); \n";
+    cli_cpp_file << "  std::cout << ast.to_str() << std::endl;\n";
     cli_cpp_file << "  return 0;\n";
     cli_cpp_file << "}\n";
-
     cli_cpp_file.close();
 
-    // CMakeLists.txt
+    // CMake
     
-    std::ofstream cmake_file("target/CMakeLists.txt");
+    std::ostringstream cmake_path;
+    cmake_path << langname << OS_SEP << "CMakeLists.txt";
+    std::cout << " - Writing CMake file at '" << cmake_path.str() << "'" << std::endl;
+
+    std::ofstream cmake_file(cmake_path.str());
 
     cmake_file << "cmake_minimum_required(VERSION 3.22.1)\n";
     cmake_file << "set (CMAKE_CXX_STANDARD 20)\n";
@@ -109,39 +136,43 @@ int main(int argc, char* argv[]) {
     cmake_file << "set (CMAKE_CXX_FLAGS \"${CMAKE_CXX_FLAGS}\")\n";
     cmake_file << "\n";
     cmake_file << "set(CMAKE_BUILD_TYPE Release)\n";
-    cmake_file << "project (" << name << ")\n";
+    cmake_file << "project (" << langname << ")\n";
     cmake_file << "\n";
-    cmake_file << "# Static Lib (l" << name << ".a)\n";
+    cmake_file << "# Static Lib (l" << langname << ".a)\n";
     cmake_file << "\n";
     cmake_file << "set(SOURCES\n";
-    cmake_file << "    src/syntax.cpp\n";
-    cmake_file << "    ../src/parser.cpp\n";
+    cmake_file << "    src/" << langname << ".cpp\n";
+    cmake_file << ")\n";
+    cmake_file << "set(CLI_SOURCES\n";
+    cmake_file << "    src/cli.cpp\n";
     cmake_file << ")\n";
     cmake_file << "\n";
-    cmake_file << "add_library(" << name << " STATIC ${SOURCES})\n";
+    cmake_file << "add_library(" << langname << " STATIC ${SOURCES})\n";
     cmake_file << "\n";
-    cmake_file << "target_include_directories(" << name << "\n";
+    cmake_file << "target_include_directories(" << langname << "\n";
     cmake_file << "    PRIVATE ${PROJECT_SOURCE_DIR}/include\n";
-    cmake_file << "    PRIVATE ${PROJECT_SOURCE_DIR}/../include\n";
     cmake_file << ")\n";
     cmake_file << "\n";
     cmake_file << "# CLI\n";
     cmake_file << "\n";
-    cmake_file << "add_executable(" << name << "-parser src/cli.cpp)\n";
+    cmake_file << "add_executable(" << langname << "-cli ${CLI_SOURCES})\n";
     cmake_file << "\n";
-    cmake_file << "target_include_directories(" << name << "-parser\n";
+    cmake_file << "target_include_directories(" << langname << "-cli\n";
     cmake_file << "    PRIVATE ${PROJECT_SOURCE_DIR}/include\n";
     cmake_file << ")\n";
     cmake_file << "\n";
-    cmake_file << "target_link_libraries(" << name << "-parser\n";
-    cmake_file << "    PUBLIC " << name << "\n";
+    cmake_file << "target_link_libraries(" << langname << "-cli\n";
+    cmake_file << "    PUBLIC " << langname << "\n";
     cmake_file << ")\n";
 
     cmake_file.close();
 
-    // build.sh
+    // Build Script
     
-    std::ofstream build_sh_file("target/build.sh");
+    std::ostringstream build_sh_path;
+    build_sh_path << langname << OS_SEP << "build.sh";
+    std::cout << " - Writing build script at '" << build_sh_path.str() << "'" << std::endl;
+    std::ofstream build_sh_file(build_sh_path.str());
 
     build_sh_file << "rm -rf build\n";
     build_sh_file << "mkdir build\n";

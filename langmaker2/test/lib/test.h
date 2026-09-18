@@ -1,4 +1,6 @@
 #pragma once
+
+#include <cstdint>
 #include <sstream>
 #define __OK "\033[32mOK\033[0m"
 #define __ERROR "\033[31mERROR\033[0m"
@@ -60,6 +62,14 @@ namespace test {
 
 #define qb_assert(CODE) \
   if (!(CODE)) { \
+    std::cout << "    - \033[31m" << #CODE << NC << std::endl; \
+    ok = false; \
+    break; \
+  }
+
+#define qb_assert_or(CODE, ELSE) \
+  if (!(CODE)) { \
+    ELSE \
     std::cout << "    - \033[31m" << #CODE << NC << std::endl; \
     ok = false; \
     break; \

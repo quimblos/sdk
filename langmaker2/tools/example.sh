@@ -4,16 +4,22 @@ clear
 cd build
 cmake ..
 make
-
 cd ..
-valgrind -s --leak-check=full build/langmaker example target/schema/example.ebnf
 
-cd target
+rm -rf zoo
+mkdir zoo
+
+echo "grammar ::= animal+
+animal ::= 'cat'|'dog'" > zoo/syntax.ebnf
+
+echo "grammar -> Zoo:
+  animals = animal[]
+animal -> Animal:
+  type = #" > zoo/semantics.gsf
+
+valgrind -s --leak-check=full build/langmaker zoo zoo/syntax.ebnf zoo/semantics.gsf
+
+cd zoo
 sh build.sh
 
-valgrind -s --leak-check=full build/example-parser "HELLO=
-OLA=MUNDO
-"
-
-# valgrind --tool=massif --stacks=yes build/blink
-# ms_print massif.out.
+valgrind -s --leak-check=full build/zoo-cli "catdog"

@@ -1,10 +1,11 @@
 #pragma once
 
+#include <vector>
 #include "cst.h"
 
 struct ASTNode {
   const CSTNode* cst;
-  const ASTNode* children;
+  ASTNode(const CSTNode& cst): cst(&cst) {}
 
-  ASTNode(const CSTNode* cst): cst(cst) {}
+  virtual const std::string to_str() const = 0;
 };

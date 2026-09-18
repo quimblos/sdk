@@ -7,14 +7,19 @@ set(CMAKE_BUILD_TYPE Debug)
 project (cpp-langmaker)
 
 set(SYNTAX_SOURCES
-    src/ebnf.cpp
-    src/parser.cpp
-    src/meta.cpp
+    src/syntax/parser.cpp
+    src/syntax/impl.cpp
+    src/syntax/writer.cpp
 )
 
 set(SEMANTICS_SOURCES
-    src/semantics_syntax.cpp
-    src/semantics.cpp
+    src/semantics/parser.cpp
+    src/semantics/impl.cpp
+    src/semantics/writer.cpp
+)
+
+set(MAIN_SOURCES
+    src/bundler.cpp
 )
 
 # Tool: Make Semantics Parser (make-semantics)
@@ -27,14 +32,26 @@ target_include_directories(make-semantics
 
 add_custom_command(
   WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
-  OUTPUT ../src/semantics.cpp
+  OUTPUT ../src/semantics/impl.cpp
   DEPENDS ../**/*
   COMMAND make-semantics
 )
 
-# Static Lib (llangmaker.a)
+# Tool: Make Inline Header (make-inline)
 
-add_library(lang STATIC ${SYNTAX_SOURCES} ${SEMANTICS_SOURCES})
+add_executable(make-inline tools/make_inline_header.cpp)
+
+add_custom_command(
+  WORKING_DIRECTORY ${PROJECT_SOURCE_DIR}
+  OUTPUT ../include/inline.h
+  DEPENDS ../**/*
+  COMMAND make-inline
+)
+
+# Static Lib (llang.a)
+
+add_library(lang STATIC ${SYNTAX_SOURCES} ${SEMANTICS_SOURCES} ${MAIN_SOURCES} include/inline.h)
+add_dependencies(lang make-inline)
 
 target_include_directories(lang
     PRIVATE ${PROJECT_SOURCE_DIR}/include
@@ -52,18 +69,17 @@ target_link_libraries(test
     PUBLIC lang
 )
 
-## CLI
-#
-#add_executable(langmaker src/cli.cpp)
-#
-#target_include_directories(langmaker
-#    PRIVATE ${PROJECT_SOURCE_DIR}/include
-#)
-#
-#target_link_libraries(langmaker
-#    PUBLIC lang
-#)
-#
+# CLI
+
+add_executable(langmaker src/cli.cpp)
+
+target_include_directories(langmaker
+    PRIVATE ${PROJECT_SOURCE_DIR}/include
+)
+
+target_link_libraries(langmaker
+    PUBLIC lang
+)
+
 ## Target
-#
-##add_subdirectory(target)
+#add_subdirectory(target)

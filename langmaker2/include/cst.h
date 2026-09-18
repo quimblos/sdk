@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -11,7 +12,7 @@
 #define COLOR_RED "\033[31m"
 #define COLOR_NC "\033[0m"
 
-struct Error {
+struct CSTError {
     enum Code {
         REQUIRED_TERM = 0x00,
         PARSING_FAILED
@@ -36,16 +37,16 @@ struct CSTNode {
     uint32_t end;
     
     std::vector<CSTNode> children;
-    std::vector<Error> errors;
+    std::vector<CSTError> errors;
 
     // For identation-sensitive languages
     uint8_t tab = 0;
     
-    std::string text(std::string input) const {
-        return input.substr(this->start, this->end-this->start);
+    std::string text(std::string file) const {
+        return file.substr(this->start, this->end-this->start);
     }
 
-    std::string to_str(std::string input, uint16_t depth = 0) const {
+    std::string to_str(std::string file, uint16_t depth = 0) const {
         std::ostringstream ss;
         if (this->errors.size()) ss << COLOR_RED << "!" << COLOR_NC;
         else  ss << " ";
@@ -53,8 +54,8 @@ struct CSTNode {
 
         std::string input_format = std::string(this->end-this->start, ' ');
         for (uint16_t i = this->start; i < this->end; i++) {
-            if (input[i] == '\n') input_format[i-this->start] = '\\';
-            else input_format[i-this->start] = input[i];
+            if (file[i] == '\n') input_format[i-this->start] = '\\';
+            else input_format[i-this->start] = file[i];
         }
 
         for (uint16_t i = 0; i < depth; i++) {
@@ -80,7 +81,7 @@ struct CSTNode {
             if (child.rule == "letter") continue;
             if (child.rule == "ws") continue;
             if (child.rule == "eol") continue;
-            ss << child.to_str(input, depth+1);
+            ss << child.to_str(file, depth+1);
         }
         return ss.str();
     }

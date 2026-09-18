@@ -3,13 +3,17 @@
 #include <sstream>
 #include <string>
 #include "ast.h"
+#include "syntax/parser.h"
 
 namespace semantics {
 
+  struct Rule;
   struct Prop {
-    std::string key;
-    std::string value;
-    struct {
+    const std::string key;
+    const std::string value;
+    uint8_t term;
+    Rule* rule;
+    const struct {
       bool extract_text:1 = false;
       bool array_of:1 = false;
     } modifiers = {};
@@ -26,8 +30,8 @@ namespace semantics {
   typedef std::vector<Prop> Props;
 
   struct Rule {
-    std::string cst;
-    std::string ast;
+    const std::string cst;
+    const std::string ast;
     Props props;
 
     std::string to_str() const {
@@ -54,13 +58,16 @@ namespace semantics {
   };
   
   struct res_t {
-      enum Code {
+      const enum Code {
           OK = 0x00,
-          SEMANTICS_SYNTAX_ERROR
+          SYNTAX_ERROR,
+          INVALID_CST_RULE,
+          INVALID_CST_TERM,
+          MISSING_RULE
       } code;
-      const Schema* out = nullptr;
+      const Schema* schema = nullptr;
   };
 
-  const CSTNode parse(std::string input);
-  const res_t build(const std::string& input);
+  const CSTNode parse(std::string def);
+  const res_t build(const syntax::Schema& syntax, const std::string& def);
 }

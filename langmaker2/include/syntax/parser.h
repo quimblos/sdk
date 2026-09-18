@@ -1,11 +1,12 @@
 #pragma once
 
+#include <cstdint>
 #include <vector>
 #include <list>
 #include <string>
 #include <unordered_map>
 
-namespace ebnf {
+namespace syntax {
 
     typedef std::vector<std::pair<uint8_t, uint8_t>> charmap_t;
 
@@ -50,7 +51,7 @@ namespace ebnf {
         std::vector<Term> terms;
     };
 
-    typedef std::unordered_map<std::string, Rule> RuleMap;
+    typedef std::unordered_map<std::string, Rule> Schema;
 
     struct res_t {
         enum Code {
@@ -62,7 +63,7 @@ namespace ebnf {
             EMPTY_CHARMAP,
             NO_GRAMMAR_RULE
         } code;
-        const ebnf::RuleMap* rules = nullptr;
+        const syntax::Schema* schema = nullptr;
     };
 
     const res_t parse(std::string ebnf);

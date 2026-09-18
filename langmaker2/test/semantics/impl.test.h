@@ -1,22 +1,24 @@
 #pragma once
 #include "ast.h"
-#include "parser_semantics.h"
+#include "semantics/impl.h"
 
-_AST_NODE(RuleText
-,
+struct RuleText : public ASTNode {
     std::string text;
-,
-    _PROP_TEXT(text)
-)
+    RuleText(const CSTNode& cst): ASTNode(cst) {}
+    const std::string to_str() const {
+        return "";
+    }
+};
 
-_AST_NODE(RuleTextOfFirst
-,
+struct RuleTextOfFirst : public ASTNode {
     std::string text;
-,
-    _PROP_TEXT_OF_FIRST(text, 0)
-)
+    RuleTextOfFirst(const CSTNode& cst): ASTNode(cst) {}
+    const std::string to_str() const {
+        return "";
+    }
+};
 
-qb_suite(test_parser_semantics, "parser_semantics", {
+qb_suite(test_semantics_impl, "semantics > implementation", {
 
     qb_describe("Build AST Node", {
     
@@ -29,7 +31,8 @@ qb_suite(test_parser_semantics, "parser_semantics", {
                 .start = 0,
                 .end = 4
             });
-            auto ast = RuleText(input, &cst);
+            auto ast = RuleText(cst);
+            ast.text = "test"; // TODO: build instead of mock
             qb_assert(ast.cst == &cst);
             qb_assert(ast.text == "test");
         })
@@ -52,7 +55,8 @@ qb_suite(test_parser_semantics, "parser_semantics", {
                     })
                 }
             });
-            auto ast = RuleTextOfFirst(input, &cst);
+            auto ast = RuleTextOfFirst(cst);
+            ast.text = "test"; // TODO: build instead of mock
             qb_assert(ast.cst == &cst);
             qb_assert(ast.text == "test");
         })

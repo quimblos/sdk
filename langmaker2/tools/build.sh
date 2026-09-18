@@ -1,4 +1,4 @@
-rm src/semantics.cpp
+rm src/semantics/impl.cpp
 
 rm -rf build
 mkdir build

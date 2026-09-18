@@ -1,9 +1,10 @@
 #pragma once
-#include "semantics.h"
+#include "cst.h"
+#include "semantics/parser.h"
 
-qb_suite(test_semantics, "semantics", {
+qb_suite(test_semantics_parser, "semantics > parser", {
 
-    qb_describe("Parser", {
+    qb_describe("Parse", {
     
         qb_test("grammar -> (error: incomplete rule)", {
             std::string input = "grammar ->\n";
@@ -173,4 +174,24 @@ qb_suite(test_semantics, "semantics", {
             qb_assert(root.children[1].children[1].children[2].children[4].text(input) == "#word")
         })
     })
+
+    // qb_describe("Build", {
+    
+    //     qb_test("rule -> Rule:\n  text = #", {
+    //         std::string input = "rule -> Rule:\n  text = #\n";
+    //         auto res = semantics::build(input);
+    //         qb_assert(res.code == semantics::res_t::Code::OK)
+    //         // std::cout << res.schema->to_str() << std::endl;
+    //         qb_assert(res.schema->rules.size() == 1)
+    //         qb_assert(res.schema->rules[0].cst == "rule")
+    //         qb_assert(res.schema->rules[0].ast == "Rule")
+    //         qb_assert(res.schema->rules[0].props.size() == 1)
+    //         qb_assert(res.schema->rules[0].props[0].key == "text")
+    //         qb_assert(res.schema->rules[0].props[0].value == "")
+    //         qb_assert(res.schema->rules[0].props[0].modifiers.extract_text == true)
+    //         qb_assert(res.schema->rules[0].props[0].modifiers.array_of == false)
+    //         delete res.schema;
+    //     })
+   
+    // })
 })

@@ -1,10 +1,10 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <vector>
-#include "ebnf.h"
 
-#define __RETURN(KIND, NAME) \
+#define _STX__RETURN(KIND, NAME) \
     return new CSTNode({ \
         .kind = CSTNode::Kind::KIND, \
         .rule = NAME, \
@@ -15,23 +15,23 @@
         .errors = errors, \
     }); \
 
-#define _RULE(NAME, KIND, FN, GUARD) \
+#define _STX_RULE(NAME, KIND, FN, GUARD) \
     const CSTNode* parse_##NAME(const std::string& input, uint32_t n, uint32_t i, uint8_t term) { \
         std::vector<CSTNode> children; \
-        std::vector<Error> errors; \
+        std::vector<CSTError> errors; \
         uint32_t start = i; \
         uint8_t ti = 0; \
         while (i < n) { \
             FN \
         } \
         GUARD \
-        __RETURN(KIND, #NAME) \
+        _STX__RETURN(KIND, #NAME) \
     }
 
 // Terms
 
-#define _TERM_LITERAL(TERM, CONTENT, CONTENT_LEN, AFTER, ELSE) { \
-    bool match = parser::check_literal(input, n, i, CONTENT); \
+#define _STX_TERM_LITERAL(TERM, CONTENT, CONTENT_LEN, AFTER, ELSE) { \
+    bool match = syntax::check_literal(input, n, i, CONTENT); \
     if (match) { \
         children.push_back({ \
             .kind = CSTNode::Kind::LITERAL, \
@@ -47,7 +47,7 @@
     } \
 }
 
-#define _TERM_CHARMAP(TERM, MATCH, AFTER, ELSE) { \
+#define _STX_TERM_CHARMAP(TERM, MATCH, AFTER, ELSE) { \
     const char ch = input[i]; \
     if (MATCH) { \
         children.push_back({ \
@@ -64,7 +64,7 @@
     } \
 }
 
-#define _TERM_RULE(RULE, TERM, ON_ERROR, AFTER, ELSE) { \
+#define _STX_TERM_RULE(RULE, TERM, ON_ERROR, AFTER, ELSE) { \
     const CSTNode* node = parse_##RULE(input, n, i, TERM); \
     ON_ERROR \
     if (node->end > i) { \
@@ -81,38 +81,38 @@
 
 // After
 
-#define __ON_ERROR_FAIL \
+#define _STX___ON_ERROR_FAIL \
     if (node == nullptr || node->errors.size()) return nullptr;
-#define __ON_ERROR_NONFAIL(CPPKIND, MODIFIER, RULE, TERM) \
+#define _STX__ON_ERROR_NONFAIL(CPPKIND, MODIFIER, RULE, TERM) \
     if (node->errors.size()) { \
         MODIFIER \
         children.push_back(*node); \
         delete node; \
-        __ERROR_INNER(TERM) \
-        __RETURN(CPPKIND, RULE) \
+        _STX__ERROR_INNER(TERM) \
+        _STX__RETURN(CPPKIND, RULE) \
     }
 
-#define __ON_ERROR_MOD_REQUIRED \
+#define _STX__ON_ERROR_MOD_REQUIRED \
     i = node->end;
     
-#define __ON_ERROR_MOD_OPTIONAL \
+#define _STX__ON_ERROR_MOD_OPTIONAL \
     delete node; \
     ti++; \
     continue;
 
-#define __ON_ERROR_MOD_MANY(T, TERM, IS_GRAMMAR) \
+#define _STX__ON_ERROR_MOD_MANY(T, TERM, IS_GRAMMAR) \
     if (children.size() > 0 && children.back().term == T) { \
         if (IS_GRAMMAR) {\
             children.push_back(*node); \
             i = node->end; \
-            __ERROR_INNER(TERM) \
+            _STX__ERROR_INNER(TERM) \
         } \
         delete node; \
         ti++; \
         continue; \
     }
 
-#define __ON_ERROR_OR \
+#define _STX__ON_ERROR_OR \
     if (node == nullptr || node->errors.size()) { \
         delete node; \
         ti += 2; \
@@ -121,64 +121,64 @@
 
 // After
 
-#define __AFTER_REQUIRED ti++; continue;
-#define __AFTER_OPTIONAL ti++; continue;
-#define __AFTER_ZERO_OR_N continue;
-#define __AFTER_ONE_OR_N if (i>=n) ti++; continue;
+#define _STX__AFTER_REQUIRED ti++; continue;
+#define _STX__AFTER_OPTIONAL ti++; continue;
+#define _STX__AFTER_ZERO_OR_N continue;
+#define _STX__AFTER_ONE_OR_N if (i>=n) ti++; continue;
 
-#define __AFTER_OR \
+#define _STX__AFTER_OR \
     ti++; \
     break;
 
 // Else
 
     // NONE
-#define __ELSE_REQUIRED_FAIL() \
+#define _STX__ELSE_REQUIRED_FAIL() \
     return nullptr;
 
-#define __ELSE_REQUIRED_STOP(TERM, RULE_NAME) \
-    __ERROR_REQUIRED(TERM) \
-    __RETURN(RULE, RULE_NAME)
+#define _STX__ELSE_REQUIRED_STOP(TERM, RULE_NAME) \
+    _STX__ERROR_REQUIRED(TERM) \
+    _STX__RETURN(RULE, RULE_NAME)
 
-#define __ELSE_REQUIRED_CONTINUE \
+#define _STX__ELSE_REQUIRED_CONTINUE \
     break;
     
     // ?/*
-#define __ELSE_OPTIONAL() \
+#define _STX__ELSE_OPTIONAL() \
     ti++; \
     continue;
 
     // */+
-#define __ELSE_MANY(TERM) \
+#define _STX__ELSE_MANY(TERM) \
     if (children.size() > 0 && children.back().term == TERM) { \
         ti++; \
         continue; \
     } \
 
-#define __ELSE_OR \
+#define _STX__ELSE_OR \
     ti += 2; \
     continue;
 
 // Else
 
-#define __ERROR_REQUIRED(TERM) \
+#define _STX__ERROR_REQUIRED(TERM) \
     errors.push_back({ \
-        .code = Error::Code::REQUIRED_TERM, \
+        .code = CSTError::Code::REQUIRED_TERM, \
         .pos = i, \
         .pi = (uint16_t)(children.size()-1), \
         .ti = (uint8_t) ti, \
         .message = TERM " is required" \
     });
 
-#define __ERROR_INNER(TERM) \
+#define _STX__ERROR_INNER(TERM) \
     errors.push_back({ \
-        .code = Error::Code::REQUIRED_TERM, \
+        .code = CSTError::Code::REQUIRED_TERM, \
         .pos = i, \
         .pi = (uint16_t)(children.size()-1), \
         .ti = (uint8_t) ti, \
         .message = TERM " contains errors" \
     });
 
-namespace parser {
+namespace syntax {
     bool check_literal(std::string input, uint32_t n, uint32_t i, std::string literal);
 }
